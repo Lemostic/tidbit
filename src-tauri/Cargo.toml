@@ -38,3 +38,8 @@ async-trait = "0.1.89"
 
 [dev-dependencies]
 tempfile = "3"
+criterion = "0.5"
+
+[[bench]]
+name = "repo"
+harness = false
