@@ -1,2 +1,5 @@
 :root { --bg: #fafafa; --fg: #1f2937; --accent: #2f6feb; --titlebar-h: 28px; }
-@media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #e5e7eb; } }
+:root[data-theme="light"] { --bg: #fafafa; --fg: #1f2937; --accent: #2f6feb; }
+:root[data-theme="dark"] { --bg: #111; --fg: #e5e7eb; --accent: #6b9cf5; }
+:root[data-theme="sepia"] { --bg: #f5ecd9; --fg: #3a2a14; --accent: #8c5a2c; --note-bg: #fff8e1; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) { --bg: #111; --fg: #e5e7eb; } }
