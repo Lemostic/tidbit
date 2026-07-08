@@ -23,6 +23,9 @@ importers:
       react-dom:
         specifier: ^18.3.0
         version: 18.3.0(react@18.3.0)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2.0.0
@@ -1658,6 +1661,9 @@ packages:
     resolution: {integrity: sha512-4LCcse/U2MHZ63HAJVE+v71o7yOdIe4cZ70Wpf8D/IyjDKYQLV5GD46B+hSTjJsvV5PztjvHoU580EftxjDZFQ==}
     engines: {node: '>=12.20'}
 
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
@@ -3139,3 +3145,5 @@ snapshots:
   yallist@3.1.1: {}
 
   yocto-queue@1.2.2: {}
+
+  zod@4.4.3: {}

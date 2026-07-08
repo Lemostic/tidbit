@@ -31,6 +31,7 @@
     "@tauri-apps/plugin-global-shortcut": "^2.0.0",
     "@tauri-apps/plugin-window-state": "^2.0.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-dom": "^18.3.0",
+    "zod": "^4.4.3"
   }
 }
