@@ -2,21 +2,53 @@ import { Titlebar } from "./app/Titlebar";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
 import { NotesGrid } from "./features/notes/NotesGrid";
 import { RestoreWizard } from "./features/backup/RestoreWizard";
-import { useState } from "react";
+import { CommandPalette } from "./app/CommandPalette";
+import { buildCommands } from "./app/buildCommands";
+import { useState, useEffect } from "react";
 
 export default function App() {
   const [groupId, setGroupId] = useState<number | null>(null);
   const [restorePath, setRestorePath] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const commands = buildCommands({
+    newNote: () => { /* wired via NotesGrid */ },
+    newGroup: () => { /* wired via GroupsSidebar */ },
+    toggleTheme: () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; },
+    toggleDocking: () => { /* TBD */ },
+    manualBackup: () => { /* TBD */ },
+    openBackups: () => { setRestorePath(""); },
+    lockNow: () => { /* TBD */ },
+    showHidden: () => { /* TBD */ },
+    openSettings: () => { /* TBD */ },
+  });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        setPaletteOpen(true);
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <>
-      <Titlebar />
+      <Titlebar onOpenPalette={() => setPaletteOpen(true)} />
       <div style={{ display: "flex" }}>
         <GroupsSidebar selectedId={groupId} onSelect={setGroupId} />
         <NotesGrid groupId={groupId} />
       </div>
-      {restorePath && (
+      <CommandPalette
+        open={paletteOpen}
+        commands={commands}
+        onClose={() => setPaletteOpen(false)}
+      />
+      {restorePath !== null && (
         <RestoreWizard
-          onDone={(p) => {
+          onDone={() => {
             setRestorePath(null);
             location.reload();
           }}
