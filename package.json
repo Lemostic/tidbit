@@ -30,8 +30,12 @@
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-global-shortcut": "^2.0.0",
     "@tauri-apps/plugin-window-state": "^2.0.0",
+    "@tiptap/pm": "^3.27.3",
+    "@tiptap/react": "^3.27.3",
+    "@tiptap/starter-kit": "^3.27.3",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "tiptap-markdown": "^0.9.0",
     "zod": "^4.4.3"
   }
 }
