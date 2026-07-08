@@ -1,0 +1,2 @@
+:root { --bg: #fafafa; --fg: #1f2937; --accent: #2f6feb; --titlebar-h: 28px; }
+@media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #e5e7eb; } }
