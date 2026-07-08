@@ -53,6 +53,7 @@ pub fn run() {
             ipc::backup::backup_snapshot_now,
             ipc::backup::backup_restore,
             ipc::backup::backup_list,
+            ipc::search::search_query,
         ])
         .on_window_event(|win, ev| window_state::install_close_to_tray(win.app_handle(), ev))
         .run(tauri::generate_context!())
