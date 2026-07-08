@@ -3,7 +3,7 @@
   "productName": "tidbit",
   "version": "0.1.0",
   "identifier": "dev.tidbit.app",
-  "build": { "frontendDist": "../dist", "devUrl": "http://localhost:1420" },
+  "build": { "beforeDevCommand": "pnpm dev", "frontendDist": "../dist", "devUrl": "http://localhost:1420" },
   "app": {
     "windows": [
       { "label": "main", "title": "tidbit", "url": "index.html", "width": 1280, "height": 800, "decorations": false, "resizable": true }
