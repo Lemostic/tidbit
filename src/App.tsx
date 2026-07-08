@@ -1,5 +1,6 @@
 import { Titlebar } from "./app/Titlebar";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
+import { NotesGrid } from "./features/notes/NotesGrid";
 import { useState } from "react";
 
 export default function App() {
@@ -9,7 +10,7 @@ export default function App() {
       <Titlebar />
       <div style={{ display: "flex" }}>
         <GroupsSidebar selectedId={groupId} onSelect={setGroupId} />
-        <main style={{ flex: 1, padding: 16 }}>group: {groupId ?? "all"}</main>
+        <NotesGrid groupId={groupId} />
       </div>
     </>
   );
