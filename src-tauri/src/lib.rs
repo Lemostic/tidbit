@@ -12,6 +12,8 @@ pub mod tray;
 pub mod window;
 pub mod window_state;
 
+pub mod backup;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -20,6 +22,7 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir().expect("appdata");
             std::fs::create_dir_all(&dir)?;
+            std::fs::create_dir_all(dir.join("backups"))?;
             let db_path = dir.join("tidbit.db");
             let pool = infra::db::open(&db_path, "devkey")?;
             infra::migrations::run(&pool)?;
