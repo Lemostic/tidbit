@@ -4,6 +4,7 @@ pub mod domain;
 pub mod error;
 pub mod hotkey;
 pub mod infra;
+pub mod repo;
 pub mod tray;
 pub mod window_state;
 
