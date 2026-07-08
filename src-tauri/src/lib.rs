@@ -41,6 +41,9 @@ pub fn run() {
             ipc::groups::groups_create,
             ipc::window::window_set_geometry,
             ipc::window::window_apply_edge_dock,
+            ipc::window::window_hide_now,
+            ipc::window::window_show_all_hidden,
+            ipc::window::window_arm_autohide,
         ])
         .on_window_event(|win, ev| window_state::install_close_to_tray(win.app_handle(), ev))
         .run(tauri::generate_context!())

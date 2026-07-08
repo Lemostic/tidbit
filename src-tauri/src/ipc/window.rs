@@ -2,6 +2,7 @@ use crate::domain::EdgeDock;
 use crate::error::AppError;
 use crate::state::AppState;
 use crate::window::edge_dock::{detect_dock, Rect};
+use crate::window::hide::schedule_hide;
 use tauri::{Manager, State};
 
 #[tauri::command]
@@ -63,4 +64,35 @@ pub async fn window_apply_edge_dock(
         }
     }
     Ok(label)
+}
+
+#[tauri::command]
+pub async fn window_hide_now(app: tauri::AppHandle, _state: State<'_, AppState>, _id: i64) -> Result<(), AppError> {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.hide();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn window_show_all_hidden(app: tauri::AppHandle, _state: State<'_, AppState>) -> Result<(), AppError> {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn window_arm_autohide(app: tauri::AppHandle, _state: State<'_, AppState>, _id: i64) -> Result<(), AppError> {
+    let app2 = app.clone();
+    let _cancel = schedule_hide(
+        move || {
+            if let Some(w) = app2.get_webview_window("main") {
+                let _ = w.hide();
+            }
+        },
+        800,
+    );
+    Ok(())
 }
