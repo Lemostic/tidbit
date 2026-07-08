@@ -1,2 +1,26 @@
-node_modules/, dist/, target/, src-tauri/target/, *.log, .DS_Store
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+target/
+src-tauri/target/
+src-tauri/gen/
+
+# logs
+*.log
+
+# editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# tauri
+src-tauri/Cargo.lock
+
+# lockfiles - keep pnpm-lock.yaml; track Cargo.lock at project root only if needed later
+# (currently only pnpm-lock.yaml is committed)
+
+# superpowers scratch
 .superpowers/sdd/

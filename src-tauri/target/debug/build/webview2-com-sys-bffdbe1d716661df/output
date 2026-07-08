@@ -1,2 +1,0 @@
-cargo:rustc-link-search=native=D:\Users\merit\Documents\GitHub\tidbit\src-tauri\target\debug\build\webview2-com-sys-bffdbe1d716661df\out\x64
-cargo:rustc-link-lib=advapi32

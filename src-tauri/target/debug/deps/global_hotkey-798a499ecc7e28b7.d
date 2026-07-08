@@ -1,9 +1,0 @@
-D:\Users\merit\Documents\GitHub\tidbit\src-tauri\target\debug\deps\global_hotkey-798a499ecc7e28b7.d: C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\lib.rs C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\error.rs C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\hotkey.rs C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\platform_impl\mod.rs C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\platform_impl\windows\mod.rs
-
-D:\Users\merit\Documents\GitHub\tidbit\src-tauri\target\debug\deps\libglobal_hotkey-798a499ecc7e28b7.rmeta: C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\lib.rs C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\error.rs C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\hotkey.rs C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\platform_impl\mod.rs C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\platform_impl\windows\mod.rs
-
-C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\lib.rs:
-C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\error.rs:
-C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\hotkey.rs:
-C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\platform_impl\mod.rs:
-C:\Users\merit\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\global-hotkey-0.8.0\src\platform_impl\windows\mod.rs:
