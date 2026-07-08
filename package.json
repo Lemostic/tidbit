@@ -3,8 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build",
+    "dev": "vite",
+    "build": "vite build",
+    "tauri": "tauri",
     "lint": "eslint src --max-warnings 0",
     "typecheck": "tsc -p tsconfig.base.json --noEmit",
     "test": "vitest run",
