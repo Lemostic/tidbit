@@ -1,0 +1,14 @@
+use crate::domain::Group;
+use crate::error::AppError;
+use crate::state::AppState;
+use tauri::State;
+
+#[tauri::command]
+pub async fn groups_list(state: State<'_, AppState>) -> Result<Vec<Group>, AppError> {
+    state.groups.list()
+}
+
+#[tauri::command]
+pub async fn groups_create(state: State<'_, AppState>, name: String) -> Result<Group, AppError> {
+    state.groups.create(&name)
+}
