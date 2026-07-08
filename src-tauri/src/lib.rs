@@ -6,6 +6,7 @@ pub mod hotkey;
 pub mod infra;
 pub mod ipc;
 pub mod repo;
+pub mod security;
 pub mod state;
 pub mod tray;
 pub mod window;
