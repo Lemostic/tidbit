@@ -8,6 +8,7 @@ pub mod ipc;
 pub mod repo;
 pub mod state;
 pub mod tray;
+pub mod window;
 pub mod window_state;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,6 +39,8 @@ pub fn run() {
             ipc::notes::notes_restore,
             ipc::groups::groups_list,
             ipc::groups::groups_create,
+            ipc::window::window_set_geometry,
+            ipc::window::window_apply_edge_dock,
         ])
         .on_window_event(|win, ev| window_state::install_close_to_tray(win.app_handle(), ev))
         .run(tauri::generate_context!())
