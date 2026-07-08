@@ -28,6 +28,8 @@ pub fn run() {
             infra::migrations::run(&pool)?;
             let state = state::AppState::new(pool.clone());
             app.manage(state);
+            // BackupKey: v1 uses a zeroed key (M5 will wire from UI PIN)
+            app.manage(state::BackupKey([0u8; 32]));
             tray::build_tray(app)?;
             hotkey::register(&app.handle())?;
             Ok(())
@@ -48,6 +50,9 @@ pub fn run() {
             ipc::window::window_hide_now,
             ipc::window::window_show_all_hidden,
             ipc::window::window_arm_autohide,
+            ipc::backup::backup_snapshot_now,
+            ipc::backup::backup_restore,
+            ipc::backup::backup_list,
         ])
         .on_window_event(|win, ev| window_state::install_close_to_tray(win.app_handle(), ev))
         .run(tauri::generate_context!())

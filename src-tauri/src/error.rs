@@ -10,6 +10,8 @@ pub enum AppError {
     Migration(String),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
+    #[error("tauri: {0}")]
+    Tauri(#[from] tauri::Error),
     #[error("lock")]
     Lock,
     #[error("not_found")]
@@ -23,6 +25,7 @@ impl Serialize for AppError {
             AppError::Pool(_) => "pool",
             AppError::Migration(_) => "migration",
             AppError::Io(_) => "io",
+            AppError::Tauri(_) => "tauri",
             AppError::Lock => "lock",
             AppError::NotFound => "not_found",
         })

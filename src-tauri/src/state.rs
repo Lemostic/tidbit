@@ -2,6 +2,8 @@ use crate::infra::db::Pool;
 use crate::repo::{group_repo::GroupRepo, note_repo::NoteRepo, revision_repo::RevisionRepo};
 use std::sync::Arc;
 
+pub struct BackupKey(pub [u8; 32]);
+
 pub struct AppState {
     pub pool: Pool,
     pub groups: Arc<GroupRepo>,
