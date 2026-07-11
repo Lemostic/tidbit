@@ -49,4 +49,17 @@ impl GroupRepo {
             updated_at: now,
         })
     }
+
+    /// Delete a group. Notes in the group are detached (group_id → NULL) rather
+    /// than deleted, so their content is preserved under "全部便签". Runs in a
+    /// transaction because PRAGMA foreign_keys is not enabled on the pool, so the
+    /// schema's ON DELETE SET NULL does not fire automatically.
+    pub fn delete(&self, id: i64) -> Result<(), AppError> {
+        let mut conn = self.pool.get()?;
+        let tx = conn.transaction()?;
+        tx.execute("UPDATE note SET group_id = NULL WHERE group_id = ?1", rusqlite::params![id])?;
+        tx.execute("DELETE FROM `group` WHERE id = ?1", rusqlite::params![id])?;
+        tx.commit()?;
+        Ok(())
+    }
 }

@@ -45,6 +45,7 @@ pub fn run() {
             ipc::notes::notes_restore,
             ipc::groups::groups_list,
             ipc::groups::groups_create,
+            ipc::groups::groups_delete,
             ipc::window::window_set_geometry,
             ipc::window::window_apply_edge_dock,
             ipc::window::window_hide_now,

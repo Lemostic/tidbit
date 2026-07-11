@@ -47,31 +47,16 @@ export function NoteEditor({ noteId, initialMd, onClose }: NoteEditorProps) {
   }, [editor, flush]);
 
   return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 100,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: "rgba(0,0,0,0.4)",
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: 640, maxHeight: "80vh", background: "var(--bg, #fff)",
-          borderRadius: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-          display: "flex", flexDirection: "column", overflow: "hidden",
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ display: "flex", alignItems: "center", padding: "8px 12px", borderBottom: "1px solid #e5e7eb" }}>
-          <span style={{ flex: 1, fontWeight: 600 }}>Edit Note #{noteId}</span>
-          <button type="button" onClick={onClose} style={{ padding: "4px 8px" }}>Close</button>
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <span className="modal__title">编辑便签 <span className="mono">#{noteId}</span></span>
+          <button type="button" className="btn-icon" aria-label="关闭" title="关闭" onClick={onClose}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </button>
         </div>
         {editor && <EditorToolbar editor={editor} />}
-        <EditorContent
-          editor={editor}
-          style={{ flex: 1, padding: 12, overflowY: "auto", outline: "none" }}
-        />
+        <EditorContent editor={editor} className="editor-content" />
       </div>
     </div>
   );

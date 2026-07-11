@@ -12,3 +12,8 @@ pub async fn groups_list(state: State<'_, AppState>) -> Result<Vec<Group>, AppEr
 pub async fn groups_create(state: State<'_, AppState>, name: String) -> Result<Group, AppError> {
     state.groups.create(&name)
 }
+
+#[tauri::command]
+pub async fn groups_delete(state: State<'_, AppState>, id: i64) -> Result<(), AppError> {
+    state.groups.delete(id)
+}

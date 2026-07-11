@@ -13,6 +13,10 @@ export function useGroups() {
       await refresh();
       return g;
     },
+    remove: async (id: number) => {
+      await client.groups.delete(id);
+      await refresh();
+    },
     refresh,
   };
 }

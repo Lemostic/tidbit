@@ -37,9 +37,11 @@ export default function App() {
   return (
     <>
       <Titlebar onOpenPalette={() => setPaletteOpen(true)} />
-      <div style={{ display: "flex" }}>
+      <div className="app-body">
         <GroupsSidebar selectedId={groupId} onSelect={setGroupId} />
-        <NotesGrid groupId={groupId} />
+        <div className="app-main">
+          <NotesGrid groupId={groupId} />
+        </div>
       </div>
       <CommandPalette
         open={paletteOpen}

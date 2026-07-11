@@ -6,9 +6,9 @@
   "build": { "beforeDevCommand": "pnpm dev", "frontendDist": "../dist", "devUrl": "http://localhost:1420" },
   "app": {
     "windows": [
-      { "label": "main", "title": "tidbit", "url": "index.html", "width": 1280, "height": 800, "decorations": false, "resizable": true }
+      { "label": "main", "title": "tidbit", "url": "index.html", "width": 360, "height": 640, "minWidth": 300, "minHeight": 420, "decorations": false, "resizable": true, "transparent": true }
     ],
     "security": { "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'" }
   },
-  "bundle": { "targets": ["msi"], "icon": ["icons/icon.png"] }
+  "bundle": { "active": true, "targets": ["nsis", "msi"], "icon": ["icons/icon.ico", "icons/icon.png"] }
 }

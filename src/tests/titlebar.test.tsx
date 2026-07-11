@@ -15,7 +15,7 @@ import { Titlebar } from "../app/Titlebar";
 
 test("renders window controls", () => {
   render(<Titlebar />);
-  expect(screen.getByRole("button", { name: /minimize/i })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /maximize/i })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /close/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "最小化" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "最大化" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "关闭" })).toBeInTheDocument();
 });

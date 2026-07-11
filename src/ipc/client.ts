@@ -32,5 +32,6 @@ export const client = {
       ),
     create: (name: string) =>
       invoke<Group>("groups_create", { name }).then(g => groupSchema.parse(g)),
+    delete: (id: number) => invoke<void>("groups_delete", { id }),
   },
 };

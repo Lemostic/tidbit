@@ -27,6 +27,7 @@ pnpm tauri build
 - [Design spec](./docs/superpowers/specs/2026-07-09-tidbit-sticky-notes-design.md)
 - [Implementation plan](./docs/superpowers/plans/2026-07-09-tidbit-sticky-notes-impl.md)
 - [Architecture](./docs/dev/architecture.md)
+- [Session handoff](./docs/dev/handoff.md) — 会话内未提交的工作、环境坑、已知问题
 
 ## Security notes
 

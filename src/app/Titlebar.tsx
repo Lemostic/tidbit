@@ -9,27 +9,28 @@ export function Titlebar({ onOpenPalette }: TitlebarProps) {
   const win = getCurrentWindow();
 
   return (
-    <header data-tauri-drag-region style={{
-      height: "var(--titlebar-h)", display: "flex", alignItems: "center",
-      padding: "0 8px", background: "var(--bg)", color: "var(--fg)", userSelect: "none",
-    }}>
-      <strong>tidbit</strong>
+    <header data-tauri-drag-region className="titlebar">
+      <strong className="titlebar__brand">tidbit</strong>
       <button
         onClick={onOpenPalette}
-        title="Search (Ctrl+K)"
-        style={{
-          marginLeft: 12, padding: "2px 10px", borderRadius: 12,
-          border: "1px solid #888", background: "var(--surface)", cursor: "pointer",
-          fontSize: 12, color: "var(--fg)",
-        }}
+        className="titlebar__search"
+        title="搜索 (Ctrl+K)"
       >
-        search ⌘K
+        <span>搜索便签</span>
+        <span className="titlebar__kbd">Ctrl K</span>
       </button>
-      <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+      <div className="titlebar__spacer" />
+      <div className="titlebar__actions">
         <ThemeSwitcher />
-        <button aria-label="Minimize" onClick={() => win.minimize()}>—</button>
-        <button aria-label="Maximize" onClick={() => win.toggleMaximize()}>◻</button>
-        <button aria-label="Close" onClick={() => win.close()}>✕</button>
+        <button className="btn-icon" aria-label="最小化" title="最小化" onClick={() => win.minimize()}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+        </button>
+        <button className="btn-icon" aria-label="最大化" title="最大化" onClick={() => win.toggleMaximize()}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/></svg>
+        </button>
+        <button className="btn-icon is-danger" aria-label="关闭" title="关闭" onClick={() => win.close()}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+        </button>
       </div>
     </header>
   );

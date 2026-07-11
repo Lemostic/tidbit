@@ -1,5 +1,113 @@
-:root { --bg: #fafafa; --fg: #1f2937; --accent: #2f6feb; --titlebar-h: 28px; }
-:root[data-theme="light"] { --bg: #fafafa; --fg: #1f2937; --accent: #2f6feb; }
-:root[data-theme="dark"] { --bg: #111; --fg: #e5e7eb; --accent: #6b9cf5; }
-:root[data-theme="sepia"] { --bg: #f5ecd9; --fg: #3a2a14; --accent: #8c5a2c; --note-bg: #fff8e1; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme]) { --bg: #111; --fg: #e5e7eb; } }
+/* Design tokens — neutral zinc base + one calm, desaturated accent.
+   No pure black, no neon/AI-purple glow. Shadows are tinted to the surface. */
+
+:root {
+  /* Accent: a single calm slate-blue, ~60% saturation (not neon). */
+  --accent: #3b6ea5;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(59, 110, 165, 0.14);
+
+  /* Neutral surfaces (light default). */
+  --bg: #f4f5f7;          /* app background */
+  --surface: #ffffff;     /* cards, panels */
+  --surface-2: #eceef1;   /* recessed / hover fills */
+  --fg: #1c2024;          /* off-black, never #000 */
+  --fg-muted: #5b636c;    /* secondary text */
+  --fg-subtle: #8b929b;   /* tertiary / meta */
+  --border: #e2e5e9;      /* hairlines */
+  --border-strong: #cfd4da;
+
+  /* Rail (group tabs). */
+  --rail-bg: #1f262e;
+  --rail-fg: #c7cdd6;
+
+  /* Note surface (sticky-note warmth kept subtle). */
+  --note-bg: #ffffff;
+  --note-accent: var(--accent);
+
+  /* Radius scale. */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+
+  /* Spacing scale. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+
+  /* Tinted, wide-spread diffusion shadows (never harsh black). */
+  --shadow-sm: 0 1px 2px rgba(28, 32, 36, 0.06), 0 1px 3px rgba(28, 32, 36, 0.05);
+  --shadow-md: 0 6px 16px -6px rgba(28, 32, 36, 0.14);
+  --shadow-lg: 0 20px 40px -18px rgba(28, 32, 36, 0.28);
+
+  /* Motion — premium easing, no linear. */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 0.12s;
+  --dur: 0.2s;
+
+  --titlebar-h: 34px;
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --accent: #6f9fd8;
+  --accent-fg: #0f1216;
+  --accent-soft: rgba(111, 159, 216, 0.18);
+
+  --bg: #14181c;
+  --surface: #1b2026;
+  --surface-2: #242b32;
+  --fg: #e6e9ee;
+  --fg-muted: #a3acb7;
+  --fg-subtle: #6f7883;
+  --border: #2a323a;
+  --border-strong: #384049;
+
+  --rail-bg: #0f1317;
+  --rail-fg: #b6bec9;
+
+  --note-bg: #1b2026;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 16px -6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 40px -18px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-theme="sepia"] {
+  color-scheme: light;
+  --accent: #9a6a3c;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(154, 106, 60, 0.16);
+
+  --bg: #f2e9d8;
+  --surface: #fbf5e9;
+  --surface-2: #ede2cd;
+  --fg: #3a2c18;
+  --fg-muted: #6b5a41;
+  --fg-subtle: #927e5f;
+  --border: #e0d3ba;
+  --border-strong: #cdbc9c;
+
+  --rail-bg: #3a2c18;
+  --rail-fg: #e4d6bc;
+
+  --note-bg: #fbf5e9;
+}
+
+/* Honor OS dark preference when no explicit theme is set. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #14181c; --surface: #1b2026; --surface-2: #242b32;
+    --fg: #e6e9ee; --fg-muted: #a3acb7; --border: #2a323a;
+    --rail-bg: #0f1317; --note-bg: #1b2026;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0.01ms; --dur: 0.01ms; }
+}

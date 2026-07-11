@@ -6,25 +6,34 @@ interface EditorToolbarProps {
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
   return (
-    <div style={{ display: "flex", gap: 4, padding: "4px 0", borderBottom: "1px solid #e5e7eb" }}>
+    <div className="toolbar">
       <button
         type="button"
+        aria-label="加粗"
+        title="加粗"
+        className={`toolbar__btn${editor.isActive("bold") ? " is-active" : ""}`}
         onClick={() => editor.chain().focus().toggleBold().run()}
-        style={{ fontWeight: editor.isActive("bold") ? "bold" : "normal", padding: "4px 8px", borderRadius: 4 }}
+        style={{ fontWeight: 700 }}
       >
         B
       </button>
       <button
         type="button"
+        aria-label="斜体"
+        title="斜体"
+        className={`toolbar__btn${editor.isActive("italic") ? " is-active" : ""}`}
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        style={{ fontStyle: editor.isActive("italic") ? "italic" : "normal", padding: "4px 8px", borderRadius: 4 }}
+        style={{ fontStyle: "italic" }}
       >
         I
       </button>
       <button
         type="button"
+        aria-label="代码"
+        title="代码"
+        className={`toolbar__btn${editor.isActive("code") ? " is-active" : ""}`}
         onClick={() => editor.chain().focus().toggleCode().run()}
-        style={{ fontFamily: editor.isActive("code") ? "monospace" : "inherit", padding: "4px 8px", borderRadius: 4 }}
+        style={{ fontFamily: "monospace" }}
       >
         {"<>"}
       </button>
