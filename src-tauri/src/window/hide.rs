@@ -1,7 +1,10 @@
 use std::sync::Arc;
 use tokio::sync::Notify;
 
-pub fn schedule_hide<F: FnOnce() + Send + 'static>(f: F, after_ms: u64) -> impl FnOnce() + Send + 'static {
+pub fn schedule_hide<F: FnOnce() + Send + 'static>(
+    f: F,
+    after_ms: u64,
+) -> impl FnOnce() + Send + 'static {
     let cancel = Arc::new(Notify::new());
     let cancel_worker = cancel.clone();
     tokio::spawn(async move {
@@ -10,5 +13,7 @@ pub fn schedule_hide<F: FnOnce() + Send + 'static>(f: F, after_ms: u64) -> impl 
             _ = cancel_worker.notified() => {}
         }
     });
-    move || { cancel.notify_one(); }
+    move || {
+        cancel.notify_one();
+    }
 }

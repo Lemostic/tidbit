@@ -36,14 +36,64 @@ fn list_by_group_none_returns_all_active() {
     let nr = NoteRepo::new(pr);
     let n1 = nr.create_in_group(None, "A").unwrap();
     let n2 = nr.create_in_group(None, "B").unwrap();
-    let all = nr.list_by_group(None).unwrap();
+    let all = nr.list_by_group(None, false).unwrap();
     assert_eq!(all.len(), 2);
-    // IDs should be in descending updated_at order (most recent first)
-    assert!(all[0].updated_at >= all[1].updated_at);
+    // Newly created notes are inserted first in the manual order.
+    assert_eq!(
+        all.iter().map(|n| n.id).collect::<Vec<_>>(),
+        vec![n2.id, n1.id]
+    );
     // Verify the notes are the ones we created
     let ids: Vec<i64> = all.iter().map(|n| n.id).collect();
     assert!(ids.contains(&n1.id));
     assert!(ids.contains(&n2.id));
+}
+
+#[test]
+fn reorder_persists_manual_order() {
+    let pr = common::pool();
+    let nr = NoteRepo::new(pr);
+    let a = nr.create_in_group(None, "A").unwrap();
+    let b = nr.create_in_group(None, "B").unwrap();
+    let c = nr.create_in_group(None, "C").unwrap();
+    nr.reorder(&[a.id, c.id, b.id]).unwrap();
+    let ids = nr
+        .list_by_group(None, false)
+        .unwrap()
+        .into_iter()
+        .map(|n| n.id)
+        .collect::<Vec<_>>();
+    assert_eq!(ids, vec![a.id, c.id, b.id]);
+}
+
+#[test]
+fn moving_to_group_places_note_at_the_end() {
+    let pr = common::pool();
+    let nr = NoteRepo::new(pr.clone());
+    pr.get()
+        .unwrap()
+        .execute(
+            "INSERT INTO `group`(name, created_at, updated_at) VALUES ('工作', 1, 1)",
+            [],
+        )
+        .unwrap();
+    let group_id = pr
+        .get()
+        .unwrap()
+        .query_row("SELECT id FROM `group` WHERE name='工作'", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .unwrap();
+    let existing = nr.create_in_group(Some(group_id), "已有").unwrap();
+    let moved = nr.create_in_group(None, "待移动").unwrap();
+    nr.move_to_group(moved.id, Some(group_id)).unwrap();
+    let ids = nr
+        .list_by_group(Some(group_id), false)
+        .unwrap()
+        .into_iter()
+        .map(|n| n.id)
+        .collect::<Vec<_>>();
+    assert_eq!(ids, vec![existing.id, moved.id]);
 }
 
 #[test]
@@ -53,7 +103,7 @@ fn list_by_group_filters_trashed() {
     let n = nr.create_in_group(None, "Keep").unwrap();
     let _ = nr.create_in_group(None, "Trash").unwrap();
     nr.trash(n.id + 1).unwrap();
-    let active = nr.list_by_group(None).unwrap();
+    let active = nr.list_by_group(None, false).unwrap();
     assert_eq!(active.len(), 1);
     assert_eq!(active[0].title.as_deref(), Some("Keep"));
 }
@@ -77,6 +127,88 @@ fn update_content_not_found() {
     let nr = NoteRepo::new(pr);
     let err = nr.update_content(9999, "x", "", 0).unwrap_err();
     assert!(matches!(err, tidbit_lib::error::AppError::NotFound));
+}
+
+#[test]
+fn unchanged_content_does_not_update_timestamp() {
+    let pr = common::pool();
+    let nr = NoteRepo::new(pr);
+    let note = nr.create_in_group(None, "Stable").unwrap();
+    let unchanged = nr.update_content(note.id, "", "", 0).unwrap();
+    assert_eq!(unchanged.updated_at, note.updated_at);
+}
+
+#[test]
+fn update_note_metadata() {
+    let pr = common::pool();
+    let nr = NoteRepo::new(pr);
+    let note = nr.create_in_group(None, "Draft").unwrap();
+    let note = nr.update_title(note.id, "Final title").unwrap();
+    assert_eq!(note.title.as_deref(), Some("Final title"));
+    let note = nr.set_pinned(note.id, true).unwrap();
+    assert!(note.is_pinned);
+    assert!(!note.is_content_hidden);
+    let note = nr.set_content_hidden(note.id, true).unwrap();
+    assert!(note.is_content_hidden);
+    let note = nr.set_color(note.id, Some("#d75555")).unwrap();
+    assert_eq!(note.color.as_deref(), Some("#d75555"));
+}
+
+#[test]
+fn content_visibility_does_not_change_timestamp_or_manual_order() {
+    let pr = common::pool();
+    let nr = NoteRepo::new(pr);
+    let first = nr.create_in_group(None, "First").unwrap();
+    let second = nr.create_in_group(None, "Second").unwrap();
+    let third = nr.create_in_group(None, "Third").unwrap();
+    nr.reorder(&[first.id, second.id, third.id]).unwrap();
+    let before = nr.list_by_group(None, false).unwrap();
+    let second_before = nr.get(second.id).unwrap();
+
+    let hidden = nr.set_content_hidden(second.id, true).unwrap();
+    assert!(hidden.is_content_hidden);
+    assert_eq!(hidden.updated_at, second_before.updated_at);
+    assert_eq!(hidden.sort_order, second_before.sort_order);
+
+    let after_hide = nr.list_by_group(None, false).unwrap();
+    assert_eq!(
+        after_hide.iter().map(|note| note.id).collect::<Vec<_>>(),
+        before.iter().map(|note| note.id).collect::<Vec<_>>()
+    );
+
+    let shown = nr.set_content_hidden(second.id, false).unwrap();
+    assert!(!shown.is_content_hidden);
+    assert_eq!(shown.updated_at, second_before.updated_at);
+    assert_eq!(
+        nr.list_by_group(None, false)
+            .unwrap()
+            .iter()
+            .map(|note| note.id)
+            .collect::<Vec<_>>(),
+        before.iter().map(|note| note.id).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn archived_notes_are_hidden_by_default_and_can_be_included() {
+    let pr = common::pool();
+    let nr = NoteRepo::new(pr);
+    let active = nr.create_in_group(None, "Active").unwrap();
+    let archived = nr.create_in_group(None, "Archived").unwrap();
+    nr.set_pinned(archived.id, true).unwrap();
+    let archived = nr.set_archived(archived.id, true).unwrap();
+    assert!(archived.is_archived);
+    assert!(!archived.is_pinned);
+
+    let default_list = nr.list_by_group(None, false).unwrap();
+    assert_eq!(
+        default_list.iter().map(|n| n.id).collect::<Vec<_>>(),
+        vec![active.id]
+    );
+
+    let with_archived = nr.list_by_group(None, true).unwrap();
+    assert_eq!(with_archived.len(), 2);
+    assert!(with_archived.iter().any(|note| note.id == archived.id));
 }
 
 #[test]

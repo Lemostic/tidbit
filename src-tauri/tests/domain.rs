@@ -1,5 +1,5 @@
-use tidbit_lib::domain::{Group, Note, Revision, EdgeDock};
 use chrono::Utc;
+use tidbit_lib::domain::{EdgeDock, Group, Note, Revision};
 
 #[test]
 fn round_trip_group_serializes() {
@@ -7,6 +7,7 @@ fn round_trip_group_serializes() {
         id: 1,
         name: "Inbox".into(),
         color: Some("#3aa".into()),
+        background_color: Some("#244".into()),
         icon: None,
         sort_order: 0,
         pinned: false,
@@ -30,6 +31,7 @@ fn round_trip_note_serializes() {
         content_html: "Hello <strong>world</strong>".into(),
         word_count: 2,
         is_pinned: false,
+        is_content_hidden: false,
         is_archived: false,
         is_trashed: false,
         trashed_at: None,
@@ -41,6 +43,7 @@ fn round_trip_note_serializes() {
         created_at: Utc::now().timestamp_millis(),
         updated_at: Utc::now().timestamp_millis(),
         color: Some("#ff0000".into()),
+        sort_order: 0,
     };
     let s = serde_json::to_string(&n).unwrap();
     let n2: Note = serde_json::from_str(&s).unwrap();

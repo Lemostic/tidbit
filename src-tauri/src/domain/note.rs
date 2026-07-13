@@ -19,6 +19,7 @@ pub struct Note {
     pub content_html: String,
     pub word_count: i64,
     pub is_pinned: bool,
+    pub is_content_hidden: bool,
     pub is_archived: bool,
     pub is_trashed: bool,
     pub trashed_at: Option<i64>,
@@ -30,4 +31,5 @@ pub struct Note {
     pub created_at: i64,
     pub updated_at: i64,
     pub color: Option<String>,
+    pub sort_order: i64,
 }

@@ -11,6 +11,7 @@ export interface Note {
   content_html: string;
   word_count: number;
   is_pinned: boolean;
+  is_content_hidden: boolean;
   is_archived: boolean;
   is_trashed: boolean;
   trashed_at: number | null;
@@ -22,12 +23,14 @@ export interface Note {
   created_at: number;
   updated_at: number;
   color: string | null;
+  sort_order: number;
 }
 
 export interface Group {
   id: number;
   name: string;
   color: string | null;
+  background_color: string | null;
   icon: string | null;
   sort_order: number;
   pinned: boolean;

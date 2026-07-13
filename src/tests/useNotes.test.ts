@@ -1,8 +1,9 @@
 import { renderHook, act } from "@testing-library/react";
 import { useNotes } from "../features/notes/useNotes";
 import { describe, it, expect, vi } from "vitest";
+import type { Note } from "../ipc/types";
 
-const mockNotes = [
+const mockNotes: Note[] = [
   {
     id: 1,
     group_id: 1,
@@ -11,6 +12,7 @@ const mockNotes = [
     content_html: "<p>This is the first note content.</p>",
     word_count: 5,
     is_pinned: false,
+    is_content_hidden: false,
     is_archived: false,
     is_trashed: false,
     trashed_at: null,
@@ -22,6 +24,7 @@ const mockNotes = [
     created_at: 0,
     updated_at: 0,
     color: null,
+    sort_order: 0,
   },
   {
     id: 2,
@@ -31,6 +34,7 @@ const mockNotes = [
     content_html: "<p>Another note with more text here.</p>",
     word_count: 6,
     is_pinned: false,
+    is_content_hidden: false,
     is_archived: false,
     is_trashed: false,
     trashed_at: null,
@@ -42,6 +46,7 @@ const mockNotes = [
     created_at: 0,
     updated_at: 0,
     color: null,
+    sort_order: 1000,
   },
 ];
 
@@ -51,14 +56,15 @@ vi.mock("@tauri-apps/api/core", () => ({
       return [...mockNotes];
     }
     if (cmd === "notes_create") {
-      const newNote = {
+      const newNote: Note = {
         id: 3,
-        group_id: _args?.groupId ?? null,
+        group_id: (_args?.groupId as number | null | undefined) ?? null,
         title: "New Note",
         content_md: "",
         content_html: "",
         word_count: 0,
         is_pinned: false,
+        is_content_hidden: false,
         is_archived: false,
         is_trashed: false,
         trashed_at: null,
@@ -70,6 +76,7 @@ vi.mock("@tauri-apps/api/core", () => ({
         created_at: Date.now(),
         updated_at: Date.now(),
         color: null,
+        sort_order: -1000,
       };
       mockNotes.push(newNote);
       return newNote;
@@ -83,7 +90,17 @@ describe("useNotes", () => {
     const { result } = renderHook(() => useNotes(1));
     await act(async () => { await new Promise(r => setTimeout(r, 0)); });
     expect(result.current.notes.length).toBe(2);
-    expect(result.current.notes[0].title).toBe("First Note");
+    expect(result.current.notes[0]!.title).toBe("First Note");
+  });
+
+  it("requests archived notes only when enabled", async () => {
+    const tauri = await import("@tauri-apps/api/core");
+    const { rerender } = renderHook(({ include }) => useNotes(1, include), { initialProps: { include: false } });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    expect(vi.mocked(tauri.invoke)).toHaveBeenCalledWith("notes_list", { groupId: 1, includeArchived: false });
+    rerender({ include: true });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    expect(vi.mocked(tauri.invoke)).toHaveBeenCalledWith("notes_list", { groupId: 1, includeArchived: true });
   });
 
   it("creates note and refreshes", async () => {

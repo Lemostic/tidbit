@@ -17,7 +17,11 @@ pub fn create_snapshot(src_db: &Path, out: &Path, key: &[u8; 32]) -> Result<(), 
     Ok(())
 }
 
-pub fn restore_snapshot(blob_path: &Path, staging_dir: &Path, key: &[u8; 32]) -> Result<(), AppError> {
+pub fn restore_snapshot(
+    blob_path: &Path,
+    staging_dir: &Path,
+    key: &[u8; 32],
+) -> Result<(), AppError> {
     let blob = fs::read(blob_path)?;
     if &blob[0..4] != MAGIC {
         return Err(AppError::Lock);

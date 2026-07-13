@@ -1,6 +1,6 @@
-use aes_gcm::{Aes256Gcm, Key, Nonce};
-use aes_gcm::aead::{Aead, KeyInit};
 use crate::error::AppError;
+use aes_gcm::aead::{Aead, KeyInit};
+use aes_gcm::{Aes256Gcm, Key, Nonce};
 
 pub fn seal(key: &[u8; 32], plaintext: &[u8]) -> (Vec<u8>, [u8; 12]) {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));

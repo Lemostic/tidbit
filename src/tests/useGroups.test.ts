@@ -7,6 +7,7 @@ const mockGroups = [
     id: 1,
     name: "Inbox",
     color: null,
+    background_color: null,
     icon: null,
     sort_order: 0,
     pinned: false,
@@ -18,6 +19,7 @@ const mockGroups = [
     id: 2,
     name: "Work",
     color: null,
+    background_color: null,
     icon: null,
     sort_order: 1,
     pinned: false,
@@ -37,6 +39,7 @@ vi.mock("@tauri-apps/api/core", () => ({
         id: 3,
         name: "NewGroup",
         color: null,
+        background_color: null,
         icon: null,
         sort_order: 2,
         pinned: false,
@@ -62,7 +65,7 @@ describe("useGroups", () => {
     const { result } = renderHook(() => useGroups());
     await act(async () => { await new Promise(r => setTimeout(r, 0)); });
     expect(result.current.groups.length).toBe(2);
-    expect(result.current.groups[0].name).toBe("Inbox");
+    expect(result.current.groups[0]!.name).toBe("Inbox");
   });
 
   it("creates a group and refreshes", async () => {

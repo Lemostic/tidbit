@@ -1,63 +1,166 @@
-import { useEffect, useRef, useCallback } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { Check, PushPin, Trash, X } from "@phosphor-icons/react";
+import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
-import { EditorToolbar } from "./EditorToolbar";
-import type { Note } from "../../ipc/types";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../../ipc/client";
+import type { Group, Note } from "../../ipc/types";
+import { ConfirmDialog } from "../../ui/ConfirmDialog";
+import { EditorToolbar } from "./EditorToolbar";
 
 interface NoteEditorProps {
-  noteId: number;
-  initialMd: string;
+  note: Note;
+  groups: Group[];
   onClose: () => void;
+  onChanged: () => void;
+  onTrash: (id: number) => Promise<void>;
+  allowTrash?: boolean;
+  desktopWindow?: boolean;
+  embedded?: boolean;
 }
 
-export function NoteEditor({ noteId, initialMd, onClose }: NoteEditorProps) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const colors = [null, "#d75b57", "#d5a23f", "#4e9b75", "#4c86b8"] as const;
 
-  const flush = useCallback(
-    (editor: ReturnType<typeof useEditor>) => {
-      if (!editor) return;
-      const md = (editor.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown();
-      const html = editor.getHTML();
-      const words = md.trim() ? md.trim().split(/\s+/).length : 0;
-      client.notes.updateContent(noteId, md, html, words).catch(console.error);
-    },
-    [noteId]
-  );
+export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false }: NoteEditorProps) {
+  const [current, setCurrent] = useState(note);
+  const [title, setTitle] = useState(note.title ?? "");
+  const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirtyRef = useRef(false);
+
+  const flush = useCallback(async (instance: ReturnType<typeof useEditor>) => {
+    if (!instance || !dirtyRef.current) return;
+    setStatus("saving");
+    const md = (instance.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown();
+    const html = instance.getHTML();
+    const words = md.replace(/\s/g, "").length;
+    try {
+      const updated = await client.notes.updateContent(note.id, md, html, words);
+      dirtyRef.current = false;
+      setCurrent(updated);
+      setStatus("saved");
+      onChanged();
+    } catch {
+      dirtyRef.current = true;
+      setStatus("error");
+    }
+  }, [note.id, onChanged]);
 
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Markdown.configure({ html: true, transformPastedText: true }),
-    ],
-    content: initialMd,
-    onUpdate({ editor: e }) {
+    extensions: [StarterKit, Markdown.configure({ html: true, transformPastedText: true })],
+    content: note.content_md,
+    editorProps: { attributes: { "aria-label": "便签内容" } },
+    onUpdate({ editor: instance }) {
+      dirtyRef.current = true;
+      setStatus("saving");
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => flush(e), 500);
+      timerRef.current = setTimeout(() => void flush(instance), 500);
     },
   });
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (editor) flush(editor);
-    };
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (editor) void flush(editor);
   }, [editor, flush]);
 
-  return (
-    <div className="modal-scrim" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal__head">
-          <span className="modal__title">编辑便签 <span className="mono">#{noteId}</span></span>
-          <button type="button" className="btn-icon" aria-label="关闭" title="关闭" onClick={onClose}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          </button>
+  const updateTitle = async () => {
+    const next = title.trim() || "无标题";
+    if (next === (current.title ?? "")) return;
+    setTitle(next);
+    setStatus("saving");
+    try {
+      setCurrent(await client.notes.updateTitle(current.id, next));
+      setStatus("saved");
+      onChanged();
+    } catch { setStatus("error"); }
+  };
+
+  const mutate = async (task: Promise<Note>) => {
+    setStatus("saving");
+    try {
+      setCurrent(await task);
+      setStatus("saved");
+      onChanged();
+    } catch { setStatus("error"); }
+  };
+
+  const panel = (
+      <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-label="编辑便签">
+        {!embedded && <header className="note-editor__head">
+          <span data-tauri-drag-region={desktopWindow ? true : undefined} className="note-editor__accent" style={{ background: current.color ?? "var(--accent)" }} />
+          <input
+            className="note-editor__title"
+            value={title}
+            aria-label="便签标题"
+            placeholder="无标题"
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => void updateTitle()}
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          />
+          <button
+            className={`btn-icon${current.is_pinned ? " is-selected" : ""}`}
+            aria-label={current.is_pinned ? "取消置顶" : "置顶"}
+            title={current.is_pinned ? "取消置顶" : "置顶"}
+            onClick={() => void mutate(client.notes.setPinned(current.id, !current.is_pinned))}
+          ><PushPin size={16} weight={current.is_pinned ? "fill" : "regular"} /></button>
+          <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>
+        </header>}
+
+        <div className="note-editor__options">
+          <select
+            className="select note-editor__group"
+            aria-label="移动到分组"
+            value={current.group_id ?? ""}
+            onChange={(e) => void mutate(client.notes.moveGroup(current.id, e.target.value ? Number(e.target.value) : null))}
+          >
+            <option value="">全部便签</option>
+            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+          </select>
+          <div className="color-swatches" aria-label="便签颜色">
+            {colors.map((color) => (
+              <button
+                key={color ?? "default"}
+                className={`color-swatch${current.color === color ? " is-active" : ""}`}
+                style={{ background: color ?? "var(--surface-2)" }}
+                onClick={() => void mutate(client.notes.setColor(current.id, color))}
+                aria-label={color ? `设置颜色 ${color}` : "使用默认颜色"}
+                title={color ? "设置便签颜色" : "默认颜色"}
+              >{current.color === color && <Check size={11} weight="bold" />}</button>
+            ))}
+          </div>
         </div>
+
         {editor && <EditorToolbar editor={editor} />}
         <EditorContent editor={editor} className="editor-content" />
-      </div>
-    </div>
+
+        <footer className="note-editor__status mono">
+          <span className={`save-status save-status--${status}`}>{status === "saving" ? "正在保存" : status === "error" ? "保存失败" : "已保存"}</span>
+          <span>{current.word_count} 字</span>
+          {allowTrash && <button className="editor-trash" onClick={() => setConfirmingDelete(true)}><Trash size={14} /> 删除</button>}
+        </footer>
+      </section>
+  );
+
+  return (
+    <>
+    {embedded ? panel : <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
+    {allowTrash && <ConfirmDialog
+      open={confirmingDelete}
+      title="删除这条便签？"
+      description={`「${current.title?.trim() || "无标题"}」将被移到回收站，可以稍后恢复。`}
+      confirmAriaLabel="确认删除便签"
+      busy={deleting}
+      onCancel={() => setConfirmingDelete(false)}
+      onConfirm={async () => {
+        setDeleting(true);
+        await onTrash(current.id);
+        setDeleting(false);
+        setConfirmingDelete(false);
+        onClose();
+      }}
+    />}
+    </>
   );
 }

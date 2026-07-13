@@ -3,13 +3,22 @@ use crate::error::AppError;
 use crate::infra::db::Pool;
 
 /// Repository for note revision history.
-pub struct RevisionRepo { pool: Pool }
+pub struct RevisionRepo {
+    pool: Pool,
+}
 
 impl RevisionRepo {
-    pub fn new(pool: Pool) -> Self { Self { pool } }
+    pub fn new(pool: Pool) -> Self {
+        Self { pool }
+    }
 
     /// Append a new revision snapshot for a note.
-    pub fn append(&self, note_id: i64, content_md: &str, title: Option<&str>) -> Result<(), AppError> {
+    pub fn append(
+        &self,
+        note_id: i64,
+        content_md: &str,
+        title: Option<&str>,
+    ) -> Result<(), AppError> {
         let conn = self.pool.get()?;
         conn.execute(
             "INSERT INTO note_revision(note_id, content_md, title, created_at) VALUES (?1, ?2, ?3, ?4)",

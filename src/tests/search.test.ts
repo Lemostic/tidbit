@@ -8,5 +8,5 @@ import { SearchProvider } from "../features/search/SearchProvider";
 
 it("queries", async () => {
     const hits = await SearchProvider.query("foo");
-    expect(hits[0].id).toBe(1);
+    expect(hits[0]!.id).toBe(1);
 });

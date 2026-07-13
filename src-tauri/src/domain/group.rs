@@ -5,6 +5,7 @@ pub struct Group {
     pub id: i64,
     pub name: String,
     pub color: Option<String>,
+    pub background_color: Option<String>,
     pub icon: Option<String>,
     pub sort_order: i64,
     pub pinned: bool,

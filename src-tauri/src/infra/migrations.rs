@@ -4,9 +4,30 @@ use rusqlite::params;
 
 const MIGRATIONS: &[(&str, &str)] = &[
     ("0001_init", include_str!("../../migrations/0001_init.sql")),
-    ("0002_note_fts", include_str!("../../migrations/0002_note_fts.sql")),
-    ("0003_fts_triggers", include_str!("../../migrations/0003_fts_triggers.sql")),
-    ("0004_note_color", include_str!("../../migrations/0004_note_color.sql")),
+    (
+        "0002_note_fts",
+        include_str!("../../migrations/0002_note_fts.sql"),
+    ),
+    (
+        "0003_fts_triggers",
+        include_str!("../../migrations/0003_fts_triggers.sql"),
+    ),
+    (
+        "0004_note_color",
+        include_str!("../../migrations/0004_note_color.sql"),
+    ),
+    (
+        "0005_note_content_hidden",
+        include_str!("../../migrations/0005_note_content_hidden.sql"),
+    ),
+    (
+        "0006_group_background_color",
+        include_str!("../../migrations/0006_group_background_color.sql"),
+    ),
+    (
+        "0007_note_sort_order",
+        include_str!("../../migrations/0007_note_sort_order.sql"),
+    ),
 ];
 
 /// Run all pending migrations in order. Already-applied migrations are skipped.

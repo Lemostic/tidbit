@@ -17,7 +17,7 @@ pub async fn search_query(state: State<'_, AppState>, q: String) -> Result<Vec<H
     let pattern = format!("%{}%", q.replace('"', ""));
     let mut stmt = conn.prepare(
         "SELECT n.id, n.group_id, n.title, substr(n.content_md, 1, 200)
-         FROM note n WHERE n.is_trashed=0 AND (n.content_md LIKE ?1 OR n.title LIKE ?1)
+         FROM note n WHERE n.is_trashed=0 AND n.is_content_hidden=0 AND (n.content_md LIKE ?1 OR n.title LIKE ?1)
          ORDER BY n.updated_at DESC LIMIT 50",
     )?;
     let rows = stmt.query_map([&pattern], |r| {

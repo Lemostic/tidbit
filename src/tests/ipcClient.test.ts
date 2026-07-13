@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@tauri-apps/api/core", () => ({
+const { invoke } = vi.hoisted(() => ({
   invoke: vi.fn(async () => [
     {
       id: 1,
@@ -10,6 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({
       content_html: "",
       word_count: 0,
       is_pinned: false,
+      is_content_hidden: false,
       is_archived: false,
       is_trashed: false,
       trashed_at: null,
@@ -21,16 +22,20 @@ vi.mock("@tauri-apps/api/core", () => ({
       created_at: 0,
       updated_at: 0,
       color: null,
+      sort_order: 0,
     },
   ]),
 }));
 
+vi.mock("@tauri-apps/api/core", () => ({ invoke }));
+
 import { client } from "../ipc/client";
 
 describe("IPC client", () => {
-  it("notes.list parses", async () => {
+  it("notes.list parses and defaults to hiding archived notes", async () => {
     const notes = await client.notes.list(null);
-    expect(notes[0].id).toBe(1);
-    expect(notes[0].group_id).toBe(null);
+    expect(notes[0]!.id).toBe(1);
+    expect(notes[0]!.group_id).toBe(null);
+    expect(invoke).toHaveBeenCalledWith("notes_list", { groupId: null, includeArchived: false });
   });
 });

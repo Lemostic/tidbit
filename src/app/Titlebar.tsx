@@ -1,35 +1,69 @@
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { GearSix, MagnifyingGlass, Minus, Square, X } from "@phosphor-icons/react";
+import { useRef } from "react";
 import { ThemeSwitcher } from "../features/settings/ThemeSwitcher";
 
 interface TitlebarProps {
   onOpenPalette?: () => void;
+  onOpenSettings?: () => void;
+  onDragStart?: () => void;
 }
 
-export function Titlebar({ onOpenPalette }: TitlebarProps) {
+export function Titlebar({ onOpenPalette, onOpenSettings, onDragStart }: TitlebarProps) {
   const win = getCurrentWindow();
+  const dragStarted = useRef(false);
+
+  const startWindowDrag = async () => {
+    if (dragStarted.current) return;
+    dragStarted.current = true;
+    onDragStart?.();
+    try {
+      await win.startDragging();
+    } finally {
+      dragStarted.current = false;
+    }
+  };
 
   return (
-    <header data-tauri-drag-region className="titlebar">
+    <header
+      className="titlebar"
+      onPointerDown={(event) => {
+        const interactive = (event.target as HTMLElement).closest("button, input, select, textarea, a, [role='button']");
+        if (event.button !== 0 || interactive) return;
+        event.preventDefault();
+        void startWindowDrag();
+      }}
+    >
       <strong className="titlebar__brand">tidbit</strong>
       <button
         onClick={onOpenPalette}
         className="titlebar__search"
         title="搜索 (Ctrl+K)"
       >
-        <span>搜索便签</span>
+        <MagnifyingGlass size={13} aria-hidden="true" />
+        <span>搜索</span>
         <span className="titlebar__kbd">Ctrl K</span>
       </button>
       <div className="titlebar__spacer" />
       <div className="titlebar__actions">
         <ThemeSwitcher />
-        <button className="btn-icon" aria-label="最小化" title="最小化" onClick={() => win.minimize()}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+        <button className="btn-icon" aria-label="设置" title="设置" onClick={onOpenSettings}>
+          <GearSix size={15} weight="duotone" />
+        </button>
+        <button className="btn-icon" aria-label="最小化" title="最小化到托盘" onClick={() => void invoke("window_hide_to_tray")}>
+          <Minus size={14} weight="bold" />
         </button>
         <button className="btn-icon" aria-label="最大化" title="最大化" onClick={() => win.toggleMaximize()}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/></svg>
+          <Square size={12} weight="bold" />
         </button>
-        <button className="btn-icon is-danger" aria-label="关闭" title="关闭" onClick={() => win.close()}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+        <button
+          className="btn-icon is-danger"
+          aria-label="关闭"
+          title="退出应用"
+          onClick={() => void invoke("app_quit")}
+        >
+          <X size={14} weight="bold" />
         </button>
       </div>
     </header>

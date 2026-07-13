@@ -10,6 +10,7 @@ export function buildCommands(handlers: {
     { id: "app.theme", title: "切换主题", group: "app", run: handlers.toggleTheme },
     { id: "app.dock", title: "切换吸附", group: "app", run: handlers.toggleDocking },
     { id: "app.backup", title: "立即备份", group: "app", run: handlers.manualBackup },
+    { id: "app.backups", title: "打开备份目录", group: "app", run: handlers.openBackups },
     { id: "app.lock", title: "立即锁定", group: "app", run: handlers.lockNow },
     { id: "app.hidden", title: "显示已隐藏便签", group: "app", run: handlers.showHidden },
     { id: "app.settings", title: "设置", group: "app", run: handlers.openSettings },

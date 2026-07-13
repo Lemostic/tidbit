@@ -1,8 +1,10 @@
-import { render, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { expect, it } from "vitest";
 import { ThemeSwitcher } from "../features/settings/ThemeSwitcher";
 
-it("applies theme attribute", () => {
+it("cycles and applies the theme", () => {
+  localStorage.setItem("theme", "light");
   render(<ThemeSwitcher />);
-  fireEvent.change(document.querySelector("select")!, { target: { value: "dark" } });
+  fireEvent.click(screen.getByRole("button", { name: "主题" }));
   expect(document.documentElement.dataset.theme).toBe("dark");
 });

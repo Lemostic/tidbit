@@ -5,23 +5,36 @@
   --tab-inactive-fg: var(--rail-fg);
   --tab-active-bg: var(--accent);
   --tab-active-fg: #ffffff;
-  --tab-idle-bg: color-mix(in srgb, var(--rail-bg) 84%, transparent);
-  --tab-hover-bg: color-mix(in srgb, var(--rail-bg) 94%, white 6%);
+  --tab-idle-bg: color-mix(in srgb, var(--rail-bg) 90%, transparent);
+  --tab-hover-bg: color-mix(in srgb, var(--rail-bg) 96%, white 4%);
 
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 7px;
-  width: 52px;
-  flex: 0 0 52px;
-  padding: 12px 0;
+  gap: 4px;
+  width: var(--rail-w);
+  flex: 0 0 var(--rail-w);
+  padding: 9px 0 10px;
   background: transparent;
   overflow-y: auto;
-  overflow-x: visible;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   user-select: none;
 }
 
-.groups-rail::-webkit-scrollbar { width: 0; }
+.groups-rail::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.group-tab-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.group-tab-wrap .group-tab { width: calc(100% - 8px); }
 
 /* Each item owns its surface; the right edge stays flush with the note panel. */
 .group-tab {
@@ -29,41 +42,53 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
-  margin-left: 7px;
-  padding: 6px 5px 6px 7px;
+  height: 28px;
+  min-height: 28px;
+  margin-left: 8px;
+  padding: 2px 4px 2px 7px;
   color: var(--tab-inactive-fg);
-  background: var(--tab-idle-bg);
-  border: 1px solid color-mix(in srgb, var(--rail-fg) 18%, transparent);
-  border-right: 0;
-  border-radius: 4px 0 0 4px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  font-size: 13px;
+  background: color-mix(in oklch, var(--group-tab-bg, var(--rail-bg)) 90%, transparent);
+  border: 0;
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  font-size: 11px;
   line-height: 1.15;
   text-align: center;
   cursor: pointer;
-  white-space: normal;
-  word-break: break-all;
-  transition: background var(--dur-fast) var(--ease),
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease),
               color var(--dur-fast) var(--ease),
-              transform var(--dur-fast) var(--ease),
-              border-color var(--dur-fast) var(--ease);
+              transform var(--dur) var(--ease),
+              filter var(--dur) var(--ease);
+  filter: saturate(1.22) brightness(1.04);
 }
 
 .group-tab:hover:not(.is-active) {
-  background: var(--tab-hover-bg);
+  background: color-mix(in oklch, var(--group-tab-bg, var(--rail-bg)) 94%, white 6%);
   color: #ffffff;
 }
 
 .group-tab.is-active {
   color: var(--tab-active-fg);
-  background: var(--tab-active-bg);
-  border-color: color-mix(in srgb, var(--tab-active-bg) 82%, white 18%);
-  margin-right: -1px;
+  background: var(--group-tab-bg, var(--tab-active-bg));
+  margin-right: -2px;
   font-weight: 600;
+  transform: translateX(-3px) scaleX(1.055);
+  transform-origin: right center;
+  filter: saturate(1.3) brightness(1.08);
+  z-index: 1;
 }
 
-.group-tab:active { transform: translateX(1px) scale(0.98); }
+.group-tab:active { transform: translateX(1px) scale(0.985); }
+.group-tab.is-active:active { transform: translateX(-2px) scaleX(1.025); }
+
+.group-tab.is-drop-target {
+  color: #ffffff;
+  background: color-mix(in oklch, var(--group-tab-bg, var(--accent)) 92%, white 8%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.72);
+  filter: saturate(1.34) brightness(1.1);
+  transform: translateX(-3px) scaleX(1.055);
+}
 
 .group-tab:focus-visible {
   outline: 2px solid var(--tab-active-bg);
@@ -76,15 +101,18 @@
   top: 50%;
   transform: translateY(-50%);
   width: 2px;
-  height: 22px;
+  height: 16px;
   border-radius: 0 2px 2px 0;
 }
 
 .group-tab__label {
   display: inline-block;
-  max-width: 35px;
+  width: 100%;
+  max-width: 48px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-group);
 }
 
 /* Delete affordance: only shown on hover/focus of a real (deletable) tab. */
@@ -114,15 +142,46 @@
 
 .group-tab__delete:hover { background: #e5484d; }
 
+.group-tab__edit {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  color: #ffffff;
+  background: rgba(18, 22, 27, 0.78);
+  opacity: 0;
+  transform: scale(0.88);
+  z-index: 4;
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.group-tab-wrap.is-active { z-index: 3; }
+.group-tab-wrap.is-active .group-tab__edit { right: 2px; }
+
+.group-tab-wrap:hover .group-tab__edit,
+.group-tab-wrap:focus-within .group-tab__edit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.group-tab-wrap.is-active:hover .group-tab__edit,
+.group-tab-wrap.is-active:focus-within .group-tab__edit {
+  transform: translateX(-3px) scale(1);
+}
+
 /* Add-group control at the bottom of the rail. */
 .groups-rail__add {
-  margin: 2px 0 0 7px;
-  min-height: 32px;
+  margin: 3px 0 0 8px;
+  min-height: 27px;
   color: var(--tab-inactive-fg);
   background: color-mix(in srgb, var(--rail-bg) 58%, transparent);
-  border: 1px solid color-mix(in srgb, var(--rail-fg) 30%, transparent);
-  border-right: 0;
-  border-radius: 4px 0 0 4px;
+  border: 0;
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 7px 100%, 0 calc(100% - 7px));
   font-size: 16px;
   cursor: pointer;
   opacity: 0.7;
@@ -131,12 +190,12 @@
 
 .groups-rail__new {
   margin: 2px 0 0 7px;
-  width: 45px;
-  min-height: 32px;
+  width: 57px;
+  min-height: 29px;
   padding: 4px;
   border: 1px solid color-mix(in srgb, var(--rail-fg) 30%, transparent);
   border-right: 0;
   border-radius: 4px 0 0 4px;
   background: color-mix(in srgb, var(--rail-bg) 88%, transparent);
-  font-size: 12px;
+  font-size: 11px;
 }

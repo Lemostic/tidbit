@@ -1,5 +1,6 @@
 import { render, fireEvent } from "@testing-library/react";
 import { CommandPalette } from "../app/CommandPalette";
+import "../styles/globals.css";
 import type { Command } from "../app/CommandPalette";
 const cmd: Command = { id: "x", title: "X", group: "app", run: () => {} };
 it("runs command on enter", () => {
