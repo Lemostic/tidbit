@@ -51,7 +51,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   const editor = useEditor({
     extensions: [StarterKit, Markdown.configure({ html: true, transformPastedText: true })],
     content: note.content_md,
-    editorProps: { attributes: { "aria-label": "便签内容" } },
+    editorProps: { attributes: { "aria-label": "便签内容", class: "markdown-body" } },
     onUpdate({ editor: instance }) {
       dirtyRef.current = true;
       setStatus("saving");

@@ -81,6 +81,7 @@ pub fn run() {
             ipc::groups::groups_delete,
             ipc::window::app_quit,
             ipc::window::window_hide_to_tray,
+            ipc::window::window_set_always_on_top,
             ipc::window::window_undock,
             ipc::window::window_set_geometry,
             ipc::window::window_apply_edge_dock,

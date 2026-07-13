@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NoteCard } from "../features/notes/NoteCard";
 import type { Note } from "../ipc/types";
 
@@ -10,6 +10,11 @@ class ResizeObserverMock {
 }
 
 beforeAll(() => { vi.stubGlobal("ResizeObserver", ResizeObserverMock); });
+const writeText = vi.fn(async () => undefined);
+beforeEach(() => {
+  writeText.mockClear();
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+});
 
 const hiddenNote: Note = {
   id: 7,
@@ -35,6 +40,21 @@ const hiddenNote: Note = {
 };
 
 describe("NoteCard privacy", () => {
+  it("uses the shared Markdown typography for rendered content", () => {
+    const { container } = render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_html: "<ol><li><p>第一步</p></li></ol>" }} onOpen={() => {}} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
+    expect(container.querySelector(".note-card__content")).toHaveClass("markdown-body");
+    expect(screen.getByText("第一步")).toBeInTheDocument();
+  });
+
+  it("copies the Markdown source without opening the note", async () => {
+    const onOpen = vi.fn();
+    render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_md: "1. 第一步" }} onOpen={onOpen} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "复制便签内容" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("1. 第一步"));
+    expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it("masks hidden note content until the eye action is used", () => {
     const onToggleVisibility = vi.fn();
     render(<NoteCard note={hiddenNote} onOpen={() => {}} onTogglePin={() => {}} onToggleVisibility={onToggleVisibility} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
@@ -42,6 +62,7 @@ describe("NoteCard privacy", () => {
     expect(screen.getByText("该条便签内容已加密")).toBeInTheDocument();
     expect(screen.queryByText("机密计划")).not.toBeInTheDocument();
     expect(screen.queryByText("不能显示")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "复制便签内容" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "显示内容" }));
     expect(onToggleVisibility).toHaveBeenCalledOnce();
   });

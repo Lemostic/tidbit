@@ -167,3 +167,21 @@ fn pointer_activity_inside_visible_window_cancels_pending_hide() {
     assert!(cursor_inside_window(window, 1600, 400));
     assert!(!cursor_inside_window(window, 1399, 400));
 }
+
+#[test]
+fn pinned_window_keeps_edge_dock_but_disables_auto_hide() {
+    let state = DockRuntimeState::default();
+    state.set_edge(Some(EdgeDock::Left));
+    let pending = state.try_arm_hide().unwrap();
+
+    state.set_pinned(true);
+
+    assert!(state.is_pinned());
+    assert_eq!(state.edge(), Some(EdgeDock::Left));
+    assert_eq!(state.hide_if_current(pending), None);
+    assert_eq!(state.try_arm_hide(), None);
+
+    state.set_pinned(false);
+    assert!(!state.is_pinned());
+    assert!(state.try_arm_hide().is_some());
+}

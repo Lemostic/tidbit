@@ -1,6 +1,7 @@
-import { Archive, CaretDown, CaretUp, Cloud, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Archive, CaretDown, CaretUp, Check, Cloud, Copy, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Note } from "../../ipc/types";
+import { copyText } from "../../ui/clipboard";
 import { sanitizeNoteHtml } from "./sanitizeNoteHtml";
 
 interface NoteCardProps {
@@ -27,8 +28,10 @@ function formatTime(timestamp: number) {
 
 export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onToggleArchive, onWander, onTrash, wanderActive = false }: NoteCardProps) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [canCollapse, setCanCollapse] = useState(false);
+  const [copied, setCopied] = useState(false);
   const renderedHtml = useMemo(() => sanitizeNoteHtml(note.content_html), [note.content_html]);
 
   useLayoutEffect(() => {
@@ -42,6 +45,21 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
     return () => observer.disconnect();
   }, [note.id, renderedHtml]);
 
+  useEffect(() => () => {
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+  }, []);
+
+  const copyContent = async () => {
+    try {
+      await copyText(note.content_md);
+      setCopied(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+    }
+  };
+
   return (
     <article className={`note-card__inner${note.is_content_hidden ? " is-content-hidden" : ""}${wanderActive ? " is-wandering" : ""}`} onClick={note.is_content_hidden || wanderActive ? undefined : onOpen}>
       <header className="note-card__head">
@@ -49,6 +67,13 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
         {note.is_archived && <span className="note-card__archived">已归档</span>}
         {wanderActive && <span className="note-card__wandering">桌面云游中</span>}
         <div className="note-card__actions">
+          <button
+            className={`note-action${copied ? " is-success" : ""}`}
+            aria-label={copied ? "已复制" : "复制便签内容"}
+            title={note.is_content_hidden ? "隐藏内容不可复制" : copied ? "已复制 Markdown" : "复制 Markdown 内容"}
+            disabled={note.is_content_hidden}
+            onClick={(event) => { event.stopPropagation(); void copyContent(); }}
+          >{copied ? <Check size={14} weight="bold" /> : <Copy size={14} />}</button>
           <button
             className="note-action"
             aria-label="云游便签"
@@ -91,7 +116,7 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
       ) : renderedHtml ? (
         <div
           ref={contentRef}
-          className={`note-card__content${expanded ? " is-expanded" : ""}`}
+          className={`note-card__content markdown-body${expanded ? " is-expanded" : ""}`}
           style={canCollapse && !expanded ? { maxHeight: collapsedHeight } : undefined}
           dangerouslySetInnerHTML={{ __html: renderedHtml }}
         />

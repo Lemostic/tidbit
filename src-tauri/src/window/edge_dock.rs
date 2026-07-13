@@ -21,6 +21,7 @@ struct DockStatus {
     edge: Option<EdgeDock>,
     hidden: bool,
     revealing: bool,
+    pinned: bool,
 }
 
 #[derive(Default)]
@@ -52,7 +53,7 @@ impl DockRuntimeState {
 
     pub fn try_arm_hide(&self) -> Option<u64> {
         let status = self.status.lock().expect("dock state poisoned");
-        if status.hidden || status.revealing || status.edge.is_none() {
+        if status.pinned || status.hidden || status.revealing || status.edge.is_none() {
             return None;
         }
         Some(self.generation.fetch_add(1, Ordering::SeqCst) + 1)
@@ -70,6 +71,9 @@ impl DockRuntimeState {
             return None;
         }
         let mut status = self.status.lock().expect("dock state poisoned");
+        if status.pinned {
+            return None;
+        }
         status.hidden = status.edge.is_some();
         status.revealing = false;
         status.edge
@@ -101,6 +105,17 @@ impl DockRuntimeState {
         status.hidden = false;
         status.revealing = false;
         status.edge
+    }
+
+    pub fn set_pinned(&self, pinned: bool) {
+        self.generation.fetch_add(1, Ordering::SeqCst);
+        let mut status = self.status.lock().expect("dock state poisoned");
+        status.pinned = pinned;
+        status.revealing = false;
+    }
+
+    pub fn is_pinned(&self) -> bool {
+        self.status.lock().expect("dock state poisoned").pinned
     }
 
     pub fn undock(&self) {

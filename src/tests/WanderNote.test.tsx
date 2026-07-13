@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, expect, it, vi } from "vitest";
 import { WanderNote } from "../features/notes/WanderNote";
 
-const { invoke, setSize, listeners } = vi.hoisted(() => ({ invoke: vi.fn(), setSize: vi.fn(), listeners: new Map<string, (event: { payload: unknown }) => void>() }));
+const { invoke, setSize, listeners, writeText } = vi.hoisted(() => ({ invoke: vi.fn(), setSize: vi.fn(), listeners: new Map<string, (event: { payload: unknown }) => void>(), writeText: vi.fn(async () => undefined) }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -21,6 +21,8 @@ beforeEach(() => {
   invoke.mockReset();
   setSize.mockReset();
   listeners.clear();
+  writeText.mockClear();
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
   localStorage.clear();
   document.documentElement.removeAttribute("data-liquid-glass");
   invoke.mockImplementation(async (command: string) => {
@@ -53,7 +55,10 @@ it("follows the main window theme and liquid glass opacity", async () => {
 it("renders note content and working collapse and close controls", async () => {
   render(<WanderNote noteId={8} initialOpacity={88} />);
   expect(await screen.findByText("桌面计划")).toBeInTheDocument();
-  expect(screen.getByText("正文")).toBeInTheDocument();
+  expect(screen.getByText("正文").closest(".wander-card__content")).toHaveClass("markdown-body");
+  fireEvent.click(screen.getByRole("button", { name: "复制便签内容" }));
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith("正文"));
+  expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "切换为编辑" }));
   expect(screen.getByRole("dialog", { name: "编辑便签" })).toHaveClass("note-editor--embedded");
   expect(screen.queryByRole("button", { name: "置顶" })).not.toBeInTheDocument();

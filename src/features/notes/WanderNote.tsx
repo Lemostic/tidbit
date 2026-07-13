@@ -1,13 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { CaretDown, CaretUp, Cloud, LockKey, ToggleLeft, ToggleRight, X } from "@phosphor-icons/react";
+import { CaretDown, CaretUp, Check, Cloud, Copy, LockKey, ToggleLeft, ToggleRight, X } from "@phosphor-icons/react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Note } from "../../ipc/types";
 import type { Group } from "../../ipc/types";
 import { applyFontPreferences, loadFontPreferences } from "../../ui/fontPreferences";
 import { appearanceChangedEvent, applyAppearance, loadAppearance, type AppearancePreferences } from "../../ui/appearance";
+import { copyText } from "../../ui/clipboard";
 import { sanitizeNoteHtml } from "./sanitizeNoteHtml";
 import { NoteEditor } from "./NoteEditor";
 
@@ -24,6 +25,8 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
   const [editing, setEditing] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [titleDraft, setTitleDraft] = useState("");
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const renderedHtml = useMemo(() => sanitizeNoteHtml(note?.content_html ?? ""), [note?.content_html]);
 
   useEffect(() => {
@@ -48,6 +51,10 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
     void listen<{ id: number }>("tidbit://note-updated", (event) => { if (event.payload.id === noteId) void refresh(); }).then((unlisten) => { disposeUpdated = unlisten; });
     return () => { disposeOpacity?.(); disposeAppearance?.(); disposeUpdated?.(); };
   }, [noteId]);
+
+  useEffect(() => () => {
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+  }, []);
 
   const toggleCollapsed = async () => {
     const next = !collapsed;
@@ -82,12 +89,25 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
     await emit("tidbit://note-updated", { id: noteId });
   };
 
+  const copyContent = async () => {
+    if (!note || note.is_content_hidden) return;
+    try {
+      await copyText(note.content_md);
+      setCopied(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+    }
+  };
+
   return (
     <main className="wander-shell" style={{ "--wander-opacity": opacity / 100 } as React.CSSProperties}>
       <article className={`wander-card${collapsed ? " is-collapsed" : ""}`}>
         <header className="wander-card__head">
           <span data-tauri-drag-region className="wander-card__mark"><Cloud size={15} weight="duotone" /></span>
           {editing && note ? <input className="wander-card__title-input" aria-label="云游便签标题" value={titleDraft} onMouseDown={(event) => event.stopPropagation()} onChange={(event) => setTitleDraft(event.target.value)} onBlur={() => void updateTitle()} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /> : <strong data-tauri-drag-region>{note?.is_content_hidden ? "隐私便签" : note?.title?.trim() || "云游便签"}</strong>}
+          {note && !editing && <button className={`wander-card__copy${copied ? " is-success" : ""}`} aria-label={copied ? "已复制" : "复制便签内容"} title={note.is_content_hidden ? "隐藏内容不可复制" : copied ? "已复制 Markdown" : "复制 Markdown 内容"} disabled={note.is_content_hidden} onMouseDown={(event) => event.stopPropagation()} onClick={() => void copyContent()}>{copied ? <Check size={14} weight="bold" /> : <Copy size={14} />}</button>}
           {note && <button className={`wander-card__mode${editing ? " is-active" : ""}`} aria-label={editing ? "切换为只读" : "切换为编辑"} aria-pressed={editing} title={editing ? "只读模式" : "编辑模式"} onMouseDown={(event) => event.stopPropagation()} onClick={() => void toggleEditing()}>{editing ? <ToggleRight size={18} weight="fill" /> : <ToggleLeft size={18} />}</button>}
           <button aria-label={collapsed ? "展开云游便签" : "折叠云游便签"} title={collapsed ? "展开" : "只显示标题"} onMouseDown={(event) => event.stopPropagation()} onClick={() => void toggleCollapsed()}>{collapsed ? <CaretDown size={14} /> : <CaretUp size={14} />}</button>
           <button aria-label="关闭云游便签" title="关闭" onMouseDown={(event) => event.stopPropagation()} onClick={() => void invoke("wander_close", { noteId })}><X size={14} weight="bold" /></button>
@@ -97,7 +117,7 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
           {error ? <p className="wander-card__state">便签加载失败</p> : !note ? <div className="wander-card__skeleton"><span /><span /><span /></div> : note.is_content_hidden ? (
             <div className="wander-card__private"><LockKey size={18} /><span>该条便签内容已加密</span></div>
           ) : renderedHtml ? (
-            <div className="wander-card__content" dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+            <div className="wander-card__content markdown-body" dangerouslySetInnerHTML={{ __html: renderedHtml }} />
           ) : <p className="wander-card__state">暂无正文</p>}
           </>}
         </section>}

@@ -14,20 +14,34 @@ vi.mock("@tauri-apps/api/window", () => ({
   }),
 }));
 
-const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
+const { invoke } = vi.hoisted(() => ({ invoke: vi.fn(async () => undefined) }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 import { Titlebar } from "../app/Titlebar";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 test("renders window controls", () => {
   render(<Titlebar />);
+  expect(screen.getByRole("button", { name: "置顶窗口" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "最小化" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "最大化" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "关闭" })).toBeInTheDocument();
+});
+
+test("toggles native always-on-top and remembers the preference", async () => {
+  invoke.mockResolvedValue(undefined);
+  render(<Titlebar />);
+  invoke.mockClear();
+
+  fireEvent.click(screen.getByRole("button", { name: "置顶窗口" }));
+
+  expect(invoke).toHaveBeenCalledWith("window_set_always_on_top", { pinned: true });
+  expect(await screen.findByRole("button", { name: "取消置顶" })).toHaveAttribute("aria-pressed", "true");
+  expect(localStorage.getItem("window-always-on-top")).toBe("true");
 });
 
 test("close button quits the app instead of triggering close-to-tray", () => {

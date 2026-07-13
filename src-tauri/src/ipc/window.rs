@@ -86,6 +86,22 @@ pub fn window_hide_to_tray(app: tauri::AppHandle) -> Result<(), AppError> {
 }
 
 #[tauri::command]
+pub fn window_set_always_on_top(
+    app: tauri::AppHandle,
+    dock_state: State<'_, DockRuntimeState>,
+    pinned: bool,
+) -> Result<(), AppError> {
+    dock_state.set_pinned(pinned);
+    if pinned && dock_state.is_hidden() {
+        show_main_window(&app, &dock_state)?;
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_always_on_top(pinned)?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn window_undock(dock_state: State<'_, DockRuntimeState>) {
     dock_state.undock();
 }
@@ -233,7 +249,7 @@ pub async fn window_arm_autohide(
     app: tauri::AppHandle,
     dock_state: State<'_, DockRuntimeState>,
 ) -> Result<(), AppError> {
-    if dock_state.edge().is_none() {
+    if dock_state.is_pinned() || dock_state.edge().is_none() {
         return Ok(());
     }
     let Some(generation) = dock_state.try_arm_hide() else {

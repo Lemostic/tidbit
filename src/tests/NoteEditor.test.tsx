@@ -20,7 +20,7 @@ it("renders note title and editor controls", () => {
     <NoteEditor note={note} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />
   );
   expect(getByLabelText("便签标题")).toHaveValue("测试便签");
-  expect(getByLabelText("便签内容")).toBeInTheDocument();
+  expect(getByLabelText("便签内容")).toHaveClass("markdown-body");
 });
 
 it("does not write or reorder a note when closed without changes", () => {

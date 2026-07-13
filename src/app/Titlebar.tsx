@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { GearSix, MagnifyingGlass, Minus, Square, X } from "@phosphor-icons/react";
-import { useRef } from "react";
+import { GearSix, MagnifyingGlass, Minus, PushPin, Square, X } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
 import { ThemeSwitcher } from "../features/settings/ThemeSwitcher";
 
 interface TitlebarProps {
@@ -13,6 +13,23 @@ interface TitlebarProps {
 export function Titlebar({ onOpenPalette, onOpenSettings, onDragStart }: TitlebarProps) {
   const win = getCurrentWindow();
   const dragStarted = useRef(false);
+  const [alwaysOnTop, setAlwaysOnTop] = useState(() => localStorage.getItem("window-always-on-top") === "true");
+  const initialAlwaysOnTop = useRef(alwaysOnTop);
+
+  useEffect(() => {
+    void invoke("window_set_always_on_top", { pinned: initialAlwaysOnTop.current }).catch(() => undefined);
+  }, []);
+
+  const toggleAlwaysOnTop = async () => {
+    const pinned = !alwaysOnTop;
+    try {
+      await invoke("window_set_always_on_top", { pinned });
+      setAlwaysOnTop(pinned);
+      localStorage.setItem("window-always-on-top", String(pinned));
+    } catch {
+      // Keep the visible state aligned with the native window state.
+    }
+  };
 
   const startWindowDrag = async () => {
     if (dragStarted.current) return;
@@ -50,6 +67,15 @@ export function Titlebar({ onOpenPalette, onOpenSettings, onDragStart }: Titleba
         <ThemeSwitcher />
         <button className="btn-icon" aria-label="设置" title="设置" onClick={onOpenSettings}>
           <GearSix size={15} weight="duotone" />
+        </button>
+        <button
+          className={`btn-icon${alwaysOnTop ? " is-active" : ""}`}
+          aria-label={alwaysOnTop ? "取消置顶" : "置顶窗口"}
+          aria-pressed={alwaysOnTop}
+          title={alwaysOnTop ? "取消置顶" : "置顶窗口"}
+          onClick={() => void toggleAlwaysOnTop()}
+        >
+          <PushPin size={14} weight={alwaysOnTop ? "fill" : "regular"} />
         </button>
         <button className="btn-icon" aria-label="最小化" title="最小化到托盘" onClick={() => void invoke("window_hide_to_tray")}>
           <Minus size={14} weight="bold" />
