@@ -5,15 +5,36 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  PNPM_VERSION: 11.10.0
+
 jobs:
-  release:
+  windows:
+    name: Publish Windows installers
     runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: cmd
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with: { version: 9 }
+        run: npm install --global pnpm@%PNPM_VERSION%
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -21,9 +42,14 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri app (MSI)
+      - name: Build and publish release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: --bundles msi
+          tagName: ${{ github.ref_name }}
+          releaseName: tidbit ${{ github.ref_name }}
+          releaseBody: See CHANGELOG.md for release details.
+          releaseDraft: false
+          prerelease: false
+          args: --bundles nsis,msi
