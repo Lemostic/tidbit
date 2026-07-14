@@ -6,6 +6,24 @@
 
 html, body, #root { height: 100%; margin: 0; background: transparent; }
 
+/* Desktop-app surface: suppress browser selection/drag feedback everywhere except real editors. */
+#root, #root * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#root img, #root svg {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+#root input,
+#root textarea,
+#root [contenteditable="true"],
+#root [contenteditable="true"] * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 body {
   color: var(--fg);
   font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system,
@@ -139,11 +157,14 @@ input, select, textarea { font: inherit; color: var(--fg); }
   border-radius: var(--app-radius) var(--app-radius) 0 0;
 }
 .titlebar__brand {
+  flex: 0 0 auto;
   font-weight: 650;
   letter-spacing: -0.01em;
   font-size: 13px;
 }
 .titlebar__search {
+  flex: 0 1 120px;
+  min-width: 0;
   margin-left: var(--sp-3);
   display: inline-flex;
   align-items: center;
@@ -155,20 +176,25 @@ input, select, textarea { font: inherit; color: var(--fg); }
   background: var(--bg);
   color: var(--fg-subtle);
   font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
   transform: translateY(1px);
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
+.titlebar__search > span:not(.titlebar__kbd) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .titlebar__search:hover { border-color: var(--border-strong); color: var(--fg-muted); }
 .titlebar__kbd {
+  flex: 0 0 auto;
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--surface-2);
   color: var(--fg-subtle);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .titlebar__spacer { margin-left: auto; }
-.titlebar__actions { display: flex; align-items: center; gap: 2px; }
+.titlebar__actions { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; }
 
 /* ---- App layout ---- */
 .app-body {
@@ -206,6 +232,44 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .notes__archive-toggle .switch { width: 26px; height: 15px; padding: 2px; flex: 0 0 auto; }
 .notes__archive-toggle .switch::before { width: 11px; height: 11px; }
 .notes__archive-toggle .switch:checked::before { transform: translateX(11px); }
+.notes__sortbar {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px 5px 13px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg-subtle);
+}
+.notes__sort-label { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; }
+.notes__sort-select {
+  min-width: 92px;
+  height: 25px;
+  padding: 0 22px 0 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+.notes__sort-direction {
+  min-width: 82px;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--fg-muted);
+  font-size: 10px;
+}
+.notes__sort-direction:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface-2); color: var(--fg); }
+.notes__sort-direction:active:not(:disabled) { transform: scale(0.98); }
+.notes__sort-direction:disabled { cursor: default; opacity: 0.64; }
 
 /* Single-column stack reads best in a narrow (360px) window. */
 .notes__list { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -519,7 +583,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .note-editor__title { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-family: var(--font-note-title); font-size: 14px; font-weight: 650; }
 .note-editor__options { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--border); background: var(--bg); }
 .note-editor__group { max-width: 132px; }
-.color-swatches { display: flex; align-items: center; gap: 6px; }
+.color-swatches { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
 .color-swatch { width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid var(--border-strong); border-radius: 50%; color: #ffffff; transition: transform var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease); }
 .color-swatch:hover { transform: scale(1.12); }
 .color-swatch.is-active { border-color: var(--fg-muted); box-shadow: inset 0 0 0 2px var(--surface); }
@@ -586,6 +650,8 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .settings-row__copy { flex: 1; display: flex; flex-direction: column; }
 .settings-row__copy strong { font-weight: 400; }
 .settings-row__copy small, .settings-row__copy span { color: var(--fg-subtle); font-size: 11px; }
+.settings-copy-format .select { flex: 0 0 auto; width: 118px; min-width: 0; font-size: 11px; }
+.settings-language .select { flex: 0 0 auto; width: 118px; min-width: 0; font-size: 11px; }
 .switch { appearance: none; width: 32px; height: 18px; padding: 2px; border-radius: 10px; background: var(--border-strong); transition: background var(--dur-fast) var(--ease); }
 .switch::before { content: ""; display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); transition: transform var(--dur-fast) var(--ease); }
 .switch:checked { background: var(--accent); }
@@ -710,6 +776,12 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .confirm-dialog .confirm-dialog__danger:active { color: #ffffff; background: #a93f3f; }
 .confirm-dialog .confirm-dialog__danger:disabled { color: rgba(255,255,255,0.78); background: #a85b5b; }
 
+@media (max-width: 520px) {
+  .titlebar__kbd { display: none; }
+  .titlebar { gap: 2px; }
+  .titlebar__search { flex-basis: 70px; margin-left: 2px; padding: 0 7px; }
+}
+
 @media (max-width: 420px) {
   .titlebar { gap: 2px; padding-left: 8px; }
   .titlebar__search { flex: 1; min-width: 42px; padding: 0 7px; }
@@ -744,6 +816,8 @@ input, select, textarea { font: inherit; color: var(--fg); }
   border-color: color-mix(in srgb, var(--border-strong) 80%, var(--accent) 20%);
   box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.08);
 }
+.note-card.is-sortable { user-select: none; }
+.note-card.is-dragging { cursor: grabbing; }
 .note-card.is-dragging {
   opacity: 0.42;
   transform: scale(0.985);
@@ -765,6 +839,22 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .note-card.is-drop-before::after { top: -4px; }
 .note-card.is-drop-after::after { bottom: -4px; }
 .note-card__inner { padding: 10px 10px 8px 14px; }
+.note-card__drag-handle {
+  width: 22px;
+  height: 23px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  margin-left: -6px;
+  border-radius: 5px;
+  color: var(--fg-subtle);
+  cursor: grab;
+  touch-action: none;
+}
+.note-card__drag-handle:hover,
+.note-card__drag-handle:focus-visible { color: var(--accent); background: var(--accent-soft); }
+.note-card__drag-handle:active,
+.note-card.is-dragging .note-card__drag-handle { cursor: grabbing; }
 .note-card__content { margin: 6px 0 8px; line-height: 1.62; }
 .note-card__meta { gap: 8px; padding-top: 6px; border-top-color: color-mix(in srgb, var(--border) 62%, transparent); }
 .note-card__actions { gap: 0; opacity: 0.52; }
@@ -793,6 +883,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border-strong) 78%, transparent);
   border-radius: 10px;
+  background: var(--surface);
   background: color-mix(in srgb, var(--surface) calc(var(--wander-opacity) * 100%), transparent);
   box-shadow: 0 16px 38px -18px rgba(24, 31, 40, 0.42), inset 0 1px 0 rgba(255,255,255,0.14);
   backdrop-filter: blur(16px) saturate(1.08);
@@ -832,7 +923,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .wander-card__skeleton span:nth-child(2) { width: 82%; }
 .wander-card__skeleton span:nth-child(3) { width: 58%; }
 .wander-card__foot { display: flex; justify-content: flex-end; gap: 9px; padding: 7px 12px; border-top: 1px solid color-mix(in srgb, var(--border) 66%, transparent); color: var(--fg-subtle); font-size: 10px; font-variant-numeric: tabular-nums; }
-.wander-card__body { cursor: text; }
+.wander-card__body { cursor: default; }
 .wander-card.is-collapsed { border-radius: 9px; }
 .wander-card.is-collapsed .wander-card__head { min-height: 100%; border-bottom: 0; }
 
@@ -846,25 +937,24 @@ input, select, textarea { font: inherit; color: var(--fg); }
 @keyframes wander-in { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 /* ---- Liquid glass material: composable with every color theme ---- */
-:root[data-liquid-glass] body {
-  background: transparent;
-}
+:root[data-liquid-glass] body { background: transparent; }
 
 :root[data-liquid-glass] {
-  --glass-surface: color-mix(in srgb, var(--surface) var(--liquid-glass-opacity), color-mix(in srgb, var(--accent) 4%, transparent));
-  --glass-recessed-surface: color-mix(in srgb, var(--surface-2) var(--liquid-glass-opacity), color-mix(in srgb, var(--accent) 5%, transparent));
-  --glass-sheen: linear-gradient(135deg, color-mix(in srgb, var(--glass-specular) 28%, transparent) 0%, transparent 26%, transparent 74%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
+  --glass-surface: var(--surface);
+  --glass-recessed-surface: var(--surface-2);
+  --glass-sheen: linear-gradient(transparent, transparent);
 }
 
 :root[data-liquid-glass] .titlebar,
 :root[data-liquid-glass] .app-main {
+  background: var(--surface);
   background: var(--glass-sheen), var(--glass-surface);
   -webkit-backdrop-filter: blur(38px) saturate(1.55) contrast(1.04);
   backdrop-filter: blur(38px) saturate(1.55) contrast(1.04);
 }
 
 :root[data-liquid-glass] .notes {
-  background: transparent;
+  background: var(--bg);
 }
 
 :root[data-liquid-glass] .titlebar {
@@ -876,15 +966,25 @@ input, select, textarea { font: inherit; color: var(--fg); }
   position: relative;
   border: 1px solid color-mix(in srgb, var(--glass-line) 62%, var(--border));
   border-top: 0;
+  border-left: 0;
   box-shadow: inset 1px 0 0 var(--glass-specular), inset -1px 0 0 var(--glass-depth-line), inset 0 -1px 0 var(--glass-depth-line);
 }
 
 :root[data-liquid-glass] .notes__head {
+  background: var(--surface-2);
   background: var(--glass-recessed-surface);
   border-bottom-color: color-mix(in srgb, var(--glass-line) 38%, var(--border));
   box-shadow: inset 0 1px 0 var(--glass-line), inset 0 -1px 0 var(--glass-depth-line);
   -webkit-backdrop-filter: blur(28px) saturate(1.42);
   backdrop-filter: blur(28px) saturate(1.42);
+}
+
+:root[data-liquid-glass] .notes__sortbar {
+  background: var(--surface-2);
+  background: var(--glass-recessed-surface);
+  border-bottom-color: color-mix(in srgb, var(--glass-line) 38%, var(--border));
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  backdrop-filter: blur(24px) saturate(1.35);
 }
 
 :root[data-liquid-glass] .note-card,
@@ -895,6 +995,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
 :root[data-liquid-glass] .palette,
 :root[data-liquid-glass] .confirm-dialog,
 :root[data-liquid-glass] .toast {
+  background: var(--surface);
   background: var(--glass-sheen), var(--glass-surface);
   border-color: color-mix(in srgb, var(--glass-line) 70%, var(--border));
   box-shadow:
@@ -907,6 +1008,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
 }
 
 :root[data-liquid-glass] .note-card {
+  background: var(--surface);
   background: var(--glass-sheen), color-mix(in srgb, var(--glass-surface) 88%, var(--card-accent) 12%);
   transition: transform 320ms var(--ease), background 320ms var(--ease), border-color 320ms var(--ease), box-shadow 320ms var(--ease);
 }
@@ -923,6 +1025,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
 :root[data-liquid-glass] .select,
 :root[data-liquid-glass] .btn:not(.btn-primary):not(.confirm-dialog__danger),
 :root[data-liquid-glass] .settings-action {
+  background: var(--surface-2);
   background: var(--glass-recessed-surface);
   border-color: color-mix(in srgb, var(--glass-line) 42%, var(--border));
   box-shadow: inset 0 1px 0 var(--glass-line), inset 0 -1px 0 var(--glass-depth-line);
@@ -938,7 +1041,9 @@ input, select, textarea { font: inherit; color: var(--fg); }
 }
 
 :root[data-liquid-glass] .group-tab {
-  background: color-mix(in oklch, var(--group-tab-bg, var(--rail-bg)) var(--liquid-glass-opacity), transparent);
+  color: var(--group-tab-fg, #ffffff);
+  background: var(--group-tab-bg, var(--rail-bg));
+  background: color-mix(in srgb, var(--group-tab-bg, var(--rail-bg)) var(--liquid-glass-opacity), transparent);
   box-shadow: inset 0 1px 0 var(--glass-specular), inset -1px 0 0 var(--glass-depth-line);
   -webkit-backdrop-filter: blur(18px) saturate(1.7);
   backdrop-filter: blur(18px) saturate(1.7);
@@ -946,11 +1051,13 @@ input, select, textarea { font: inherit; color: var(--fg); }
 }
 
 :root[data-liquid-glass] .group-tab:hover:not(.is-active) {
-  background: color-mix(in oklch, var(--group-tab-bg, var(--rail-bg)) var(--liquid-glass-opacity), white 8%);
+  background: var(--group-tab-bg, var(--rail-bg));
+  background: color-mix(in srgb, var(--group-tab-bg, var(--rail-bg)) var(--liquid-glass-opacity), white 8%);
 }
 
 :root[data-liquid-glass] .group-tab.is-active {
-  background: color-mix(in oklch, var(--group-tab-bg, var(--accent)) var(--liquid-glass-opacity), transparent);
+  background: var(--group-tab-bg, var(--accent));
+  background: color-mix(in srgb, var(--group-tab-bg, var(--accent)) var(--liquid-glass-opacity), transparent);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.34), inset -1px 0 0 rgba(255,255,255,0.15);
   filter: saturate(1.42) brightness(1.1);
 }
@@ -960,11 +1067,57 @@ input, select, textarea { font: inherit; color: var(--fg); }
 }
 
 :root[data-liquid-glass][data-window="wander"] .wander-card {
+  background: var(--surface);
   background: var(--glass-sheen), color-mix(in srgb, var(--surface) var(--liquid-glass-opacity), transparent);
   border-color: color-mix(in srgb, var(--glass-line) 74%, var(--border));
   box-shadow: inset 0 1px 0 var(--glass-specular), inset 1px 0 0 var(--glass-line), inset 0 -1px 0 var(--glass-depth-line), 0 20px 42px -22px var(--glass-shadow);
   -webkit-backdrop-filter: blur(46px) saturate(1.68) contrast(1.05);
   backdrop-filter: blur(46px) saturate(1.68) contrast(1.05);
+}
+
+@supports (background: color-mix(in srgb, white 50%, black)) {
+  :root[data-liquid-glass] {
+    --glass-surface: color-mix(in srgb, var(--surface) var(--liquid-glass-opacity), color-mix(in srgb, var(--accent) 4%, transparent));
+    --glass-recessed-surface: color-mix(in srgb, var(--surface-2) var(--liquid-glass-opacity), color-mix(in srgb, var(--accent) 5%, transparent));
+    --glass-sheen: linear-gradient(135deg, color-mix(in srgb, var(--glass-specular) 28%, transparent) 0%, transparent 26%, transparent 74%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
+  }
+  :root[data-liquid-glass] .notes { background: transparent; }
+}
+
+:root[data-liquid-glass][data-liquid-glass-solid] .titlebar,
+:root[data-liquid-glass][data-liquid-glass-solid] .app-main,
+:root[data-liquid-glass][data-liquid-glass-solid] .note-card,
+:root[data-liquid-glass][data-liquid-glass-solid] .settings-panel,
+:root[data-liquid-glass][data-liquid-glass-solid] .restore-panel,
+:root[data-liquid-glass][data-liquid-glass-solid] .group-editor,
+:root[data-liquid-glass][data-liquid-glass-solid] .note-editor,
+:root[data-liquid-glass][data-liquid-glass-solid] .palette,
+:root[data-liquid-glass][data-liquid-glass-solid] .confirm-dialog,
+:root[data-liquid-glass][data-liquid-glass-solid] .toast,
+:root[data-liquid-glass][data-liquid-glass-solid][data-window="wander"] .wander-card,
+.wander-card.is-opaque {
+  background: var(--surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-liquid-glass][data-liquid-glass-solid] .notes { background: var(--bg); }
+:root[data-liquid-glass][data-liquid-glass-solid] .notes__head,
+:root[data-liquid-glass][data-liquid-glass-solid] .notes__sortbar,
+:root[data-liquid-glass][data-liquid-glass-solid] .titlebar__search,
+:root[data-liquid-glass][data-liquid-glass-solid] .notes__archive-toggle,
+:root[data-liquid-glass][data-liquid-glass-solid] .field,
+:root[data-liquid-glass][data-liquid-glass-solid] .select,
+:root[data-liquid-glass][data-liquid-glass-solid] .btn:not(.btn-primary):not(.confirm-dialog__danger),
+:root[data-liquid-glass][data-liquid-glass-solid] .settings-action {
+  background: var(--surface-2);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-liquid-glass][data-liquid-glass-solid] .group-tab {
+  background: var(--group-tab-bg, var(--rail-bg));
+  filter: saturate(1.12) brightness(1.02);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 @supports not (backdrop-filter: blur(1px)) {

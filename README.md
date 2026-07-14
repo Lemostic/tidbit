@@ -54,8 +54,8 @@ pnpm tauri build
 典型输出：
 
 - `src-tauri/target/release/tidbit.exe`：独立可执行文件
-- `src-tauri/target/release/bundle/nsis/tidbit_0.1.0_x64-setup.exe`：NSIS 安装程序
-- `src-tauri/target/release/bundle/msi/tidbit_0.1.0_x64_en-US.msi`：MSI 安装程序
+- `src-tauri/target/release/bundle/nsis/tidbit_0.1.1_x64-setup.exe`：NSIS 安装程序
+- `src-tauri/target/release/bundle/msi/tidbit_0.1.1_x64_en-US.msi`：MSI 安装程序
 
 未签名构建首次运行时可能触发 Windows SmartScreen 提示。
 

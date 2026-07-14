@@ -1,4 +1,5 @@
 use crate::backup::snapshot::{create_snapshot, restore_snapshot};
+use crate::backup::scheduler::{load_settings, save_settings, BackupScheduler, BackupSettings};
 use crate::data_directory::DataDirectory;
 use crate::error::AppError;
 use crate::state::{AppState, BackupKey};
@@ -62,4 +63,27 @@ pub async fn backup_open_dir(app: AppHandle) -> Result<(), AppError> {
     #[cfg(target_os = "linux")]
     std::process::Command::new("xdg-open").arg(&dir).spawn()?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn backup_settings_get(app: AppHandle) -> Result<BackupSettings, AppError> {
+    Ok(load_settings(&app.state::<DataDirectory>().0))
+}
+
+#[tauri::command]
+pub async fn backup_settings_set(
+    app: AppHandle,
+    scheduler: State<'_, BackupScheduler>,
+    interval_hours: f64,
+    retention_count: usize,
+) -> Result<BackupSettings, AppError> {
+    let settings = save_settings(
+        &app.state::<DataDirectory>().0,
+        BackupSettings {
+            interval_hours,
+            retention_count,
+        },
+    )?;
+    scheduler.update(settings);
+    Ok(settings)
 }

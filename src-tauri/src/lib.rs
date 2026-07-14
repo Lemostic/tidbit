@@ -57,6 +57,7 @@ pub fn run() {
             }
             tray::build_tray(app)?;
             hotkey::register(&app.handle())?;
+            backup::scheduler::start(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -101,9 +102,12 @@ pub fn run() {
             ipc::backup::backup_restore,
             ipc::backup::backup_list,
             ipc::backup::backup_open_dir,
+            ipc::backup::backup_settings_get,
+            ipc::backup::backup_settings_set,
             ipc::settings::data_directory_get,
             ipc::settings::data_directory_pick,
             ipc::settings::data_directory_set,
+            tray::tray_set_language,
             ipc::search::search_query,
         ])
         .on_window_event(|win, ev| {

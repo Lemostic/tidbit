@@ -60,7 +60,7 @@
   --glass-specular: rgba(255, 255, 255, 0.58);
   --glass-depth-line: rgba(112, 137, 163, 0.18);
   --glass-shadow: rgba(55, 72, 91, 0.18);
-  --liquid-glass-opacity: 80%;
+  --liquid-glass-opacity: 92%;
 }
 
 :root[data-theme="light"] { color-scheme: light; }

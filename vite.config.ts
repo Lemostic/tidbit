@@ -1,10 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { cpSync, mkdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 export default defineConfig({
   root: "src",
   publicDir: "../public",
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "copy-localization-resources",
+      closeBundle() {
+        const destination = resolve(process.cwd(), "dist/resources");
+        mkdirSync(destination, { recursive: true });
+        cpSync(resolve(process.cwd(), "resources"), destination, { recursive: true });
+      },
+    },
+  ],
   clearScreen: false,
   server: {
     port: 1420,

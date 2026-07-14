@@ -18,6 +18,8 @@ import { applyFontPreferences, loadFontPreferences, saveFontPreferences } from "
 import { client } from "./ipc/client";
 import { loadGlassEffect, loadGlassOpacity, saveGlassEffect, saveGlassOpacity } from "./ui/glassEffect";
 import { broadcastAppearance } from "./ui/appearance";
+import { loadNoteCopyFormat, saveNoteCopyFormat, type NoteCopyFormat } from "./ui/noteCopy";
+import { useI18n } from "./i18n";
 
 const themes: Theme[] = ["light", "dark", "sepia"];
 
@@ -28,6 +30,7 @@ interface DataDirectoryInfo {
 }
 
 export default function App() {
+  const { locale, t } = useI18n();
   const [groupId, setGroupId] = useState<number | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -42,9 +45,12 @@ export default function App() {
   const [dockingEnabled, setDockingEnabled] = useState(() => localStorage.getItem("docking-enabled") !== "false");
   const [lockPin, setLockPin] = useState(() => localStorage.getItem("privacy-pin") ?? "");
   const [fonts, setFonts] = useState(loadFontPreferences);
-  const [wanderOpacity, setWanderOpacity] = useState(() => Number(localStorage.getItem("wander-opacity") ?? "88"));
+  const [wanderOpacity, setWanderOpacity] = useState(() => Number(localStorage.getItem("wander-opacity") ?? "94"));
   const [glassEnabled, setGlassEnabled] = useState(loadGlassEffect);
   const [glassOpacity, setGlassOpacity] = useState(loadGlassOpacity);
+  const [copyFormat, setCopyFormat] = useState(loadNoteCopyFormat);
+  const [backupIntervalHours, setBackupIntervalHours] = useState(1);
+  const [backupRetentionCount, setBackupRetentionCount] = useState(1);
   const [dataDirectory, setDataDirectory] = useState("");
   const [defaultDataDirectory, setDefaultDataDirectory] = useState("");
   const [dataDirectoryBusy, setDataDirectoryBusy] = useState(false);
@@ -71,6 +77,17 @@ export default function App() {
     }).catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    void invoke("tray_set_language", { locale }).catch(() => undefined);
+  }, [locale]);
+
+  useEffect(() => {
+    void backup.getSettings().then((settings) => {
+      setBackupIntervalHours(settings.interval_hours);
+      setBackupRetentionCount(settings.retention_count);
+    }).catch(() => undefined);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const notify = useCallback((next: ToastState) => setToast(next), []);
   const requestNote = useCallback(() => setCreateNoteRequest((value) => value + 1), []);
   const requestGroup = useCallback(() => setCreateGroupRequest((value) => value + 1), []);
@@ -79,11 +96,11 @@ export default function App() {
     try {
       await client.notes.moveGroup(noteId, targetGroupId);
       setNotesRefreshRequest((value) => value + 1);
-      notify({ kind: "success", message: `便签已移动到「${groupName}」` });
+      notify({ kind: "success", message: t("notice.noteMoved", { group: groupName }) });
     } catch {
-      notify({ kind: "error", message: "移动便签失败" });
+      notify({ kind: "error", message: t("notice.noteMoveFailed") });
     }
-  }, [notify]);
+  }, [notify, t]);
 
   useEffect(() => {
     let stopHidden: (() => void) | undefined;
@@ -116,8 +133,8 @@ export default function App() {
   const setDocking = useCallback((enabled: boolean) => {
     setDockingEnabled(enabled);
     localStorage.setItem("docking-enabled", String(enabled));
-    notify({ kind: "info", message: enabled ? "边缘吸附已开启" : "边缘吸附已关闭" });
-  }, [notify]);
+    notify({ kind: "info", message: t(enabled ? "notice.dockOn" : "notice.dockOff") });
+  }, [notify, t]);
 
   const saveLockPin = useCallback((pin: string) => {
     setLockPin(pin);
@@ -130,7 +147,7 @@ export default function App() {
   }, []);
 
   const updateWanderOpacity = useCallback((next: number) => {
-    const opacity = Math.min(100, Math.max(45, next));
+    const opacity = Math.min(100, Math.max(60, next));
     setWanderOpacity(opacity);
     localStorage.setItem("wander-opacity", String(opacity));
     void invoke("wander_set_opacity", { opacity });
@@ -140,15 +157,33 @@ export default function App() {
     setGlassEnabled(enabled);
     saveGlassEffect(enabled);
     void broadcastAppearance().catch(() => undefined);
-    notify({ kind: "info", message: enabled ? "液态玻璃已开启" : "液态玻璃已关闭" });
-  }, [notify]);
+    notify({ kind: "info", message: t(enabled ? "notice.glassOn" : "notice.glassOff") });
+  }, [notify, t]);
 
   const updateGlassOpacity = useCallback((next: number) => {
-    const opacity = Math.min(100, Math.max(55, next));
+    const opacity = Math.min(100, Math.max(65, next));
     setGlassOpacity(opacity);
     saveGlassOpacity(opacity);
     void broadcastAppearance().catch(() => undefined);
   }, []);
+
+  const updateCopyFormat = useCallback((format: NoteCopyFormat) => {
+    setCopyFormat(format);
+    saveNoteCopyFormat(format);
+    notify({ kind: "info", message: t(format === "markdown" ? "notice.copyMarkdown" : "notice.copyPlain") });
+  }, [notify, t]);
+
+  const updateBackupSettings = useCallback(async (intervalHours: number, retentionCount: number) => {
+    const nextInterval = Math.min(24, Math.max(0.5, Math.round(intervalHours * 2) / 2));
+    const nextRetention = Math.min(10, Math.max(1, Math.round(retentionCount)));
+    setBackupIntervalHours(nextInterval);
+    setBackupRetentionCount(nextRetention);
+    try {
+      await backup.saveSettings({ interval_hours: nextInterval, retention_count: nextRetention });
+    } catch {
+      notify({ kind: "error", message: t("notice.backupSettingsFailed") });
+    }
+  }, [backup, notify, t]);
 
   const pickDataDirectory = useCallback(async () => {
     setDataDirectoryBusy(true);
@@ -156,15 +191,15 @@ export default function App() {
       const selected = await invoke<string | null>("data_directory_pick");
       if (selected) setDataDirectory(selected);
     } catch {
-      notify({ kind: "error", message: "无法打开目录选择器" });
+      notify({ kind: "error", message: t("notice.directoryPickerFailed") });
     } finally {
       setDataDirectoryBusy(false);
     }
-  }, [notify]);
+  }, [notify, t]);
 
   const saveDataDirectory = useCallback(async () => {
     if (!dataDirectory.trim()) {
-      notify({ kind: "error", message: "数据目录不能为空" });
+      notify({ kind: "error", message: t("notice.directoryRequired") });
       return;
     }
     setDataDirectoryBusy(true);
@@ -172,9 +207,9 @@ export default function App() {
       await invoke("data_directory_set", { path: dataDirectory.trim() });
     } catch {
       setDataDirectoryBusy(false);
-      notify({ kind: "error", message: "数据目录不可写或迁移失败" });
+      notify({ kind: "error", message: t("notice.directoryMigrationFailed") });
     }
-  }, [dataDirectory, notify]);
+  }, [dataDirectory, notify, t]);
 
   const cycleTheme = useCallback(() => {
     const current = (localStorage.getItem("theme") as Theme) ?? "light";
@@ -188,23 +223,23 @@ export default function App() {
     setBusy(true);
     try {
       await backup.snapshotNow();
-      notify({ kind: "success", message: "加密备份已创建" });
+      notify({ kind: "success", message: t("notice.backupCreated") });
     } catch {
-      notify({ kind: "error", message: "备份失败，请检查磁盘空间" });
+      notify({ kind: "error", message: t("notice.backupFailed") });
     } finally { setBusy(false); }
-  }, [backup, notify]);
+  }, [backup, notify, t]);
 
   const openBackups = useCallback(async () => {
     try { await backup.openDirectory(); }
-    catch { notify({ kind: "error", message: "无法打开备份目录" }); }
-  }, [backup, notify]);
+    catch { notify({ kind: "error", message: t("notice.openBackupsFailed") }); }
+  }, [backup, notify, t]);
 
   const showHidden = useCallback(async () => {
     try {
       await invoke("window_show_all_hidden");
-      notify({ kind: "success", message: "已显示隐藏窗口" });
-    } catch { notify({ kind: "error", message: "显示窗口失败" }); }
-  }, [notify]);
+      notify({ kind: "success", message: t("notice.windowsShown") });
+    } catch { notify({ kind: "error", message: t("notice.showWindowsFailed") }); }
+  }, [notify, t]);
 
   const reportDocking = useCallback(async () => {
     if (!dockingEnabled || interactionLocked) return;
@@ -283,7 +318,7 @@ export default function App() {
     lockNow: () => setLocked(true),
     showHidden: () => void showHidden(),
     openSettings,
-  }), [cycleTheme, dockingEnabled, openBackups, openSettings, requestGroup, requestNote, setDocking, showHidden, snapshotNow]);
+  }), [cycleTheme, dockingEnabled, locale, openBackups, openSettings, requestGroup, requestNote, setDocking, showHidden, snapshotNow]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -326,6 +361,9 @@ export default function App() {
         wanderOpacity={wanderOpacity}
         glassEnabled={glassEnabled}
         glassOpacity={glassOpacity}
+        copyFormat={copyFormat}
+        backupIntervalHours={backupIntervalHours}
+        backupRetentionCount={backupRetentionCount}
         onClose={() => setSettingsOpen(false)}
         onDockingChange={setDocking}
         onLockPinChange={saveLockPin}
@@ -333,6 +371,9 @@ export default function App() {
         onWanderOpacityChange={updateWanderOpacity}
         onGlassChange={updateGlassEffect}
         onGlassOpacityChange={updateGlassOpacity}
+        onCopyFormatChange={updateCopyFormat}
+        onBackupIntervalChange={(hours) => void updateBackupSettings(hours, backupRetentionCount)}
+        onBackupRetentionChange={(count) => void updateBackupSettings(backupIntervalHours, count)}
         onBackup={() => void snapshotNow()}
         onRestore={() => { setSettingsOpen(false); setRestoreOpen(true); }}
         onOpenBackups={() => void openBackups()}

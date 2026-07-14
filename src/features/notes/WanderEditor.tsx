@@ -6,8 +6,10 @@ import type { Group, Note } from "../../ipc/types";
 import { applyFontPreferences, loadFontPreferences } from "../../ui/fontPreferences";
 import { appearanceChangedEvent, applyAppearance, loadAppearance, type AppearancePreferences } from "../../ui/appearance";
 import { NoteEditor } from "./NoteEditor";
+import { useI18n } from "../../i18n";
 
 export function WanderEditor({ noteId }: { noteId: number }) {
+  const { t } = useI18n();
   const [note, setNote] = useState<Note | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [error, setError] = useState(false);
@@ -34,8 +36,8 @@ export function WanderEditor({ noteId }: { noteId: number }) {
   }, [refresh]);
 
   const close = () => void invoke("wander_editor_close", { noteId });
-  if (error) return <main className="wander-editor-state">便签加载失败</main>;
-  if (!note) return <main className="wander-editor-state">正在加载</main>;
+  if (error) return <main className="wander-editor-state">{t("wander.loadingError")}</main>;
+  if (!note) return <main className="wander-editor-state">{t("notes.loading")}</main>;
 
   return (
     <main className="wander-editor-shell">
