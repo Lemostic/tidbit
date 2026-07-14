@@ -65,6 +65,24 @@ jobs:
           args: --bundles nsis,msi
 
       - name: Publish release
+        uses: actions/github-script@v8
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "%RELEASE_TAG%" --draft=false --latest
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              ...context.repo,
+              per_page: 100,
+            });
+            const release = releases.find((item) => item.tag_name === process.env.RELEASE_TAG && item.draft);
+            if (!release) {
+              core.setFailed(`Draft release not found for ${process.env.RELEASE_TAG}`);
+              return;
+            }
+            await github.rest.repos.updateRelease({
+              ...context.repo,
+              release_id: release.id,
+              draft: false,
+              make_latest: "true",
+            });
