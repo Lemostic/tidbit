@@ -16,7 +16,7 @@
   [![Stars](https://img.shields.io/github/stars/Lemostic/tidbit?style=flat-square)](https://github.com/Lemostic/tidbit/stargazers)
 </div>
 
-![tidbit 主界面、编辑器与设置页面](./docs/images/tidbit-showcase.png)
+![tidbit 主界面、编辑器与设置页面](./assets/screenshots/tidbit-showcase.png)
 
 ## 为什么是 tidbit？
 
@@ -46,7 +46,7 @@
 <table>
   <tr>
     <td width="46%" align="center">
-      <img src="./docs/images/tidbit-floating-note.png" alt="tidbit 云游便签窗口">
+      <img src="./assets/screenshots/tidbit-floating-note.png" alt="tidbit 云游便签窗口">
     </td>
     <td>
       <strong>把当前信息留在眼前，而不是埋进另一个窗口。</strong>
@@ -189,8 +189,6 @@ resources/locales/
 ## 项目文档
 
 - [更新日志](./CHANGELOG.md)
-- [架构说明](./docs/dev/architecture.md)
-- [开发交接](./docs/dev/handoff.md)
 - [本地化贡献说明](./resources/locales/README.md)
 
 ---

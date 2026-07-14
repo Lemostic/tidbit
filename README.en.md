@@ -16,7 +16,7 @@
   [![Stars](https://img.shields.io/github/stars/Lemostic/tidbit?style=flat-square)](https://github.com/Lemostic/tidbit/stargazers)
 </div>
 
-![tidbit main window, editor, and settings](./docs/images/tidbit-showcase.png)
+![tidbit main window, editor, and settings](./assets/screenshots/tidbit-showcase.png)
 
 ## Why tidbit?
 
@@ -46,7 +46,7 @@ A *tidbit* is a small piece of information worth keeping. This project does not 
 <table>
   <tr>
     <td width="46%" align="center">
-      <img src="./docs/images/tidbit-floating-note.png" alt="tidbit floating note window">
+      <img src="./assets/screenshots/tidbit-floating-note.png" alt="tidbit floating note window">
     </td>
     <td>
       <strong>Keep the information you need in sight instead of burying it in another window.</strong>
@@ -190,8 +190,6 @@ For larger features, please open an Issue first to align on scope and avoid dupl
 ## Documentation
 
 - [Changelog](./CHANGELOG.md)
-- [Architecture](./docs/dev/architecture.md)
-- [Developer handoff](./docs/dev/handoff.md)
 - [Localization guide](./resources/locales/README.md)
 
 ---
