@@ -16,12 +16,26 @@ src-tauri/gen/
 .vscode/
 .idea/
 
+# local agent / workflow metadata
+/.agents/
+/.claude/
+/.codex/
+/.superpowers/
+/.wolf/
+/AGENTS.md
+/CLAUDE.md
+
+# private planning and process documentation
+/docs/
+/scripts/capture_readme_screenshots.py
+
+# local runtime captures and compiler state
+/*-check.png
+/wander-inline-edit-release.png
+*.tsbuildinfo
+
 # tauri
 src-tauri/Cargo.lock
 
 # lockfiles - keep pnpm-lock.yaml; track Cargo.lock at project root only if needed later
 # (currently only pnpm-lock.yaml is committed)
-
-# superpowers scratch
-.superpowers/sdd/
-.superpowers/sdd/
