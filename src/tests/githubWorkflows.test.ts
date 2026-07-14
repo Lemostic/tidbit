@@ -32,9 +32,12 @@ describe("GitHub Actions workflows", () => {
     expect(release).toContain("contents: write");
     expect(release).toContain("package-manager-cache: false");
     expect(release).toContain("tags:");
-    expect(release).toContain('tagName: ${{ github.ref_name }}');
+    expect(release).toContain("workflow_dispatch:");
+    expect(release).toContain('RELEASE_TAG: ${{ inputs.tag || github.ref_name }}');
+    expect(release).toContain('ref: ${{ env.RELEASE_TAG }}');
+    expect(release).toContain('tagName: ${{ env.RELEASE_TAG }}');
     expect(release).toContain("releaseDraft: true");
     expect(release).toContain("args: --bundles nsis,msi");
-    expect(release).toContain('gh release edit "%GITHUB_REF_NAME%" --draft=false --latest');
+    expect(release).toContain('gh release edit "%RELEASE_TAG%" --draft=false --latest');
   });
 });
