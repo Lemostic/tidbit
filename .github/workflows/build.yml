@@ -1,16 +1,16 @@
-name: Release
+name: Build Windows installers
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main, dev]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,7 +18,7 @@ env:
 
 jobs:
   windows:
-    name: Publish Windows installers
+    name: NSIS and MSI
     runs-on: windows-latest
     timeout-minutes: 60
     defaults:
@@ -42,14 +42,15 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build and publish release
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Windows installers
+        run: pnpm tauri build --bundles nsis,msi
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: tidbit ${{ github.ref_name }}
-          releaseBody: See CHANGELOG.md for release details.
-          releaseDraft: false
-          prerelease: false
-          args: --bundles nsis,msi
+          name: tidbit-windows-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
