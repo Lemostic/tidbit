@@ -1,9 +1,10 @@
 const glassStorageKey = "liquid-glass-enabled";
 const glassOpacityStorageKey = "liquid-glass-opacity";
-export const defaultGlassOpacity = 80;
+export const defaultGlassOpacity = 92;
+export const minimumGlassOpacity = 65;
 
 function clampGlassOpacity(opacity: number) {
-  return Math.min(100, Math.max(55, Math.round(opacity)));
+  return Math.min(100, Math.max(minimumGlassOpacity, Math.round(opacity)));
 }
 
 export function loadGlassEffect() {
@@ -20,7 +21,9 @@ export function loadGlassOpacity() {
 }
 
 export function applyGlassOpacity(opacity: number) {
-  document.documentElement.style.setProperty("--liquid-glass-opacity", `${clampGlassOpacity(opacity)}%`);
+  const next = clampGlassOpacity(opacity);
+  document.documentElement.style.setProperty("--liquid-glass-opacity", `${next}%`);
+  document.documentElement.toggleAttribute("data-liquid-glass-solid", next === 100);
 }
 
 export function saveGlassOpacity(opacity: number) {

@@ -6,7 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Group, Note } from "../../ipc/types";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
+import { configurableColors, readableTextColor } from "../../ui/colorPalette";
 import { EditorToolbar } from "./EditorToolbar";
+import { useI18n } from "../../i18n";
 
 interface NoteEditorProps {
   note: Note;
@@ -19,9 +21,8 @@ interface NoteEditorProps {
   embedded?: boolean;
 }
 
-const colors = [null, "#d75b57", "#d5a23f", "#4e9b75", "#4c86b8"] as const;
-
 export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false }: NoteEditorProps) {
+  const { t } = useI18n();
   const [current, setCurrent] = useState(note);
   const [title, setTitle] = useState(note.title ?? "");
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
@@ -51,7 +52,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   const editor = useEditor({
     extensions: [StarterKit, Markdown.configure({ html: true, transformPastedText: true })],
     content: note.content_md,
-    editorProps: { attributes: { "aria-label": "便签内容" } },
+    editorProps: { attributes: { "aria-label": t("editor.content"), class: "markdown-body" } },
     onUpdate({ editor: instance }) {
       dirtyRef.current = true;
       setStatus("saving");
@@ -66,7 +67,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   }, [editor, flush]);
 
   const updateTitle = async () => {
-    const next = title.trim() || "无标题";
+    const next = title.trim() || t("notes.untitled");
     if (next === (current.title ?? "")) return;
     setTitle(next);
     setStatus("saving");
@@ -87,47 +88,47 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   };
 
   const panel = (
-      <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-label="编辑便签">
+      <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-label={t("editor.label")}>
         {!embedded && <header className="note-editor__head">
           <span data-tauri-drag-region={desktopWindow ? true : undefined} className="note-editor__accent" style={{ background: current.color ?? "var(--accent)" }} />
           <input
             className="note-editor__title"
             value={title}
-            aria-label="便签标题"
-            placeholder="无标题"
+            aria-label={t("editor.title")}
+            placeholder={t("notes.untitled")}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => void updateTitle()}
             onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
           />
           <button
             className={`btn-icon${current.is_pinned ? " is-selected" : ""}`}
-            aria-label={current.is_pinned ? "取消置顶" : "置顶"}
-            title={current.is_pinned ? "取消置顶" : "置顶"}
+            aria-label={current.is_pinned ? t("notes.unpin") : t("notes.pin")}
+            title={current.is_pinned ? t("notes.unpin") : t("notes.pin")}
             onClick={() => void mutate(client.notes.setPinned(current.id, !current.is_pinned))}
           ><PushPin size={16} weight={current.is_pinned ? "fill" : "regular"} /></button>
-          <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>
+          <button className="btn-icon" aria-label={t("common.close")} title={t("common.close")} onClick={onClose}><X size={16} weight="bold" /></button>
         </header>}
 
         <div className="note-editor__options">
           <select
             className="select note-editor__group"
-            aria-label="移动到分组"
+            aria-label={t("editor.moveGroup")}
             value={current.group_id ?? ""}
             onChange={(e) => void mutate(client.notes.moveGroup(current.id, e.target.value ? Number(e.target.value) : null))}
           >
-            <option value="">全部便签</option>
+            <option value="">{t("groups.allNotes")}</option>
             {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
-          <div className="color-swatches" aria-label="便签颜色">
-            {colors.map((color) => (
+          <div className="color-swatches" aria-label={t("editor.color")}>
+            {configurableColors.map((color) => (
               <button
-                key={color ?? "default"}
-                className={`color-swatch${current.color === color ? " is-active" : ""}`}
-                style={{ background: color ?? "var(--surface-2)" }}
-                onClick={() => void mutate(client.notes.setColor(current.id, color))}
-                aria-label={color ? `设置颜色 ${color}` : "使用默认颜色"}
-                title={color ? "设置便签颜色" : "默认颜色"}
-              >{current.color === color && <Check size={11} weight="bold" />}</button>
+                key={color.name}
+                className={`color-swatch${current.color === color.value ? " is-active" : ""}`}
+                style={{ background: color.value ?? "var(--surface-2)", color: color.value ? readableTextColor(color.value) : "var(--fg)" }}
+                onClick={() => void mutate(client.notes.setColor(current.id, color.value))}
+                aria-label={color.value ? t("editor.colorChoice", { name: color.name, value: color.value }) : t("editor.defaultColor")}
+                title={color.name}
+              >{current.color === color.value && <Check size={11} weight="bold" />}</button>
             ))}
           </div>
         </div>
@@ -136,9 +137,9 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
         <EditorContent editor={editor} className="editor-content" />
 
         <footer className="note-editor__status mono">
-          <span className={`save-status save-status--${status}`}>{status === "saving" ? "正在保存" : status === "error" ? "保存失败" : "已保存"}</span>
-          <span>{current.word_count} 字</span>
-          {allowTrash && <button className="editor-trash" onClick={() => setConfirmingDelete(true)}><Trash size={14} /> 删除</button>}
+          <span className={`save-status save-status--${status}`}>{t(status === "saving" ? "editor.saving" : status === "error" ? "editor.saveError" : "editor.saved")}</span>
+          <span>{t("notes.words", { count: current.word_count })}</span>
+          {allowTrash && <button className="editor-trash" onClick={() => setConfirmingDelete(true)}><Trash size={14} /> {t("common.delete")}</button>}
         </footer>
       </section>
   );
@@ -148,9 +149,9 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
     {embedded ? panel : <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
     {allowTrash && <ConfirmDialog
       open={confirmingDelete}
-      title="删除这条便签？"
-      description={`「${current.title?.trim() || "无标题"}」将被移到回收站，可以稍后恢复。`}
-      confirmAriaLabel="确认删除便签"
+      title={t("notes.deleteTitle")}
+      description={t("notes.deleteDescription", { title: current.title?.trim() || t("notes.untitled") })}
+      confirmAriaLabel={t("notes.confirmDelete")}
       busy={deleting}
       onCancel={() => setConfirmingDelete(false)}
       onConfirm={async () => {

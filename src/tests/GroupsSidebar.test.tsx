@@ -8,7 +8,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async (cmd: string, args?: Record<string, unknown>) => {
     if (cmd === "groups_list") return [...store];
     if (cmd === "groups_create") {
-      const g = { id: 99, name: String(args?.name), color: "#3d86d8", background_color: "#3d86d8", icon: null, sort_order: 0, pinned: false, collapsed: false, created_at: 0, updated_at: 0 };
+      const g = { id: 99, name: String(args?.name), color: "#3478D4", background_color: "#3478D4", icon: null, sort_order: 0, pinned: false, collapsed: false, created_at: 0, updated_at: 0 };
       store.push(g);
       return g;
     }
@@ -125,12 +125,12 @@ describe("GroupsSidebar", () => {
     render(<GroupsSidebar selectedId={1} addRequest={0} onSelect={() => {}} onNotice={() => {}} />);
     await flush();
     fireEvent.click(screen.getByLabelText("编辑分组 工作"));
-    fireEvent.click(screen.getByLabelText("标记颜色 #3d86d8"));
-    fireEvent.click(screen.getByLabelText("背景颜色 #e0a52e"));
+    fireEvent.click(screen.getByLabelText("标记颜色 晴空蓝 #3478D4"));
+    fireEvent.click(screen.getByLabelText("背景颜色 日光黄 #E6AE16"));
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     await flush();
-    expect(store[0]!.color).toBe("#3d86d8");
-    expect(store[0]!.background_color).toBe("#e0a52e");
+    expect(store[0]!.color).toBe("#3478D4");
+    expect(store[0]!.background_color).toBe("#E6AE16");
   });
 
   it("accepts a dragged note on another group", async () => {

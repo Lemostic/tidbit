@@ -2,9 +2,11 @@ import { Check, Plus, Trash, X } from "@phosphor-icons/react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { Group } from "../../ipc/types";
 import type { ToastState } from "../../ui/Toast";
+import { configurableColors, readableTextColor } from "../../ui/colorPalette";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { GroupItem } from "./GroupItem";
 import { useGroups } from "./useGroups";
+import { useI18n } from "../../i18n";
 
 interface GroupsSidebarProps {
   selectedId: number | null;
@@ -14,11 +16,10 @@ interface GroupsSidebarProps {
   onNoteDrop?: (noteId: number, groupId: number | null, groupName: string) => void;
 }
 
-const colors = [null, "#e34f5b", "#e0a52e", "#35a66f", "#3d86d8"] as const;
-
 const noteDragType = "application/x-tidbit-note-id";
 
 export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNoteDrop }: GroupsSidebarProps) {
+  const { t } = useI18n();
   const { groups, create, update, remove } = useGroups();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
@@ -46,7 +47,7 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
       setName("");
       setAdding(false);
       onSelect(group.id);
-    } catch { onNotice({ kind: "error", message: "新建分组失败" }); }
+    } catch { onNotice({ kind: "error", message: t("notice.groupCreateFailed") }); }
   };
 
   const openEditor = (group: Group) => {
@@ -62,8 +63,8 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
     try {
       await update(editing.id, editName.trim(), editColor, editBackgroundColor);
       setEditing(null);
-      onNotice({ kind: "success", message: "分组已更新" });
-    } catch { onNotice({ kind: "error", message: "分组更新失败" }); }
+      onNotice({ kind: "success", message: t("notice.groupUpdated") });
+    } catch { onNotice({ kind: "error", message: t("notice.groupUpdateFailed") }); }
   };
 
   const deleteGroup = async () => {
@@ -73,18 +74,18 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
       await remove(editing.id);
       if (selectedId === editing.id) onSelect(null);
       setEditing(null);
-      onNotice({ kind: "success", message: "分组已删除，便签已保留" });
-    } catch { onNotice({ kind: "error", message: "删除分组失败" }); }
+      onNotice({ kind: "success", message: t("notice.groupDeleted") });
+    } catch { onNotice({ kind: "error", message: t("notice.groupDeleteFailed") }); }
     finally { setDeleting(false); setConfirmingDelete(false); }
   };
 
   return (
     <>
-      <nav className="groups-rail" aria-label="便签分组">
+      <nav className="groups-rail" aria-label={t("groups.label")}>
         <button
           className={`group-tab${selectedId === null ? " is-active" : ""}${allDropActive ? " is-drop-target" : ""}`}
           aria-selected={selectedId === null}
-          title="全部便签"
+          title={t("groups.allNotes")}
           onClick={() => onSelect(null)}
           onDragEnter={(event) => { event.preventDefault(); setAllDropActive(true); }}
           onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setAllDropActive(true); }}
@@ -93,43 +94,43 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
             event.preventDefault();
             setAllDropActive(false);
             const noteId = Number(event.dataTransfer.getData(noteDragType) || event.dataTransfer.getData("text/plain"));
-            if (Number.isSafeInteger(noteId)) onNoteDrop?.(noteId, null, "全部");
+            if (Number.isSafeInteger(noteId)) onNoteDrop?.(noteId, null, t("groups.all"));
           }}
         >
-          <span className="group-tab__label">全部</span>
+          <span className="group-tab__label">{t("groups.all")}</span>
         </button>
         {groups.map((group) => (
           <GroupItem key={group.id} group={group} selected={selectedId === group.id} onClick={() => onSelect(group.id)} onEdit={() => openEditor(group)} onNoteDrop={(noteId, groupId) => onNoteDrop?.(noteId, groupId, group.name)} />
         ))}
         {adding ? (
           <form onSubmit={submit}>
-            <input className="groups-rail__new" autoFocus value={name} placeholder="名称" aria-label="新分组名" onChange={(e) => setName(e.target.value)} onBlur={() => { if (!name.trim()) setAdding(false); }} onKeyDown={(e) => { if (e.key === "Escape") { setName(""); setAdding(false); } }} />
+            <input className="groups-rail__new" autoFocus value={name} placeholder={t("groups.namePlaceholder")} aria-label={t("groups.newName")} onChange={(e) => setName(e.target.value)} onBlur={() => { if (!name.trim()) setAdding(false); }} onKeyDown={(e) => { if (e.key === "Escape") { setName(""); setAdding(false); } }} />
           </form>
         ) : (
-          <button className="groups-rail__add" aria-label="新增分组" title="新增分组" onClick={() => setAdding(true)}><Plus size={16} /></button>
+          <button className="groups-rail__add" aria-label={t("groups.add")} title={t("groups.add")} onClick={() => setAdding(true)}><Plus size={16} /></button>
         )}
       </nav>
 
       {editing && (
         <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) setEditing(null); }}>
           <form className="group-editor" onSubmit={saveEditor}>
-            <header><strong>编辑分组</strong><button type="button" className="btn-icon" onClick={() => setEditing(null)} aria-label="关闭分组编辑"><X size={15} /></button></header>
-            <label><span>分组名称</span><input className="field" autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} /></label>
-            <div className="settings-field"><label>标记颜色</label><div className="color-swatches">
-              {colors.map((color) => <button type="button" key={color ?? "default"} className={`color-swatch${editColor === color ? " is-active" : ""}`} style={{ background: color ?? "var(--surface-2)" }} onClick={() => setEditColor(color)} aria-label={color ? `标记颜色 ${color}` : "默认标记颜色"}>{editColor === color && <Check size={11} />}</button>)}
+            <header><strong>{t("groups.edit")}</strong><button type="button" className="btn-icon" onClick={() => setEditing(null)} aria-label={t("common.close")}><X size={15} /></button></header>
+            <label><span>{t("groups.groupName")}</span><input className="field" autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} /></label>
+            <div className="settings-field"><label>{t("groups.markerColor")}</label><div className="color-swatches">
+              {configurableColors.map((color) => <button type="button" key={color.name} className={`color-swatch${editColor === color.value ? " is-active" : ""}`} style={{ background: color.value ?? "var(--surface-2)", color: color.value ? readableTextColor(color.value) : "var(--fg)" }} onClick={() => setEditColor(color.value)} aria-label={color.value ? t("groups.markerChoice", { name: color.name, value: color.value }) : t("groups.defaultMarker")} title={color.name}>{editColor === color.value && <Check size={11} />}</button>)}
             </div></div>
-            <div className="settings-field"><label>标签背景颜色</label><div className="color-swatches">
-              {colors.map((color) => <button type="button" key={color ?? "default"} className={`color-swatch${editBackgroundColor === color ? " is-active" : ""}`} style={{ background: color ?? "var(--surface-2)" }} onClick={() => setEditBackgroundColor(color)} aria-label={color ? `背景颜色 ${color}` : "默认背景颜色"}>{editBackgroundColor === color && <Check size={11} />}</button>)}
+            <div className="settings-field"><label>{t("groups.backgroundColor")}</label><div className="color-swatches">
+              {configurableColors.map((color) => <button type="button" key={color.name} className={`color-swatch${editBackgroundColor === color.value ? " is-active" : ""}`} style={{ background: color.value ?? "var(--surface-2)", color: color.value ? readableTextColor(color.value) : "var(--fg)" }} onClick={() => setEditBackgroundColor(color.value)} aria-label={color.value ? t("groups.backgroundChoice", { name: color.name, value: color.value }) : t("groups.defaultBackground")} title={color.name}>{editBackgroundColor === color.value && <Check size={11} />}</button>)}
             </div></div>
-            <footer><button type="button" className="btn btn-ghost is-danger" onClick={() => setConfirmingDelete(true)}><Trash size={14} />删除</button><button className="btn btn-primary" type="submit">保存</button></footer>
+            <footer><button type="button" className="btn btn-ghost is-danger" onClick={() => setConfirmingDelete(true)}><Trash size={14} />{t("common.delete")}</button><button className="btn btn-primary" type="submit">{t("common.save")}</button></footer>
           </form>
         </div>
       )}
       <ConfirmDialog
         open={confirmingDelete}
-        title="删除这个分组？"
-        description={`「${editing?.name ?? "该分组"}」中的便签不会删除，将统一移动到「全部便签」。`}
-        confirmAriaLabel="确认删除分组"
+        title={t("groups.deleteTitle")}
+        description={t("groups.deleteDescription", { name: editing?.name ?? t("groups.thisGroup") })}
+        confirmAriaLabel={t("groups.confirmDelete")}
         busy={deleting}
         onCancel={() => setConfirmingDelete(false)}
         onConfirm={deleteGroup}

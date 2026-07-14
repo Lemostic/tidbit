@@ -12,7 +12,7 @@ disableDefaultContextMenu();
 applyGlassEffect(loadGlassEffect());
 applyGlassOpacity(loadGlassOpacity());
 const mode = resolveWindowMode(getCurrentWindow().label);
-const wanderOpacity = Number(localStorage.getItem("wander-opacity") ?? "88");
+const wanderOpacity = Number(localStorage.getItem("wander-opacity") ?? "94");
 if (mode.kind !== "main") document.documentElement.dataset.window = mode.kind;
 createRoot(document.getElementById("root")!).render(
   mode.kind === "wander"

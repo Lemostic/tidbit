@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { WanderNote } from "../features/notes/WanderNote";
+import { saveNoteCopyFormat } from "../ui/noteCopy";
 
-const { invoke, setSize, listeners } = vi.hoisted(() => ({ invoke: vi.fn(), setSize: vi.fn(), listeners: new Map<string, (event: { payload: unknown }) => void>() }));
+const { invoke, setSize, listeners, writeText } = vi.hoisted(() => ({ invoke: vi.fn(), setSize: vi.fn(), listeners: new Map<string, (event: { payload: unknown }) => void>(), writeText: vi.fn(async () => undefined) }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -21,6 +22,8 @@ beforeEach(() => {
   invoke.mockReset();
   setSize.mockReset();
   listeners.clear();
+  writeText.mockClear();
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
   localStorage.clear();
   document.documentElement.removeAttribute("data-liquid-glass");
   invoke.mockImplementation(async (command: string) => {
@@ -53,7 +56,10 @@ it("follows the main window theme and liquid glass opacity", async () => {
 it("renders note content and working collapse and close controls", async () => {
   render(<WanderNote noteId={8} initialOpacity={88} />);
   expect(await screen.findByText("桌面计划")).toBeInTheDocument();
-  expect(screen.getByText("正文")).toBeInTheDocument();
+  expect(screen.getByText("正文").closest(".wander-card__content")).toHaveClass("markdown-body");
+  fireEvent.click(screen.getByRole("button", { name: "复制便签内容" }));
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith("正文"));
+  expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "切换为编辑" }));
   expect(screen.getByRole("dialog", { name: "编辑便签" })).toHaveClass("note-editor--embedded");
   expect(screen.queryByRole("button", { name: "置顶" })).not.toBeInTheDocument();
@@ -64,4 +70,37 @@ it("renders note content and working collapse and close controls", async () => {
   expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ width: 340, height: 62 }));
   fireEvent.click(screen.getByRole("button", { name: "关闭云游便签" }));
   expect(invoke).toHaveBeenCalledWith("wander_close", { noteId: 8 });
+});
+
+it("uses the shared formatted plain-text copy preference", async () => {
+  invoke.mockImplementation(async (command: string) => {
+    if (command === "notes_get") return {
+      id: 8, group_id: null, title: "桌面计划", content_md: "1. **第一步**", content_html: "<ol><li><strong>第一步</strong></li></ol>", word_count: 3,
+      is_pinned: false, is_content_hidden: false, is_archived: false, is_trashed: false, trashed_at: null,
+      geom_x: null, geom_y: null, geom_w: 280, geom_h: 360, edge_dock: "none", created_at: 0, updated_at: 0,
+      color: null, sort_order: 0,
+    };
+    return undefined;
+  });
+  render(<WanderNote noteId={8} initialOpacity={88} />);
+  await screen.findByText("桌面计划");
+  saveNoteCopyFormat("plain");
+  fireEvent.click(screen.getByRole("button", { name: "复制便签内容" }));
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith("1. 第一步"));
+});
+
+it("preserves a hidden note title while masking its content", async () => {
+  invoke.mockImplementation(async (command: string) => {
+    if (command === "notes_get") return {
+      id: 8, group_id: null, title: "机密计划", content_md: "不能显示", content_html: "<p>不能显示</p>", word_count: 4,
+      is_pinned: false, is_content_hidden: true, is_archived: false, is_trashed: false, trashed_at: null,
+      geom_x: null, geom_y: null, geom_w: 280, geom_h: 360, edge_dock: "none", created_at: 0, updated_at: 0,
+      color: null, sort_order: 0,
+    };
+    return undefined;
+  });
+  render(<WanderNote noteId={8} initialOpacity={88} />);
+  expect(await screen.findByText("机密计划")).toBeInTheDocument();
+  expect(screen.getByText("该条便签内容已加密")).toBeInTheDocument();
+  expect(screen.queryByText("不能显示")).not.toBeInTheDocument();
 });

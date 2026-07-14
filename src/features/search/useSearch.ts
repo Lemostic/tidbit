@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
 import { SearchProvider } from "./SearchProvider";
+import { useI18n } from "../../i18n";
 
 export type { SearchHit as Hit } from "./SearchProvider";
 
 export function useSearch() {
+    const { t } = useI18n();
     const [hits, setHits] = useState<ReturnType<typeof SearchProvider.query> extends Promise<infer T> ? T : never>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -15,11 +17,11 @@ export function useSearch() {
             setHits(await SearchProvider.query(q));
         } catch {
             setHits([]);
-            setError("搜索失败，请稍后重试");
+            setError(t("search.failed"));
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [t]);
 
     const clear = useCallback(() => {
         setHits([]);

@@ -2,6 +2,7 @@ use r2d2_sqlite::SqliteConnectionManager;
 use tempfile::tempdir;
 use tidbit_lib::infra::db::Pool;
 use tidbit_lib::repo::group_repo::GroupRepo;
+use tidbit_lib::repo::group_repo::GROUP_COLOR_PALETTE;
 
 fn pool() -> Pool {
     let dir = tempdir().unwrap();
@@ -38,6 +39,19 @@ fn create_list_round_trip() {
     assert_eq!(g.color, g.background_color);
     let all = r.list().unwrap();
     assert_eq!(all.len(), 1);
+}
+
+#[test]
+fn consecutive_groups_use_distinct_palette_colors() {
+    let r = GroupRepo::new(pool());
+    let mut previous = None;
+    for index in 0..32 {
+        let group = r.create(&format!("Group {index}")).unwrap();
+        let color = group.background_color.as_deref().unwrap();
+        assert!(GROUP_COLOR_PALETTE.contains(&color));
+        assert_ne!(Some(color), previous.as_deref());
+        previous = group.background_color;
+    }
 }
 
 #[test]
