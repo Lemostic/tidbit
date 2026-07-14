@@ -51,6 +51,11 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: tidbit ${{ github.ref_name }}
           releaseBody: See CHANGELOG.md for release details.
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           args: --bundles nsis,msi
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "%GITHUB_REF_NAME%" --draft=false --latest
