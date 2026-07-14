@@ -19,7 +19,8 @@ describe("GitHub Actions workflows", () => {
 
   it("automatically builds and uploads both Windows installer formats", () => {
     const build = workflow("build.yml");
-    expect(build).toContain("branches: [main, dev]");
+    expect(build).toContain("branches: [main]");
+    expect(build).not.toContain("branches: [main, dev]");
     expect(build).toContain("workflow_dispatch:");
     expect(build).toContain("package-manager-cache: false");
     expect(build).toContain("pnpm tauri build --bundles nsis,msi");
