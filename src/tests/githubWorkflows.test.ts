@@ -9,6 +9,7 @@ describe("GitHub Actions workflows", () => {
     const ci = workflow("ci.yml");
     expect(ci).toContain("PNPM_VERSION: 11.10.0");
     expect(ci).toContain("npm install --global pnpm@%PNPM_VERSION%");
+    expect(ci).toContain("package-manager-cache: false");
     expect(ci).toContain("pnpm install --frozen-lockfile");
     expect(ci).toContain("pnpm typecheck");
     expect(ci).toContain("pnpm test");
@@ -20,6 +21,7 @@ describe("GitHub Actions workflows", () => {
     const build = workflow("build.yml");
     expect(build).toContain("branches: [main, dev]");
     expect(build).toContain("workflow_dispatch:");
+    expect(build).toContain("package-manager-cache: false");
     expect(build).toContain("pnpm tauri build --bundles nsis,msi");
     expect(build).toContain("src-tauri/target/release/bundle/nsis/*.exe");
     expect(build).toContain("src-tauri/target/release/bundle/msi/*.msi");
@@ -28,6 +30,7 @@ describe("GitHub Actions workflows", () => {
   it("publishes tagged NSIS and MSI bundles with write permission", () => {
     const release = workflow("release.yml");
     expect(release).toContain("contents: write");
+    expect(release).toContain("package-manager-cache: false");
     expect(release).toContain("tags:");
     expect(release).toContain('tagName: ${{ github.ref_name }}');
     expect(release).toContain("args: --bundles nsis,msi");
