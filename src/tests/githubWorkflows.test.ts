@@ -38,6 +38,7 @@ describe("GitHub Actions workflows", () => {
     expect(release).toContain('tagName: ${{ env.RELEASE_TAG }}');
     expect(release).toContain("releaseDraft: true");
     expect(release).toContain("args: --bundles nsis,msi");
-    expect(release).toContain('gh release edit "%RELEASE_TAG%" --draft=false --latest');
+    expect(release).toContain("uses: actions/github-script@v8");
+    expect(release).toContain('make_latest: "true"');
   });
 });
