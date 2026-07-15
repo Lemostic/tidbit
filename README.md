@@ -10,6 +10,7 @@
 - 云游便签：将便签固定到桌面，支持自动排列与吸附、折叠、关闭、卡片内编辑和透明度设置。
 - 快速搜索：按 `Ctrl+K` 打开搜索面板。
 - 窗口行为：自定义标题栏拖动、最小化到托盘、边缘吸附及 0.5 秒自动隐藏动画。
+- 系统启动：可在设置中开启或关闭 Windows 开机自动启动，默认关闭。
 - 个性化：浅色、深色、护眼主题，液态玻璃开关及 55%–100% 不透明度，默认 80%。
 - 字体设置：分组、便签标题和正文可分别指定字体。
 - 数据管理：默认使用 `%APPDATA%\tidbit`，支持迁移到自定义目录、备份与恢复。
@@ -54,8 +55,8 @@ pnpm tauri build
 典型输出：
 
 - `src-tauri/target/release/tidbit.exe`：独立可执行文件
-- `src-tauri/target/release/bundle/nsis/tidbit_0.1.0_x64-setup.exe`：NSIS 安装程序
-- `src-tauri/target/release/bundle/msi/tidbit_0.1.0_x64_en-US.msi`：MSI 安装程序
+- `src-tauri/target/release/bundle/nsis/tidbit_0.1.2_x64-setup.exe`：NSIS 安装程序
+- `src-tauri/target/release/bundle/msi/tidbit_0.1.2_x64_en-US.msi`：MSI 安装程序
 
 未签名构建首次运行时可能触发 Windows SmartScreen 提示。
 
@@ -64,6 +65,7 @@ pnpm tauri build
 - Tauri 标识符为 `tidbit`，默认应用数据目录为 `%APPDATA%\tidbit`。
 - 旧的 `%APPDATA%\dev.tidbit.app` 数据会在启动时迁移。
 - 主题、液态玻璃、不透明度、字体与云游透明度存储在本机用户设置中。
+- 开机自动启动默认关闭；开启后写入当前用户的 Windows 启动项，关闭时移除。
 - 数据目录迁移会移动数据库和备份，并重启应用。
 
 ## 技术栈

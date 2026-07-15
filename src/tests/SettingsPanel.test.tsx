@@ -9,6 +9,8 @@ function renderSettings(overrides: Partial<Parameters<typeof SettingsPanel>[0]> 
   const props: Parameters<typeof SettingsPanel>[0] = {
     open: true,
     dockingEnabled: true,
+    autostartEnabled: false,
+    autostartBusy: false,
     lockPin: "",
     busy: false,
     fonts: { group: "Segoe UI", noteTitle: "Segoe UI", noteBody: "Segoe UI" },
@@ -17,6 +19,7 @@ function renderSettings(overrides: Partial<Parameters<typeof SettingsPanel>[0]> 
     glassOpacity: 80,
     onClose: vi.fn(),
     onDockingChange: vi.fn(),
+    onAutostartChange: vi.fn(),
     onLockPinChange: vi.fn(),
     onFontsChange: vi.fn(),
     onWanderOpacityChange: vi.fn(),
@@ -43,7 +46,8 @@ it("changes each switch exactly once and only from its control", () => {
   const onGlassChange = vi.fn();
   const onGlassOpacityChange = vi.fn();
   const onDockingChange = vi.fn();
-  renderSettings({ onGlassChange, onGlassOpacityChange, onDockingChange });
+  const onAutostartChange = vi.fn();
+  renderSettings({ onGlassChange, onGlassOpacityChange, onDockingChange, onAutostartChange });
 
   fireEvent.click(screen.getByText("液态玻璃"));
   expect(onGlassChange).not.toHaveBeenCalled();
@@ -53,9 +57,23 @@ it("changes each switch exactly once and only from its control", () => {
   fireEvent.click(screen.getByRole("checkbox", { name: "边缘吸附" }));
   expect(onDockingChange).toHaveBeenCalledTimes(1);
 
+  fireEvent.click(screen.getByText("开机自动启动"));
+  expect(onAutostartChange).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox", { name: "开机自动启动" }));
+  expect(onAutostartChange).toHaveBeenCalledTimes(1);
+  expect(onAutostartChange).toHaveBeenCalledWith(true);
+
   fireEvent.change(screen.getByLabelText("液态玻璃不透明度"), { target: { value: "76" } });
   expect(onGlassOpacityChange).toHaveBeenCalledOnce();
   expect(onGlassOpacityChange).toHaveBeenCalledWith(76);
+});
+
+it("keeps autostart off by default and disables the switch while updating", () => {
+  const { rerender, props } = renderSettings();
+  expect(screen.getByRole("checkbox", { name: "开机自动启动" })).not.toBeChecked();
+
+  rerender(<SettingsPanel {...props} autostartBusy />);
+  expect(screen.getByRole("checkbox", { name: "开机自动启动" })).toBeDisabled();
 });
 
 it("closes only when the empty scrim is clicked", () => {

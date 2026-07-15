@@ -3,6 +3,16 @@ import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
 describe("Tauri production build", () => {
+  test("uses v0.1.2 consistently", () => {
+    const packageConfig = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as { version: string };
+    const tauriConfig = JSON.parse(readFileSync(resolve(process.cwd(), "src-tauri/tauri.conf.json"), "utf8")) as { version: string };
+    const cargoManifest = readFileSync(resolve(process.cwd(), "src-tauri/Cargo.toml"), "utf8");
+
+    expect(packageConfig.version).toBe("0.1.2");
+    expect(tauriConfig.version).toBe(packageConfig.version);
+    expect(cargoManifest).toMatch(/^version = "0\.1\.2"$/m);
+  });
+
   test("rebuilds the frontend before packaging", () => {
     const configPath = resolve(process.cwd(), "src-tauri/tauri.conf.json");
     const config = JSON.parse(readFileSync(configPath, "utf8")) as {

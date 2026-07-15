@@ -1,3 +1,4 @@
+use crate::autostart;
 use crate::data_directory::{self, DataDirectoryInfo};
 use crate::error::AppError;
 use std::path::PathBuf;
@@ -40,4 +41,14 @@ pub fn data_directory_set(app: tauri::AppHandle, path: String) -> Result<(), App
     let default_dir = app.path().app_data_dir()?;
     data_directory::request_change(&default_dir, PathBuf::from(path.trim()))?;
     app.restart();
+}
+
+#[tauri::command]
+pub fn autostart_get() -> Result<bool, AppError> {
+    autostart::is_enabled()
+}
+
+#[tauri::command]
+pub fn autostart_set(enabled: bool) -> Result<(), AppError> {
+    autostart::set_enabled(enabled)
 }

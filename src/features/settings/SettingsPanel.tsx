@@ -4,6 +4,7 @@ import {
   FolderOpen,
   HardDrive,
   LockKey,
+  Power,
   PushPin,
   Cloud,
   Drop,
@@ -17,6 +18,8 @@ import { ThemeSwitcher } from "./ThemeSwitcher";
 interface SettingsPanelProps {
   open: boolean;
   dockingEnabled: boolean;
+  autostartEnabled: boolean;
+  autostartBusy: boolean;
   lockPin: string;
   busy: boolean;
   fonts: FontPreferences;
@@ -25,6 +28,7 @@ interface SettingsPanelProps {
   glassOpacity: number;
   onClose: () => void;
   onDockingChange: (enabled: boolean) => void;
+  onAutostartChange: (enabled: boolean) => void;
   onLockPinChange: (pin: string) => void;
   onFontsChange: (fonts: FontPreferences) => void;
   onWanderOpacityChange: (opacity: number) => void;
@@ -101,6 +105,22 @@ export function SettingsPanel(props: SettingsPanelProps) {
               checked={props.dockingEnabled}
               onChange={(e) => props.onDockingChange(e.target.checked)}
               aria-label="边缘吸附"
+            />
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row__icon"><Power size={17} /></div>
+            <div className="settings-row__copy">
+              <strong>开机自动启动</strong>
+              <span>登录 Windows 后自动启动 tidbit</span>
+            </div>
+            <input
+              type="checkbox"
+              className="switch"
+              checked={props.autostartEnabled}
+              disabled={props.autostartBusy}
+              onChange={(event) => props.onAutostartChange(event.target.checked)}
+              aria-label="开机自动启动"
             />
           </div>
 

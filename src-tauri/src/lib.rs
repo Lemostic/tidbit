@@ -1,5 +1,6 @@
 use tauri::Manager;
 
+pub mod autostart;
 pub mod data_directory;
 pub mod domain;
 pub mod error;
@@ -103,6 +104,8 @@ pub fn run() {
             ipc::settings::data_directory_get,
             ipc::settings::data_directory_pick,
             ipc::settings::data_directory_set,
+            ipc::settings::autostart_get,
+            ipc::settings::autostart_set,
             ipc::search::search_query,
         ])
         .on_window_event(|win, ev| {

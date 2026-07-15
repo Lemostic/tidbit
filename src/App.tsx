@@ -40,6 +40,8 @@ export default function App() {
   const [openNoteId, setOpenNoteId] = useState<number | null>(null);
   const [notesRefreshRequest, setNotesRefreshRequest] = useState(0);
   const [dockingEnabled, setDockingEnabled] = useState(() => localStorage.getItem("docking-enabled") !== "false");
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [autostartBusy, setAutostartBusy] = useState(false);
   const [lockPin, setLockPin] = useState(() => localStorage.getItem("privacy-pin") ?? "");
   const [fonts, setFonts] = useState(loadFontPreferences);
   const [wanderOpacity, setWanderOpacity] = useState(() => Number(localStorage.getItem("wander-opacity") ?? "88"));
@@ -69,6 +71,12 @@ export default function App() {
       setDefaultDataDirectory(info.default_dir);
       setDataDirectory(info.pending_dir ?? info.active_dir);
     }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    void invoke<boolean>("autostart_get")
+      .then(setAutostartEnabled)
+      .catch(() => setAutostartEnabled(false));
   }, []);
 
   const notify = useCallback((next: ToastState) => setToast(next), []);
@@ -117,6 +125,19 @@ export default function App() {
     setDockingEnabled(enabled);
     localStorage.setItem("docking-enabled", String(enabled));
     notify({ kind: "info", message: enabled ? "边缘吸附已开启" : "边缘吸附已关闭" });
+  }, [notify]);
+
+  const updateAutostart = useCallback(async (enabled: boolean) => {
+    setAutostartBusy(true);
+    try {
+      await invoke("autostart_set", { enabled });
+      setAutostartEnabled(enabled);
+      notify({ kind: "info", message: enabled ? "开机自动启动已开启" : "开机自动启动已关闭" });
+    } catch {
+      notify({ kind: "error", message: "无法更新开机自动启动设置" });
+    } finally {
+      setAutostartBusy(false);
+    }
   }, [notify]);
 
   const saveLockPin = useCallback((pin: string) => {
@@ -320,6 +341,8 @@ export default function App() {
       <SettingsPanel
         open={settingsOpen}
         dockingEnabled={dockingEnabled}
+        autostartEnabled={autostartEnabled}
+        autostartBusy={autostartBusy}
         lockPin={lockPin}
         busy={busy}
         fonts={fonts}
@@ -328,6 +351,7 @@ export default function App() {
         glassOpacity={glassOpacity}
         onClose={() => setSettingsOpen(false)}
         onDockingChange={setDocking}
+        onAutostartChange={(enabled) => void updateAutostart(enabled)}
         onLockPinChange={saveLockPin}
         onFontsChange={updateFonts}
         onWanderOpacityChange={updateWanderOpacity}

@@ -7,7 +7,6 @@ vi.mock("@tauri-apps/api/core", () => ({
     if (cmd === "window_apply_edge_dock") {
       const winX = args.winX as number;
       const monX = args.monX as number;
-      const monW = args.monW as number;
       if (winX - monX <= 24) {
         return "left";
       }

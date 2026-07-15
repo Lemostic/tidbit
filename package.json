@@ -1,7 +1,7 @@
 {
   "name": "tidbit",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -13,6 +13,7 @@
     "e2e:setup": "echo 'Install tauri-driver: cargo install tauri-driver && pnpm exec playwright install --with-deps chromium'"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@tauri-apps/cli": "^2.0.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -21,9 +22,12 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
     "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "jsdom": "^29.1.1",
     "playwright": "^1.46.0",
     "typescript": "^5.5.0",
+    "typescript-eslint": "^8.64.0",
     "vite": "^5.4.0",
     "vitest": "^1.6.0"
   },
