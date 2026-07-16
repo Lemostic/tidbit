@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Group, Note } from "../../ipc/types";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
+import { AudioRecording } from "./AudioRecording";
 import { EditorToolbar } from "./EditorToolbar";
 
 interface NoteEditorProps {
@@ -49,8 +50,8 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   }, [note.id, onChanged]);
 
   const editor = useEditor({
-    extensions: [StarterKit, Markdown.configure({ html: true, transformPastedText: true })],
-    content: note.content_md,
+    extensions: [StarterKit, AudioRecording, Markdown.configure({ html: true, transformPastedText: true })],
+    content: note.content_html || note.content_md,
     editorProps: { attributes: { "aria-label": "便签内容" } },
     onUpdate({ editor: instance }) {
       dirtyRef.current = true;

@@ -43,7 +43,13 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
   }, [note.id, renderedHtml]);
 
   return (
-    <article className={`note-card__inner${note.is_content_hidden ? " is-content-hidden" : ""}${wanderActive ? " is-wandering" : ""}`} onClick={note.is_content_hidden || wanderActive ? undefined : onOpen}>
+    <article
+      className={`note-card__inner${note.is_content_hidden ? " is-content-hidden" : ""}${wanderActive ? " is-wandering" : ""}`}
+      onClick={note.is_content_hidden || wanderActive ? undefined : (event) => {
+        if (event.target instanceof Element && event.target.closest("[data-audio-recording]")) return;
+        onOpen();
+      }}
+    >
       <header className="note-card__head">
         <p className="note-card__title">{note.is_content_hidden ? "隐私便签" : note.title?.trim() || "无标题"}</p>
         {note.is_archived && <span className="note-card__archived">已归档</span>}

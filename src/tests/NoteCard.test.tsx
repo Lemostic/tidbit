@@ -78,4 +78,14 @@ describe("NoteCard privacy", () => {
     fireEvent.click(screen.getByRole("button", { name: "置顶" }));
     expect(onTogglePin).toHaveBeenCalledOnce();
   });
+
+  it("plays an embedded voice memo without opening the editor", () => {
+    const onOpen = vi.fn();
+    const content_html = '<div data-audio-recording="true" data-name="晨会" data-duration-ms="1000"><span data-audio-name="true">晨会</span><audio controls src="data:audio/webm;base64,dm9pY2U="></audio></div>';
+    const { container } = render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_html }} onOpen={onOpen} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
+    const audio = container.querySelector("audio");
+    expect(audio).not.toBeNull();
+    fireEvent.click(audio!);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
 });

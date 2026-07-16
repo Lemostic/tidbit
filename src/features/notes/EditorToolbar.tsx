@@ -10,6 +10,7 @@ import {
   TextStrikethrough,
 } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
+import { VoiceRecorderControls } from "./VoiceRecorderControls";
 
 interface EditorToolbarProps { editor: Editor; }
 
@@ -30,6 +31,8 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           <Icon size={16} weight={active ? "bold" : "regular"} />
         </button>
       ))}
+      <span className="toolbar__divider" />
+      <VoiceRecorderControls editor={editor} />
       <span className="toolbar__divider" />
       <button type="button" className="toolbar__btn" aria-label="撤销" title="撤销" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}><ArrowCounterClockwise size={16} /></button>
       <button type="button" className="toolbar__btn" aria-label="重做" title="重做" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()}><ArrowClockwise size={16} /></button>

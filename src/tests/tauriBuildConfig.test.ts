@@ -35,4 +35,11 @@ describe("Tauri production build", () => {
     const config = JSON.parse(readFileSync(configPath, "utf8")) as { identifier: string };
     expect(config.identifier).toBe("tidbit");
   });
+
+  test("allows locally recorded audio without broadening script access", () => {
+    const configPath = resolve(process.cwd(), "src-tauri/tauri.conf.json");
+    const config = JSON.parse(readFileSync(configPath, "utf8")) as { app: { security: { csp: string } } };
+    expect(config.app.security.csp).toContain("media-src 'self' data: blob:");
+    expect(config.app.security.csp).toContain("script-src 'self'");
+  });
 });

@@ -447,10 +447,37 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .toolbar__btn { display: grid; place-items: center; padding: 0; }
 .toolbar__btn:disabled { opacity: 0.3; cursor: default; }
 .toolbar__divider { width: 1px; height: 18px; margin: 0 3px; background: var(--border); }
+.voice-recorder { display: flex; align-items: center; gap: 2px; }
+.voice-recorder__time { display: inline-flex; align-items: center; gap: 5px; min-width: 54px; color: #c94f52; font-size: 10px; font-variant-numeric: tabular-nums; }
+.voice-recorder__time > span { width: 7px; height: 7px; border-radius: 50%; background: #d75555; box-shadow: 0 0 0 3px rgba(215, 85, 85, 0.12); animation: recording-pulse 1.1s ease-in-out infinite; }
+.voice-recorder__stop { color: #c94f52; }
+.voice-recorder__error { max-width: 108px; overflow: hidden; color: #c94f52; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes recording-pulse { 50% { opacity: 0.38; transform: scale(0.82); } }
 .editor-content { min-height: 0; }
 .editor-content .ProseMirror { min-height: 100%; font-family: var(--font-note-body); line-height: 1.75; }
 .editor-content .ProseMirror p { margin: 0 0 0.65em; }
 .editor-content .ProseMirror blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid var(--accent); color: var(--fg-muted); }
+.audio-recording,
+[data-audio-recording] {
+  margin: 9px 0;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+.audio-recording.is-selected { border-color: color-mix(in srgb, var(--accent) 58%, var(--border)); box-shadow: 0 0 0 2px var(--accent-soft); }
+.audio-recording__head { display: flex; align-items: center; gap: 7px; min-height: 25px; margin-bottom: 6px; color: var(--accent); }
+.audio-recording__name { flex: 1; min-width: 0; height: 25px; padding: 0 4px; overflow: hidden; border: 1px solid transparent; border-radius: 3px; outline: 0; background: transparent; color: var(--fg); font-family: var(--font-note-body); font-size: 12px; font-weight: 600; text-overflow: ellipsis; }
+.audio-recording__name:hover { border-color: var(--border); }
+.audio-recording__name:focus { border-color: color-mix(in srgb, var(--accent) 58%, var(--border)); background: var(--surface); }
+.audio-recording__duration,
+[data-audio-duration] { flex: 0 0 auto; color: var(--fg-subtle); font-size: 9px; font-variant-numeric: tabular-nums; }
+.audio-recording__delete { width: 24px; height: 24px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 4px; color: var(--fg-subtle); }
+.audio-recording__delete:hover { background: rgba(215, 85, 85, 0.12); color: #c94f52; }
+.audio-recording audio,
+[data-audio-recording] audio { display: block; width: 100%; height: 30px; accent-color: var(--accent); }
+[data-audio-recording] > [data-audio-name] { display: inline-block; max-width: calc(100% - 48px); margin: 0 8px 6px 0; overflow: hidden; color: var(--fg); font-size: 11px; font-weight: 600; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }
 .note-editor__status { min-height: 34px; display: flex; align-items: center; gap: 12px; padding: 0 10px 0 14px; border-top: 1px solid var(--border); color: var(--fg-subtle); font-size: 10px; }
 .save-status { margin-right: auto; }
 .save-status--saved { color: #4e9b75; }
