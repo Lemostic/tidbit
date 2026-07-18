@@ -18,6 +18,15 @@ import { applyFontPreferences, loadFontPreferences, saveFontPreferences } from "
 import { client } from "./ipc/client";
 import { loadGlassEffect, loadGlassOpacity, saveGlassEffect, saveGlassOpacity } from "./ui/glassEffect";
 import { broadcastAppearance } from "./ui/appearance";
+import { commonSystemFonts, loadSystemFonts } from "./ui/systemFonts";
+import {
+  defaultMainWindowSize,
+  loadMainWindowSize,
+  logicalSizeFromPhysical,
+  normalizeMainWindowSize,
+  saveMainWindowSize,
+  type MainWindowSize,
+} from "./ui/windowSizePreferences";
 
 const themes: Theme[] = ["light", "dark", "sepia"];
 
@@ -44,12 +53,17 @@ export default function App() {
   const [autostartBusy, setAutostartBusy] = useState(false);
   const [lockPin, setLockPin] = useState(() => localStorage.getItem("privacy-pin") ?? "");
   const [fonts, setFonts] = useState(loadFontPreferences);
+  const [availableFonts, setAvailableFonts] = useState<string[]>(() => [...commonSystemFonts]);
+  const [fontsLoading, setFontsLoading] = useState(false);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
   const [wanderOpacity, setWanderOpacity] = useState(() => Number(localStorage.getItem("wander-opacity") ?? "88"));
   const [glassEnabled, setGlassEnabled] = useState(loadGlassEffect);
   const [glassOpacity, setGlassOpacity] = useState(loadGlassOpacity);
   const [dataDirectory, setDataDirectory] = useState("");
   const [defaultDataDirectory, setDefaultDataDirectory] = useState("");
   const [dataDirectoryBusy, setDataDirectoryBusy] = useState(false);
+  const [mainWindowSize, setMainWindowSize] = useState(loadMainWindowSize);
+  const [windowSizeBusy, setWindowSizeBusy] = useState(false);
   const [hiddenEdge, setHiddenEdge] = useState<"left" | "right" | "top" | "bottom" | null>(null);
   const backup = useBackupStatus();
   const interactionLocked = settingsOpen || paletteOpen || restoreOpen || locked;
@@ -108,11 +122,51 @@ export default function App() {
   }, [fonts]);
 
   useEffect(() => {
-    const key = "window-default-size-v3";
-    if (localStorage.getItem(key)) return;
-    void getCurrentWindow().setSize(new LogicalSize(500, 780)).then(() => {
-      localStorage.setItem(key, "applied");
-    });
+    if (!settingsOpen || fontsLoaded) return;
+    let cancelled = false;
+    setFontsLoading(true);
+    void loadSystemFonts()
+      .then((families) => {
+        if (cancelled) return;
+        setAvailableFonts(families);
+        setFontsLoaded(true);
+      })
+      .finally(() => {
+        if (!cancelled) setFontsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [fontsLoaded, settingsOpen]);
+
+  useEffect(() => {
+    const preferred = loadMainWindowSize();
+    setMainWindowSize(preferred);
+    void getCurrentWindow().setSize(new LogicalSize(preferred.width, preferred.height));
+  }, []);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    let dispose: (() => void) | undefined;
+    let timer: number | undefined;
+    let latest: { width: number; height: number } | undefined;
+    void win.onResized((event) => {
+      latest = event.payload;
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (!latest) return;
+        const physical = latest;
+        void Promise.all([win.scaleFactor(), win.isMaximized()])
+          .then(([scaleFactor, maximized]) => {
+            if (maximized) return;
+            const next = saveMainWindowSize(logicalSizeFromPhysical(physical, scaleFactor));
+            setMainWindowSize(next);
+          })
+          .catch(() => undefined);
+      }, 140);
+    }).then((unlisten) => { dispose = unlisten; }).catch(() => undefined);
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      dispose?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -170,6 +224,21 @@ export default function App() {
     saveGlassOpacity(opacity);
     void broadcastAppearance().catch(() => undefined);
   }, []);
+
+  const applyMainWindowSize = useCallback(async (requested: MainWindowSize) => {
+    const next = normalizeMainWindowSize(requested);
+    setWindowSizeBusy(true);
+    try {
+      await getCurrentWindow().setSize(new LogicalSize(next.width, next.height));
+      const saved = saveMainWindowSize(next);
+      setMainWindowSize(saved);
+      notify({ kind: "success", message: `窗口尺寸已调整为 ${saved.width} × ${saved.height}` });
+    } catch {
+      notify({ kind: "error", message: "无法调整窗口尺寸" });
+    } finally {
+      setWindowSizeBusy(false);
+    }
+  }, [notify]);
 
   const pickDataDirectory = useCallback(async () => {
     setDataDirectoryBusy(true);
@@ -328,13 +397,15 @@ export default function App() {
 
   return (
     <>
-      <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
-      <EdgePresence edge={hiddenEdge} />
-      <div className="app-body">
-        <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={setGroupId} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} />
-        <main className="app-main">
-          <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} />
-        </main>
+      <div className="app-shell">
+        <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
+        <EdgePresence edge={hiddenEdge} />
+        <div className="app-body">
+          <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={setGroupId} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} />
+          <main className="app-main">
+            <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} />
+          </main>
+        </div>
       </div>
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} onOpenNote={setOpenNoteId} />
@@ -346,9 +417,14 @@ export default function App() {
         lockPin={lockPin}
         busy={busy}
         fonts={fonts}
+        availableFonts={availableFonts}
+        fontsLoading={fontsLoading}
         wanderOpacity={wanderOpacity}
         glassEnabled={glassEnabled}
         glassOpacity={glassOpacity}
+        windowWidth={mainWindowSize.width}
+        windowHeight={mainWindowSize.height}
+        windowSizeBusy={windowSizeBusy}
         onClose={() => setSettingsOpen(false)}
         onDockingChange={setDocking}
         onAutostartChange={(enabled) => void updateAutostart(enabled)}
@@ -357,6 +433,8 @@ export default function App() {
         onWanderOpacityChange={updateWanderOpacity}
         onGlassChange={updateGlassEffect}
         onGlassOpacityChange={updateGlassOpacity}
+        onApplyWindowSize={(width, height) => void applyMainWindowSize({ width, height })}
+        onResetWindowSize={() => void applyMainWindowSize(defaultMainWindowSize)}
         onBackup={() => void snapshotNow()}
         onRestore={() => { setSettingsOpen(false); setRestoreOpen(true); }}
         onOpenBackups={() => void openBackups()}

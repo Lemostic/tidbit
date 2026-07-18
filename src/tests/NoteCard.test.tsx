@@ -88,4 +88,15 @@ describe("NoteCard privacy", () => {
     fireEvent.click(audio!);
     expect(onOpen).not.toHaveBeenCalled();
   });
+
+  it("checks a task directly without opening the editor", () => {
+    const onOpen = vi.fn();
+    const onToggleTask = vi.fn(async () => undefined);
+    const taskHtml = '<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p>提交周报</p></div></li></ul>';
+    render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_md: "- [ ] 提交周报", content_html: taskHtml }} onOpen={onOpen} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} onToggleTask={onToggleTask} />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "标记待办为已完成" }));
+    expect(onToggleTask).toHaveBeenCalledWith(0, true);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
 });

@@ -30,4 +30,12 @@ describe("sanitizeNoteHtml", () => {
     expect(html).not.toContain("<audio");
     expect(html).not.toContain("data:text/html");
   });
+
+  it("keeps safe interactive task-list checkboxes and removes unsafe attributes", () => {
+    const html = sanitizeNoteHtml('<ul class="contains-task-list" onclick="alert(1)"><li class="task-list-item" data-checked="true"><label><input type="checkbox" checked onclick="alert(2)"><span></span></label><div><p>完成测试</p></div></li></ul>');
+    expect(html).toContain('data-type="taskList"');
+    expect(html).toContain('data-type="taskItem" data-checked="true"');
+    expect(html).toContain('type="checkbox" data-task-checkbox="true" checked=""');
+    expect(html).not.toContain("onclick");
+  });
 });

@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
-const WANDER_WIDTH: i32 = 340;
+const WANDER_WIDTH: i32 = 380;
 const WANDER_HEIGHT: i32 = 360;
 const WANDER_MARGIN: i32 = 100;
 const WANDER_GAP: i32 = 16;

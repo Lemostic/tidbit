@@ -1,6 +1,8 @@
 import { Check, PushPin, Trash, X } from "@phosphor-icons/react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import TaskItem from "@tiptap/extension-task-item";
+import TaskList from "@tiptap/extension-task-list";
 import { Markdown } from "tiptap-markdown";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../../ipc/client";
@@ -50,7 +52,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   }, [note.id, onChanged]);
 
   const editor = useEditor({
-    extensions: [StarterKit, AudioRecording, Markdown.configure({ html: true, transformPastedText: true })],
+    extensions: [StarterKit, TaskList, TaskItem.configure({ nested: true }), AudioRecording, Markdown.configure({ html: true, transformPastedText: true })],
     content: note.content_html || note.content_md,
     editorProps: { attributes: { "aria-label": "便签内容" } },
     onUpdate({ editor: instance }) {

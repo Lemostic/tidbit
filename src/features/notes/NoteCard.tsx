@@ -1,5 +1,5 @@
 import { Archive, CaretDown, CaretUp, Cloud, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type MouseEvent as ReactMouseEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Note } from "../../ipc/types";
 import { sanitizeNoteHtml } from "./sanitizeNoteHtml";
 
@@ -11,6 +11,7 @@ interface NoteCardProps {
   onToggleArchive: () => void;
   onWander: () => void;
   onTrash: () => void;
+  onToggleTask?: (taskIndex: number, checked: boolean) => Promise<void>;
   wanderActive?: boolean;
 }
 
@@ -25,11 +26,25 @@ function formatTime(timestamp: number) {
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 }
 
-export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onToggleArchive, onWander, onTrash, wanderActive = false }: NoteCardProps) {
+export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onToggleArchive, onWander, onTrash, onToggleTask, wanderActive = false }: NoteCardProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [canCollapse, setCanCollapse] = useState(false);
   const renderedHtml = useMemo(() => sanitizeNoteHtml(note.content_html), [note.content_html]);
+
+  const handleTaskClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.dataset.taskCheckbox !== "true") return;
+    event.stopPropagation();
+    const inputs = Array.from(contentRef.current?.querySelectorAll<HTMLInputElement>('input[data-task-checkbox="true"]') ?? []);
+    const taskIndex = inputs.indexOf(target);
+    if (taskIndex < 0 || !onToggleTask) {
+      target.checked = !target.checked;
+      return;
+    }
+    const checked = target.checked;
+    void onToggleTask(taskIndex, checked).catch(() => { target.checked = !checked; });
+  };
 
   useLayoutEffect(() => {
     setExpanded(false);
@@ -46,7 +61,7 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
     <article
       className={`note-card__inner${note.is_content_hidden ? " is-content-hidden" : ""}${wanderActive ? " is-wandering" : ""}`}
       onClick={note.is_content_hidden || wanderActive ? undefined : (event) => {
-        if (event.target instanceof Element && event.target.closest("[data-audio-recording]")) return;
+        if (event.target instanceof Element && event.target.closest("[data-audio-recording], input[data-task-checkbox='true']")) return;
         onOpen();
       }}
     >
@@ -99,6 +114,7 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
           ref={contentRef}
           className={`note-card__content${expanded ? " is-expanded" : ""}`}
           style={canCollapse && !expanded ? { maxHeight: collapsedHeight } : undefined}
+          onClick={handleTaskClick}
           dangerouslySetInnerHTML={{ __html: renderedHtml }}
         />
       ) : (

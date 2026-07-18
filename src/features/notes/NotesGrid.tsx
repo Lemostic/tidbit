@@ -1,7 +1,7 @@
 import { Archive, ArrowClockwise, NotePencil, Plus, WarningCircle } from "@phosphor-icons/react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { useEffect, useRef, useState } from "react";
+import { emit, listen } from "@tauri-apps/api/event";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Note } from "../../ipc/types";
 import type { ToastState } from "../../ui/Toast";
@@ -9,6 +9,9 @@ import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { useGroups } from "../groups/useGroups";
 import { NoteCard } from "./NoteCard";
 import { NoteEditor } from "./NoteEditor";
+import { NoteSortControl } from "./NoteSortControl";
+import { loadNoteSortPreference, saveNoteSortPreference, sortNotes, type NoteSortPreference } from "./noteSort";
+import { toggleTaskContent } from "./taskList";
 import { useNotes } from "./useNotes";
 
 interface NotesGridProps {
@@ -20,24 +23,20 @@ interface NotesGridProps {
   refreshRequest: number;
 }
 
-type DropPosition = "before" | "after";
-
-const noteDragType = "application/x-tidbit-note-id";
-
 export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, onNotice, refreshRequest }: NotesGridProps) {
   const archiveStorageKey = `show-archived:${groupId ?? "all"}`;
   const [showArchived, setShowArchived] = useState(() => localStorage.getItem(archiveStorageKey) === "true");
+  const [sortPreference, setSortPreference] = useState(loadNoteSortPreference);
   const { notes, setNotes, loading, error, create, trash, refresh } = useNotes(groupId, showArchived);
+  const sortedNotes = useMemo(() => sortNotes(notes, sortPreference), [notes, sortPreference]);
   const { groups } = useGroups();
+  const activeGroupName = groupId === null ? "所有便签" : groups.find((group) => group.id === groupId)?.name ?? "便签";
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [confirmingNote, setConfirmingNote] = useState<Note | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [wanderedIds, setWanderedIds] = useState<Set<number>>(new Set());
-  const [draggedNoteId, setDraggedNoteId] = useState<number | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ id: number; position: DropPosition } | null>(null);
   const lastCreateRequest = useRef(createRequest);
   const lastRefreshRequest = useRef(refreshRequest);
-  const suppressOpen = useRef(false);
 
   const refreshWandered = async () => {
     try { setWanderedIds(new Set(await invoke<number[]>("wander_list"))); }
@@ -62,32 +61,6 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     lastRefreshRequest.current = refreshRequest;
     void refresh();
   }, [refresh, refreshRequest]);
-
-  const endDrag = () => {
-    setDraggedNoteId(null);
-    setDropTarget(null);
-    window.setTimeout(() => { suppressOpen.current = false; }, 0);
-  };
-
-  const reorderNotes = async (targetId: number, position: DropPosition) => {
-    if (draggedNoteId === null || draggedNoteId === targetId) return;
-    const previous = notes;
-    const dragged = notes.find((note) => note.id === draggedNoteId);
-    if (!dragged) return;
-    const next = notes.filter((note) => note.id !== draggedNoteId);
-    const targetIndex = next.findIndex((note) => note.id === targetId);
-    next.splice(targetIndex + (position === "after" ? 1 : 0), 0, dragged);
-    setNotes(next);
-    try {
-      await client.notes.reorder(next.map((note) => note.id));
-      onNotice({ kind: "success", message: "便签顺序已调整" });
-    } catch {
-      setNotes(previous);
-      onNotice({ kind: "error", message: "便签排序失败" });
-    } finally {
-      endDrag();
-    }
-  };
 
   const toggleArchivedVisibility = (checked: boolean) => {
     setShowArchived(checked);
@@ -141,6 +114,27 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     }
   };
 
+  const changeSort = (preference: NoteSortPreference) => {
+    setSortPreference(preference);
+    saveNoteSortPreference(preference);
+  };
+
+  const toggleTask = async (note: Note, taskIndex: number, checked: boolean) => {
+    const update = toggleTaskContent(note.content_md, note.content_html, taskIndex, checked);
+    if (!update) return;
+    const optimistic = { ...note, content_md: update.markdown, content_html: update.html, word_count: update.words };
+    setNotes((current) => current.map((item) => item.id === note.id ? optimistic : item));
+    try {
+      const updated = await client.notes.updateContent(note.id, update.markdown, update.html, update.words);
+      setNotes((current) => current.map((item) => item.id === updated.id ? updated : item));
+      await emit("tidbit://note-updated", { id: updated.id });
+    } catch (error) {
+      setNotes((current) => current.map((item) => item.id === note.id ? note : item));
+      onNotice({ kind: "error", message: "待办状态保存失败" });
+      throw error;
+    }
+  };
+
   return (
     <>
       {editingNote && (
@@ -167,7 +161,13 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
       />
       <section className="notes">
         <header className="notes__head">
-          <span className="notes__count mono">{notes.length} 条便签</span>
+          <div className="notes__heading">
+            <span className="notes__eyebrow">MY NOTES</span>
+            <div className="notes__title-row">
+              <h1 className="notes__title">{activeGroupName}</h1>
+              <span className="notes__count mono">{notes.length}</span>
+            </div>
+          </div>
           <div className="notes__head-actions">
             <div className="notes__archive-toggle" title="显示归档便签">
               <Archive size={13} />
@@ -177,6 +177,8 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
             <button className="btn btn-primary" onClick={() => void createNote()}><Plus size={15} weight="bold" />新建</button>
           </div>
         </header>
+
+        <NoteSortControl preference={sortPreference} onChange={changeSort} />
 
         {loading ? (
           <div className="notes__body"><div className="note-skeleton"><span /><span /><span /></div></div>
@@ -195,49 +197,24 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
         ) : (
           <div className="notes__body">
             <div className="notes__list">
-              {notes.map((note, index) => {
+              {sortedNotes.map((note, index) => {
                 const wanderActive = wanderedIds.has(note.id);
                 return (
                 <div
                   key={note.id}
-                  className={`note-card${draggedNoteId === note.id ? " is-dragging" : ""}${dropTarget?.id === note.id ? ` is-drop-${dropTarget.position}` : ""}`}
+                  className="note-card"
                   style={{ "--i": index, "--card-accent": note.color ?? "var(--accent)" } as React.CSSProperties}
-                  draggable={!wanderActive}
-                  aria-grabbed={draggedNoteId === note.id}
-                  onDragStart={(event) => {
-                    if (wanderActive) { event.preventDefault(); return; }
-                    suppressOpen.current = true;
-                    setDraggedNoteId(note.id);
-                    event.dataTransfer.effectAllowed = "move";
-                    event.dataTransfer.setData(noteDragType, String(note.id));
-                    event.dataTransfer.setData("text/plain", String(note.id));
-                  }}
-                  onDragOver={(event) => {
-                    if (draggedNoteId === null || draggedNoteId === note.id) return;
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move";
-                    const bounds = event.currentTarget.getBoundingClientRect();
-                    setDropTarget({ id: note.id, position: event.clientY < bounds.top + bounds.height / 2 ? "before" : "after" });
-                  }}
-                  onDragLeave={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget(null);
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    const position = dropTarget?.id === note.id ? dropTarget.position : "after";
-                    void reorderNotes(note.id, position);
-                  }}
-                  onDragEnd={endDrag}
                 >
                   <NoteCard
                     note={note}
                     wanderActive={wanderActive}
-                    onOpen={() => { if (!suppressOpen.current) setEditingNote(note); }}
+                    onOpen={() => setEditingNote(note)}
                     onToggleVisibility={() => void client.notes.setContentHidden(note.id, !note.is_content_hidden).then((updated) => setNotes((current) => current.map((item) => item.id === updated.id ? updated : item))).catch(() => onNotice({ kind: "error", message: "内容显示状态更新失败" }))}
                     onTogglePin={() => void client.notes.setPinned(note.id, !note.is_pinned).then(refresh).catch(() => onNotice({ kind: "error", message: "置顶操作失败" }))}
                     onToggleArchive={() => void client.notes.setArchived(note.id, !note.is_archived).then(refresh).then(() => onNotice({ kind: "success", message: note.is_archived ? "便签已取消归档" : "便签已归档" })).catch(() => onNotice({ kind: "error", message: "归档操作失败" }))}
                     onWander={() => void wanderNote(note)}
                     onTrash={() => setConfirmingNote(note)}
+                    onToggleTask={(taskIndex, checked) => toggleTask(note, taskIndex, checked)}
                   />
                 </div>
                 );

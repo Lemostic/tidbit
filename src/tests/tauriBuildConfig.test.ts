@@ -27,7 +27,7 @@ describe("Tauri production build", () => {
     const config = JSON.parse(readFileSync(configPath, "utf8")) as {
       app: { windows: Array<{ width: number; height: number; center: boolean }> };
     };
-    expect(config.app.windows[0]).toMatchObject({ width: 500, height: 780, center: true });
+    expect(config.app.windows[0]).toMatchObject({ width: 780, height: 1100, center: true });
   });
 
   test("uses tidbit as the application data directory identifier", () => {

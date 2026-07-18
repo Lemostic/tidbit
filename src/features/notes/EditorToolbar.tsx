@@ -2,6 +2,7 @@ import {
   ArrowClockwise,
   ArrowCounterClockwise,
   Code,
+  CheckSquare,
   ListBullets,
   ListNumbers,
   Quotes,
@@ -21,6 +22,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     { label: "删除线", active: editor.isActive("strike"), icon: TextStrikethrough, run: () => editor.chain().focus().toggleStrike().run() },
     { label: "无序列表", active: editor.isActive("bulletList"), icon: ListBullets, run: () => editor.chain().focus().toggleBulletList().run() },
     { label: "有序列表", active: editor.isActive("orderedList"), icon: ListNumbers, run: () => editor.chain().focus().toggleOrderedList().run() },
+    { label: "待办清单", active: editor.isActive("taskList"), icon: CheckSquare, run: () => editor.chain().focus().toggleTaskList().run() },
     { label: "引用", active: editor.isActive("blockquote"), icon: Quotes, run: () => editor.chain().focus().toggleBlockquote().run() },
     { label: "行内代码", active: editor.isActive("code"), icon: Code, run: () => editor.chain().focus().toggleCode().run() },
   ];

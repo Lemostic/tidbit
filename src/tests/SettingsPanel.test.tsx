@@ -14,9 +14,14 @@ function renderSettings(overrides: Partial<Parameters<typeof SettingsPanel>[0]> 
     lockPin: "",
     busy: false,
     fonts: { group: "Segoe UI", noteTitle: "Segoe UI", noteBody: "Segoe UI" },
+    availableFonts: ["Arial", "Microsoft YaHei UI", "Segoe UI"],
+    fontsLoading: false,
     wanderOpacity: 88,
     glassEnabled: false,
     glassOpacity: 80,
+    windowWidth: 780,
+    windowHeight: 1100,
+    windowSizeBusy: false,
     onClose: vi.fn(),
     onDockingChange: vi.fn(),
     onAutostartChange: vi.fn(),
@@ -25,6 +30,8 @@ function renderSettings(overrides: Partial<Parameters<typeof SettingsPanel>[0]> 
     onWanderOpacityChange: vi.fn(),
     onGlassChange: vi.fn(),
     onGlassOpacityChange: vi.fn(),
+    onApplyWindowSize: vi.fn(),
+    onResetWindowSize: vi.fn(),
     onBackup: vi.fn(),
     onRestore: vi.fn(),
     onOpenBackups: vi.fn(),
@@ -74,6 +81,42 @@ it("keeps autostart off by default and disables the switch while updating", () =
 
   rerender(<SettingsPanel {...props} autostartBusy />);
   expect(screen.getByRole("checkbox", { name: "开机自动启动" })).toBeDisabled();
+});
+
+it("applies, tracks, and resets the main window dimensions", () => {
+  const onApplyWindowSize = vi.fn();
+  const onResetWindowSize = vi.fn();
+  const { rerender, props } = renderSettings({ onApplyWindowSize, onResetWindowSize });
+
+  fireEvent.change(screen.getByLabelText("软件主体宽度"), { target: { value: "920" } });
+  fireEvent.change(screen.getByLabelText("软件主体高度"), { target: { value: "1280" } });
+  fireEvent.click(screen.getByRole("button", { name: "应用尺寸" }));
+  expect(onApplyWindowSize).toHaveBeenCalledWith(920, 1280);
+
+  rerender(<SettingsPanel {...props} windowWidth={860} windowHeight={1240} />);
+  expect(screen.getByLabelText("软件主体宽度")).toHaveValue(860);
+  expect(screen.getByLabelText("软件主体高度")).toHaveValue(1240);
+
+  fireEvent.click(screen.getByRole("button", { name: "恢复默认窗口尺寸" }));
+  expect(onResetWindowSize).toHaveBeenCalledOnce();
+  expect(screen.getByLabelText("软件主体宽度")).toHaveValue(780);
+  expect(screen.getByLabelText("软件主体高度")).toHaveValue(1100);
+});
+
+it("shows the loaded Windows font list in every font selector", () => {
+  const onFontsChange = vi.fn();
+  renderSettings({ availableFonts: ["Arial", "Consolas", "Microsoft YaHei UI"], onFontsChange });
+
+  const groupFont = screen.getByRole("combobox", { name: "左侧分组字体" });
+  expect(groupFont).toContainElement(screen.getAllByRole("option", { name: "Consolas" })[0]!);
+  fireEvent.change(groupFont, { target: { value: "Consolas" } });
+  expect(onFontsChange).toHaveBeenCalledWith({ group: "Consolas", noteTitle: "Segoe UI", noteBody: "Segoe UI" });
+  expect(screen.getByText(/已加载 \d+ 种可用字体/)).toBeInTheDocument();
+});
+
+it("reports while the Windows font list is loading", () => {
+  renderSettings({ fontsLoading: true });
+  expect(screen.getByText("正在读取 Windows 系统字体…")).toBeInTheDocument();
 });
 
 it("closes only when the empty scrim is clicked", () => {

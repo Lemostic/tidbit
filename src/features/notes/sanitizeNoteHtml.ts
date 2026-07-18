@@ -58,6 +58,45 @@ export function sanitizeNoteHtml(html: string): string {
       continue;
     }
 
+    const isTaskList = element.tagName === "UL" && (
+      element.getAttribute("data-type") === "taskList" || element.classList.contains("contains-task-list")
+    );
+    if (isTaskList) {
+      for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+      element.setAttribute("data-type", "taskList");
+      continue;
+    }
+
+    const isTaskItem = element.tagName === "LI" && (
+      element.getAttribute("data-type") === "taskItem"
+      || element.classList.contains("task-list-item")
+      || Boolean(element.parentElement?.matches('ul[data-type="taskList"]'))
+    );
+    if (isTaskItem) {
+      const checked = element.getAttribute("data-checked") === "true"
+        || Boolean(element.querySelector('input[type="checkbox"]:checked'));
+      for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+      element.setAttribute("data-type", "taskItem");
+      element.setAttribute("data-checked", String(checked));
+      continue;
+    }
+
+    const taskItem = element.closest('li[data-type="taskItem"]');
+    if (element.tagName === "INPUT" && taskItem && element.getAttribute("type") === "checkbox") {
+      const checked = taskItem.getAttribute("data-checked") === "true" || element.hasAttribute("checked");
+      for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+      element.setAttribute("type", "checkbox");
+      element.setAttribute("data-task-checkbox", "true");
+      element.toggleAttribute("checked", checked);
+      element.setAttribute("aria-label", checked ? "标记待办为未完成" : "标记待办为已完成");
+      continue;
+    }
+
+    if (taskItem && (element.tagName === "DIV" || element.tagName === "LABEL" || element.tagName === "SPAN")) {
+      for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+      continue;
+    }
+
     if (!allowedTags.has(element.tagName)) {
       element.replaceWith(...Array.from(element.childNodes));
       continue;

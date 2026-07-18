@@ -1,5 +1,5 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { NoteEditor } from "../features/notes/NoteEditor";
 import type { Note } from "../ipc/types";
 
@@ -33,6 +33,14 @@ class MediaRecorderMock {
   }
 }
 
+beforeAll(() => {
+  Object.defineProperty(Range.prototype, "getClientRects", { configurable: true, value: () => [] });
+  Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+    configurable: true,
+    value: () => ({ left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) }),
+  });
+});
+
 beforeEach(() => {
   invoke.mockReset();
   invoke.mockResolvedValue(note);
@@ -49,6 +57,7 @@ it("renders note title and editor controls", () => {
   );
   expect(getByLabelText("便签标题")).toHaveValue("测试便签");
   expect(getByLabelText("便签内容")).toBeInTheDocument();
+  expect(getByLabelText("待办清单")).toBeInTheDocument();
 });
 
 it("does not write or reorder a note when closed without changes", () => {
@@ -57,6 +66,30 @@ it("does not write or reorder a note when closed without changes", () => {
   );
   unmount();
   expect(invoke).not.toHaveBeenCalledWith("notes_update_content", expect.anything());
+});
+
+it("parses standard Markdown task lists into interactive editor checkboxes", async () => {
+  const taskNote = { ...note, content_md: "- [ ] 未完成\n- [x] 已完成", content_html: "" };
+  const { container, getByLabelText } = render(
+    <NoteEditor note={taskNote} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />
+  );
+
+  expect(getByLabelText("待办清单")).toBeInTheDocument();
+  await waitFor(() => expect(container.querySelectorAll('ul[data-type="taskList"] li input[type="checkbox"]')).toHaveLength(2));
+  expect(container.querySelectorAll('ul[data-type="taskList"] li[data-checked="true"]')).toHaveLength(1);
+});
+
+it("creates and saves a task list from the toolbar", async () => {
+  const { container, getByLabelText } = render(
+    <NoteEditor note={note} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />
+  );
+
+  fireEvent.click(getByLabelText("待办清单"));
+  await waitFor(() => expect(container.querySelector('ul[data-type="taskList"] input[type="checkbox"]')).toBeInTheDocument());
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("notes_update_content", expect.objectContaining({
+    md: expect.stringContaining("- [ ] test content"),
+    html: expect.stringContaining('data-type="taskList"'),
+  })), { timeout: 2_000 });
 });
 
 it("records, inserts, and renames a voice memo block", async () => {

@@ -1,5 +1,6 @@
 import {
   Archive,
+  ArrowsOut,
   Eye,
   FolderOpen,
   HardDrive,
@@ -12,7 +13,10 @@ import {
   TextT,
   X,
 } from "@phosphor-icons/react";
+import { useEffect, useMemo, useState } from "react";
 import type { FontPreferences } from "../../ui/fontPreferences";
+import { commonSystemFonts, normalizeFontFamilies } from "../../ui/systemFonts";
+import { defaultMainWindowSize, minimumMainWindowSize } from "../../ui/windowSizePreferences";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
 interface SettingsPanelProps {
@@ -23,9 +27,14 @@ interface SettingsPanelProps {
   lockPin: string;
   busy: boolean;
   fonts: FontPreferences;
+  availableFonts: readonly string[];
+  fontsLoading: boolean;
   wanderOpacity: number;
   glassEnabled: boolean;
   glassOpacity: number;
+  windowWidth: number;
+  windowHeight: number;
+  windowSizeBusy: boolean;
   onClose: () => void;
   onDockingChange: (enabled: boolean) => void;
   onAutostartChange: (enabled: boolean) => void;
@@ -34,6 +43,8 @@ interface SettingsPanelProps {
   onWanderOpacityChange: (opacity: number) => void;
   onGlassChange: (enabled: boolean) => void;
   onGlassOpacityChange: (opacity: number) => void;
+  onApplyWindowSize: (width: number, height: number) => void;
+  onResetWindowSize: () => void;
   onBackup: () => void;
   onRestore: () => void;
   onOpenBackups: () => void;
@@ -48,6 +59,19 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel(props: SettingsPanelProps) {
+  const [widthDraft, setWidthDraft] = useState(String(props.windowWidth));
+  const [heightDraft, setHeightDraft] = useState(String(props.windowHeight));
+  const fontOptions = useMemo(() => normalizeFontFamilies([
+    ...props.availableFonts,
+    ...commonSystemFonts,
+    props.fonts.group,
+    props.fonts.noteTitle,
+    props.fonts.noteBody,
+  ]), [props.availableFonts, props.fonts.group, props.fonts.noteBody, props.fonts.noteTitle]);
+
+  useEffect(() => setWidthDraft(String(props.windowWidth)), [props.windowWidth]);
+  useEffect(() => setHeightDraft(String(props.windowHeight)), [props.windowHeight]);
+
   if (!props.open) return null;
   return (
     <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) props.onClose(); }}>
@@ -93,6 +117,59 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <div className="settings-opacity__scale"><span>更通透</span><span>更清晰</span></div>
           </div>
 
+          <div className="settings-field settings-window-size">
+            <label><ArrowsOut size={16} /> 软件主体尺寸</label>
+            <div className="settings-window-size__grid">
+              <label>
+                <span>宽度</span>
+                <input
+                  className="field"
+                  type="number"
+                  min={minimumMainWindowSize.width}
+                  max="3840"
+                  step="10"
+                  value={widthDraft}
+                  onChange={(event) => setWidthDraft(event.target.value)}
+                  aria-label="软件主体宽度"
+                />
+              </label>
+              <span className="settings-window-size__times" aria-hidden="true">×</span>
+              <label>
+                <span>高度</span>
+                <input
+                  className="field"
+                  type="number"
+                  min={minimumMainWindowSize.height}
+                  max="2160"
+                  step="10"
+                  value={heightDraft}
+                  onChange={(event) => setHeightDraft(event.target.value)}
+                  aria-label="软件主体高度"
+                />
+              </label>
+            </div>
+            <div className="settings-window-size__actions">
+              <small>拖动窗口边缘后，这里的宽高会自动更新。</small>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                aria-label="恢复默认窗口尺寸"
+                disabled={props.windowSizeBusy}
+                onClick={() => {
+                  setWidthDraft(String(defaultMainWindowSize.width));
+                  setHeightDraft(String(defaultMainWindowSize.height));
+                  props.onResetWindowSize();
+                }}
+              >恢复默认</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={props.windowSizeBusy || !widthDraft || !heightDraft}
+                onClick={() => props.onApplyWindowSize(Number(widthDraft), Number(heightDraft))}
+              >{props.windowSizeBusy ? "正在调整" : "应用尺寸"}</button>
+            </div>
+          </div>
+
           <div className="settings-row">
             <div className="settings-row__icon"><PushPin size={17} /></div>
             <div className="settings-row__copy">
@@ -127,20 +204,28 @@ export function SettingsPanel(props: SettingsPanelProps) {
           <div className="settings-field settings-fonts">
             <label><TextT size={16} /> 字体设置</label>
             <div className="settings-fonts__grid">
-              <label><span>左侧分组</span><input className="field" list="tidbit-fonts" value={props.fonts.group} onChange={(e) => props.onFontsChange({ ...props.fonts, group: e.target.value })} /></label>
-              <label><span>便签标题</span><input className="field" list="tidbit-fonts" value={props.fonts.noteTitle} onChange={(e) => props.onFontsChange({ ...props.fonts, noteTitle: e.target.value })} /></label>
-              <label><span>便签正文</span><input className="field" list="tidbit-fonts" value={props.fonts.noteBody} onChange={(e) => props.onFontsChange({ ...props.fonts, noteBody: e.target.value })} /></label>
+              <label>
+                <span>左侧分组</span>
+                <select className="select" aria-label="左侧分组字体" value={props.fonts.group} onChange={(e) => props.onFontsChange({ ...props.fonts, group: e.target.value })}>
+                  {fontOptions.map((font) => <option key={font} value={font}>{font}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>便签标题</span>
+                <select className="select" aria-label="便签标题字体" value={props.fonts.noteTitle} onChange={(e) => props.onFontsChange({ ...props.fonts, noteTitle: e.target.value })}>
+                  {fontOptions.map((font) => <option key={font} value={font}>{font}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>便签正文</span>
+                <select className="select" aria-label="便签正文字体" value={props.fonts.noteBody} onChange={(e) => props.onFontsChange({ ...props.fonts, noteBody: e.target.value })}>
+                  {fontOptions.map((font) => <option key={font} value={font}>{font}</option>)}
+                </select>
+              </label>
             </div>
-            <datalist id="tidbit-fonts">
-              <option value="Microsoft YaHei UI" />
-              <option value="Microsoft YaHei" />
-              <option value="Segoe UI Variable" />
-              <option value="Segoe UI" />
-              <option value="SimHei" />
-              <option value="KaiTi" />
-              <option value="FangSong" />
-            </datalist>
-            <small>可选择常用字体，也可以直接输入电脑中已安装的字体名称。</small>
+            <small className="settings-fonts__status" aria-live="polite">
+              {props.fontsLoading ? "正在读取 Windows 系统字体…" : `已加载 ${fontOptions.length} 种可用字体。`}
+            </small>
           </div>
 
           <div className="settings-field settings-opacity">

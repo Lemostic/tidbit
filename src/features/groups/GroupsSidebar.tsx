@@ -99,7 +99,14 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
           <span className="group-tab__label">全部</span>
         </button>
         {groups.map((group) => (
-          <GroupItem key={group.id} group={group} selected={selectedId === group.id} onClick={() => onSelect(group.id)} onEdit={() => openEditor(group)} onNoteDrop={(noteId, groupId) => onNoteDrop?.(noteId, groupId, group.name)} />
+          <GroupItem
+            key={group.id}
+            group={group}
+            selected={selectedId === group.id}
+            onClick={() => onSelect(group.id)}
+            onEdit={() => openEditor(group)}
+            onNoteDrop={(noteId, groupId) => onNoteDrop?.(noteId, groupId, group.name)}
+          />
         ))}
         {adding ? (
           <form onSubmit={submit}>

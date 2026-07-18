@@ -106,6 +106,7 @@ pub fn run() {
             ipc::settings::data_directory_set,
             ipc::settings::autostart_get,
             ipc::settings::autostart_set,
+            ipc::settings::system_fonts_list,
             ipc::search::search_query,
         ])
         .on_window_event(|win, ev| {

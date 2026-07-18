@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { CaretDown, CaretUp, Cloud, LockKey, ToggleLeft, ToggleRight, X } from "@phosphor-icons/react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
-import { useEffect, useMemo, useState } from "react";
+import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Note } from "../../ipc/types";
 import type { Group } from "../../ipc/types";
@@ -10,6 +10,7 @@ import { applyFontPreferences, loadFontPreferences } from "../../ui/fontPreferen
 import { appearanceChangedEvent, applyAppearance, loadAppearance, type AppearancePreferences } from "../../ui/appearance";
 import { sanitizeNoteHtml } from "./sanitizeNoteHtml";
 import { NoteEditor } from "./NoteEditor";
+import { toggleTaskContent } from "./taskList";
 
 interface WanderNoteProps {
   noteId: number;
@@ -24,6 +25,7 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
   const [editing, setEditing] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [titleDraft, setTitleDraft] = useState("");
+  const contentRef = useRef<HTMLDivElement>(null);
   const renderedHtml = useMemo(() => sanitizeNoteHtml(note?.content_html ?? ""), [note?.content_html]);
 
   useEffect(() => {
@@ -49,18 +51,25 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
     return () => { disposeOpacity?.(); disposeAppearance?.(); disposeUpdated?.(); };
   }, [noteId]);
 
+  const resizeKeepingWidth = async (height: number) => {
+    const win = getCurrentWindow();
+    const [size, scaleFactor] = await Promise.all([win.innerSize(), win.scaleFactor()]);
+    const width = scaleFactor > 0 ? size.width / scaleFactor : size.width;
+    await win.setSize(new LogicalSize(width, height));
+  };
+
   const toggleCollapsed = async () => {
     const next = !collapsed;
     if (next) setEditing(false);
     setCollapsed(next);
-    await getCurrentWindow().setSize(new LogicalSize(340, next ? 62 : 360));
+    await resizeKeepingWidth(next ? 62 : 360);
   };
 
   const toggleEditing = async () => {
     const next = !editing;
     if (next && collapsed) {
       setCollapsed(false);
-      await getCurrentWindow().setSize(new LogicalSize(340, 360));
+      await resizeKeepingWidth(360);
     }
     setEditing(next);
   };
@@ -82,6 +91,28 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
     await emit("tidbit://note-updated", { id: noteId });
   };
 
+  const toggleTask = async (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.dataset.taskCheckbox !== "true" || !note) return;
+    event.stopPropagation();
+    const inputs = Array.from(contentRef.current?.querySelectorAll<HTMLInputElement>('input[data-task-checkbox="true"]') ?? []);
+    const taskIndex = inputs.indexOf(target);
+    if (taskIndex < 0) return;
+    const checked = target.checked;
+    const update = toggleTaskContent(note.content_md, note.content_html, taskIndex, checked);
+    if (!update) return;
+    const previous = note;
+    setNote({ ...note, content_md: update.markdown, content_html: update.html, word_count: update.words });
+    try {
+      const updated = await client.notes.updateContent(note.id, update.markdown, update.html, update.words);
+      setNote(updated);
+      await emit("tidbit://note-updated", { id: noteId });
+    } catch {
+      setNote(previous);
+      target.checked = !checked;
+    }
+  };
+
   return (
     <main className="wander-shell" style={{ "--wander-opacity": opacity / 100 } as React.CSSProperties}>
       <article className={`wander-card${collapsed ? " is-collapsed" : ""}`}>
@@ -97,7 +128,7 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
           {error ? <p className="wander-card__state">便签加载失败</p> : !note ? <div className="wander-card__skeleton"><span /><span /><span /></div> : note.is_content_hidden ? (
             <div className="wander-card__private"><LockKey size={18} /><span>该条便签内容已加密</span></div>
           ) : renderedHtml ? (
-            <div className="wander-card__content" dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+            <div ref={contentRef} className="wander-card__content" onClick={(event) => void toggleTask(event)} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
           ) : <p className="wander-card__state">暂无正文</p>}
           </>}
         </section>}

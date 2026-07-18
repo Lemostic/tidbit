@@ -42,7 +42,7 @@ export function Titlebar({ onOpenPalette, onOpenSettings, onDragStart }: Titleba
         title="搜索 (Ctrl+K)"
       >
         <MagnifyingGlass size={13} aria-hidden="true" />
-        <span>搜索</span>
+        <span>搜索便签与命令</span>
         <span className="titlebar__kbd">Ctrl K</span>
       </button>
       <div className="titlebar__spacer" />
