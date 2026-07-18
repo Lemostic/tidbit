@@ -99,4 +99,14 @@ describe("NoteCard privacy", () => {
     expect(onToggleTask).toHaveBeenCalledWith(0, true);
     expect(onOpen).not.toHaveBeenCalled();
   });
+
+  it("renders a timeline card as part of the note preview", () => {
+    const timelineHtml = '<div data-timeline-card="true" data-title="发布计划"><div data-timeline-header="true"><span data-timeline-title="true">发布计划</span></div><ol data-timeline-items="true"><li data-timeline-item="true" data-date="2026-08-01" data-time="09:30"><time data-timeline-date="true" datetime="2026-08-01T09:30">2026-08-01 09:30</time><div data-timeline-content="true"><strong data-timeline-item-title="true">开始内测</strong><p data-timeline-item-description="true">邀请首批用户</p></div></li></ol></div>';
+    render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_html: timelineHtml }} onOpen={() => {}} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
+
+    expect(screen.getByText("发布计划")).toBeInTheDocument();
+    expect(screen.getByText("2026-08-01 09:30")).toBeInTheDocument();
+    expect(screen.getByText("开始内测")).toBeInTheDocument();
+    expect(screen.getByText("邀请首批用户")).toBeInTheDocument();
+  });
 });

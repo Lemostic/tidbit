@@ -1,3 +1,5 @@
+import { cleanTimelineDescription, cleanTimelineSingleLine, normalizeTimelineDate, normalizeTimelineTime } from "./timelineCardModel";
+
 const allowedTags = new Set([
   "A", "BLOCKQUOTE", "BR", "CODE", "DEL", "EM", "H1", "H2", "H3", "H4",
   "HR", "LI", "OL", "P", "PRE", "S", "STRIKE", "STRONG", "UL",
@@ -15,6 +17,7 @@ function isSafeAudioDataUrl(value: string): boolean {
 export function sanitizeNoteHtml(html: string): string {
   if (!html || typeof DOMParser === "undefined") return "";
   const document = new DOMParser().parseFromString(html, "text/html");
+  for (const element of Array.from(document.body.querySelectorAll("iframe, object, script, style, template"))) element.remove();
 
   for (const element of Array.from(document.body.querySelectorAll("*"))) {
     if (removableTags.has(element.tagName)) {
@@ -33,6 +36,78 @@ export function sanitizeNoteHtml(html: string): string {
       if (/^audio\/(?:webm|ogg|mp4|mpeg|wav|x-m4a)(?:;codecs=[a-z0-9.+-]+)?$/i.test(mimeType)) {
         element.setAttribute("data-mime-type", mimeType);
       }
+      continue;
+    }
+
+    if (element.tagName === "DIV" && element.hasAttribute("data-timeline-card")) {
+      const title = cleanTimelineSingleLine(element.getAttribute("data-title"), "时间轴");
+      for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+      element.setAttribute("data-timeline-card", "true");
+      element.setAttribute("data-title", title);
+      continue;
+    }
+
+    const timelineContainer = element.closest("div[data-timeline-card]");
+    if (timelineContainer) {
+      if (element.tagName === "DIV" && (element.hasAttribute("data-timeline-header") || element.hasAttribute("data-timeline-content"))) {
+        const marker = element.hasAttribute("data-timeline-header") ? "data-timeline-header" : "data-timeline-content";
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute(marker, "true");
+        continue;
+      }
+
+      if (element.tagName === "OL" && element.hasAttribute("data-timeline-items")) {
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-items", "true");
+        continue;
+      }
+
+      if (element.tagName === "LI" && element.hasAttribute("data-timeline-item")) {
+        const id = cleanTimelineSingleLine(element.getAttribute("data-id"));
+        const date = normalizeTimelineDate(element.getAttribute("data-date"));
+        const time = normalizeTimelineTime(element.getAttribute("data-time"));
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-item", "true");
+        if (id) element.setAttribute("data-id", id);
+        if (date) element.setAttribute("data-date", date);
+        if (time) element.setAttribute("data-time", time);
+        continue;
+      }
+
+      if (element.tagName === "TIME" && element.hasAttribute("data-timeline-date")) {
+        const date = normalizeTimelineDate(element.closest("li[data-timeline-item]")?.getAttribute("data-date"));
+        const time = normalizeTimelineTime(element.closest("li[data-timeline-item]")?.getAttribute("data-time"));
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-date", "true");
+        if (date) element.setAttribute("datetime", `${date}${time ? `T${time}` : ""}`);
+        element.textContent = [date, time].filter(Boolean).join(" ") || "未设置时间";
+        continue;
+      }
+
+      if (element.tagName === "SPAN" && element.hasAttribute("data-timeline-title")) {
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-title", "true");
+        element.textContent = cleanTimelineSingleLine(timelineContainer.getAttribute("data-title"), "时间轴");
+        continue;
+      }
+
+      if (element.tagName === "STRONG" && element.hasAttribute("data-timeline-item-title")) {
+        const title = cleanTimelineSingleLine(element.textContent, "未命名事件");
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-item-title", "true");
+        element.textContent = title;
+        continue;
+      }
+
+      if (element.tagName === "P" && element.hasAttribute("data-timeline-item-description")) {
+        const description = cleanTimelineDescription(element.textContent);
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-item-description", "true");
+        element.textContent = description;
+        continue;
+      }
+
+      element.replaceWith(...Array.from(element.childNodes));
       continue;
     }
 

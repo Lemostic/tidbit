@@ -38,4 +38,24 @@ describe("sanitizeNoteHtml", () => {
     expect(html).toContain('type="checkbox" data-task-checkbox="true" checked=""');
     expect(html).not.toContain("onclick");
   });
+
+  it("keeps timeline cards while stripping unsafe markup and attributes", () => {
+    const html = sanitizeNoteHtml('<div data-timeline-card="true" data-title="发布计划" onclick="alert(1)"><div data-timeline-header="true"><span data-timeline-title="true">发布计划</span></div><ol data-timeline-items="true"><li data-timeline-item="true" data-date="2026-08-01" data-time="09:30" onmouseover="alert(2)"><time data-timeline-date="true" datetime="2026-08-01T09:30">2026-08-01 09:30</time><div data-timeline-content="true"><strong data-timeline-item-title="true">开始内测</strong><p data-timeline-item-description="true">邀请首批用户<script>alert(3)</script></p></div></li></ol></div>');
+    expect(html).toContain('data-timeline-card="true"');
+    expect(html).toContain('data-title="发布计划"');
+    expect(html).toContain('data-timeline-item="true" data-date="2026-08-01" data-time="09:30"');
+    expect(html).toContain('<time data-timeline-date="true" datetime="2026-08-01T09:30">2026-08-01 09:30</time>');
+    expect(html).toContain('data-timeline-item-title="true">开始内测</strong>');
+    expect(html).not.toContain("onclick");
+    expect(html).not.toContain("onmouseover");
+    expect(html).not.toContain("<script");
+  });
+
+  it("drops impossible timeline dates and times", () => {
+    const html = sanitizeNoteHtml('<div data-timeline-card="true" data-title="异常时间"><ol data-timeline-items="true"><li data-timeline-item="true" data-date="2026-99-99" data-time="29:75"><time data-timeline-date="true" datetime="2026-99-99T29:75">异常</time><div data-timeline-content="true"><strong data-timeline-item-title="true">错误节点</strong></div></li></ol></div>');
+    expect(html).not.toContain(' data-date="');
+    expect(html).not.toContain(' data-time="');
+    expect(html).not.toContain(' datetime="');
+    expect(html).toContain("未设置时间");
+  });
 });

@@ -10,6 +10,7 @@ import type { Group, Note } from "../../ipc/types";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { AudioRecording } from "./AudioRecording";
 import { EditorToolbar } from "./EditorToolbar";
+import { TimelineCard } from "./TimelineCard";
 
 interface NoteEditorProps {
   note: Note;
@@ -52,7 +53,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   }, [note.id, onChanged]);
 
   const editor = useEditor({
-    extensions: [StarterKit, TaskList, TaskItem.configure({ nested: true }), AudioRecording, Markdown.configure({ html: true, transformPastedText: true })],
+    extensions: [StarterKit, TaskList, TaskItem.configure({ nested: true }), AudioRecording, TimelineCard, Markdown.configure({ html: true, transformPastedText: true })],
     content: note.content_html || note.content_md,
     editorProps: { attributes: { "aria-label": "便签内容" } },
     onUpdate({ editor: instance }) {
