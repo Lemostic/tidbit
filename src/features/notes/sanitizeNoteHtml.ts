@@ -1,4 +1,4 @@
-import { cleanTimelineDescription, cleanTimelineSingleLine, normalizeTimelineDate, normalizeTimelineTime } from "./timelineCardModel";
+import { cleanTimelineDescription, cleanTimelineSingleLine, normalizeTimelineDateTime, normalizeTimelineItem } from "./timelineCardModel";
 
 const allowedTags = new Set([
   "A", "BLOCKQUOTE", "BR", "CODE", "DEL", "EM", "H1", "H2", "H3", "H4",
@@ -40,19 +40,21 @@ export function sanitizeNoteHtml(html: string): string {
     }
 
     if (element.tagName === "DIV" && element.hasAttribute("data-timeline-card")) {
-      const title = cleanTimelineSingleLine(element.getAttribute("data-title"), "时间轴");
       for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
       element.setAttribute("data-timeline-card", "true");
-      element.setAttribute("data-title", title);
       continue;
     }
 
     const timelineContainer = element.closest("div[data-timeline-card]");
     if (timelineContainer) {
-      if (element.tagName === "DIV" && (element.hasAttribute("data-timeline-header") || element.hasAttribute("data-timeline-content"))) {
-        const marker = element.hasAttribute("data-timeline-header") ? "data-timeline-header" : "data-timeline-content";
+      if (element.hasAttribute("data-timeline-header") || element.hasAttribute("data-timeline-title")) {
+        element.remove();
+        continue;
+      }
+
+      if (element.tagName === "DIV" && element.hasAttribute("data-timeline-content")) {
         for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
-        element.setAttribute(marker, "true");
+        element.setAttribute("data-timeline-content", "true");
         continue;
       }
 
@@ -64,30 +66,24 @@ export function sanitizeNoteHtml(html: string): string {
 
       if (element.tagName === "LI" && element.hasAttribute("data-timeline-item")) {
         const id = cleanTimelineSingleLine(element.getAttribute("data-id"));
-        const date = normalizeTimelineDate(element.getAttribute("data-date"));
-        const time = normalizeTimelineTime(element.getAttribute("data-time"));
+        const { datetime } = normalizeTimelineItem({
+          datetime: element.getAttribute("data-datetime"),
+          date: element.getAttribute("data-date"),
+          time: element.getAttribute("data-time"),
+        }, 0);
         for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
         element.setAttribute("data-timeline-item", "true");
         if (id) element.setAttribute("data-id", id);
-        if (date) element.setAttribute("data-date", date);
-        if (time) element.setAttribute("data-time", time);
+        if (datetime) element.setAttribute("data-datetime", datetime);
         continue;
       }
 
       if (element.tagName === "TIME" && element.hasAttribute("data-timeline-date")) {
-        const date = normalizeTimelineDate(element.closest("li[data-timeline-item]")?.getAttribute("data-date"));
-        const time = normalizeTimelineTime(element.closest("li[data-timeline-item]")?.getAttribute("data-time"));
+        const datetime = normalizeTimelineDateTime(element.closest("li[data-timeline-item]")?.getAttribute("data-datetime"));
         for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
         element.setAttribute("data-timeline-date", "true");
-        if (date) element.setAttribute("datetime", `${date}${time ? `T${time}` : ""}`);
-        element.textContent = [date, time].filter(Boolean).join(" ") || "未设置时间";
-        continue;
-      }
-
-      if (element.tagName === "SPAN" && element.hasAttribute("data-timeline-title")) {
-        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
-        element.setAttribute("data-timeline-title", "true");
-        element.textContent = cleanTimelineSingleLine(timelineContainer.getAttribute("data-title"), "时间轴");
+        if (datetime) element.setAttribute("datetime", datetime);
+        element.textContent = datetime.replace("T", " ") || "未设置时间";
         continue;
       }
 

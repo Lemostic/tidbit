@@ -92,7 +92,7 @@ it("creates and saves a task list from the toolbar", async () => {
   })), { timeout: 2_000 });
 });
 
-it("creates, edits, and saves a timeline card from the toolbar", async () => {
+it("creates, edits, and saves a compact timeline from the toolbar", async () => {
   const { container, getByLabelText } = render(
     <NoteEditor note={note} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />
   );
@@ -100,15 +100,12 @@ it("creates, edits, and saves a timeline card from the toolbar", async () => {
   fireEvent.click(getByLabelText("插入时间轴"));
   await waitFor(() => expect(container.querySelector('[data-timeline-card="true"]')).toBeInTheDocument());
 
-  const timelineTitle = getByLabelText("时间轴标题");
-  fireEvent.change(timelineTitle, { target: { value: "产品发布计划" } });
-  fireEvent.blur(timelineTitle);
-  fireEvent.change(getByLabelText("时间节点 1 日期"), { target: { value: "2026-08-01" } });
-  fireEvent.change(getByLabelText("时间节点 1 时间"), { target: { value: "09:30" } });
+  expect(container.querySelector('[aria-label="时间轴标题"]')).not.toBeInTheDocument();
+  fireEvent.change(getByLabelText("时间节点 1 时间"), { target: { value: "2026-08-01T09:30" } });
   const eventTitle = getByLabelText("时间节点 1 标题");
   fireEvent.change(eventTitle, { target: { value: "开始内测" } });
   fireEvent.blur(eventTitle);
-  const eventDescription = getByLabelText("时间节点 1 说明");
+  const eventDescription = getByLabelText("时间节点 1 详情");
   fireEvent.change(eventDescription, { target: { value: "邀请首批用户" } });
   fireEvent.blur(eventDescription);
   fireEvent.click(getByLabelText("添加时间节点"));
@@ -116,11 +113,11 @@ it("creates, edits, and saves a timeline card from the toolbar", async () => {
   expect(container.querySelectorAll('[data-timeline-item="true"]')).toHaveLength(2);
   await waitFor(() => {
     expect(invoke).toHaveBeenCalledWith("notes_update_content", expect.objectContaining({
-      md: expect.stringContaining("时间轴：产品发布计划"),
+      md: expect.not.stringContaining("时间轴："),
       html: expect.stringContaining('data-timeline-card="true"'),
     }));
     expect(invoke).toHaveBeenCalledWith("notes_update_content", expect.objectContaining({
-      md: expect.stringContaining("2026-08-01 09:30 开始内测：邀请首批用户"),
+      md: expect.stringContaining("- 2026-08-01 09:30 **开始内测**\n  邀请首批用户"),
     }));
   }, { timeout: 2_000 });
 });
@@ -135,15 +132,18 @@ it("restores a saved timeline card and keeps its node controls functional", asyn
     <NoteEditor note={timelineNote} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />
   );
 
-  expect(getByLabelText("时间轴标题")).toHaveValue("版本计划");
+  expect(container.querySelector('[aria-label="时间轴标题"]')).not.toBeInTheDocument();
+  expect(getByLabelText("时间节点 1 时间")).toHaveValue("2026-08-01T09:30");
   expect(getByLabelText("时间节点 1 标题")).toHaveValue("内测");
   expect(container.querySelectorAll('[data-timeline-item="true"]')).toHaveLength(2);
 
-  fireEvent.click(getByLabelText("下移时间节点 1"));
+  fireEvent.click(getByLabelText("添加时间节点"));
   await waitFor(() => {
-    const updateCall = invoke.mock.calls.find(([command]) => command === "notes_update_content");
-    expect(updateCall?.[1]).toEqual(expect.objectContaining({
-      md: expect.stringMatching(/发布[\s\S]*内测/),
+    expect(invoke).toHaveBeenCalledWith("notes_update_content", expect.objectContaining({
+      md: expect.stringMatching(/内测[\s\S]*发布[\s\S]*新时间节点/),
+      html: expect.stringContaining('data-datetime="2026-08-01T09:30"'),
+    }));
+    expect(invoke).toHaveBeenCalledWith("notes_update_content", expect.objectContaining({
       html: expect.not.stringContaining("[object Object]"),
     }));
   }, { timeout: 2_000 });
