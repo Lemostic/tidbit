@@ -18,8 +18,6 @@ fn main() {
         background_color: None,
         icon: None,
         sort_order: 1,
-        tags: Vec::new(),
-        reminder: None,
         pinned: false,
         collapsed: false,
         created_at: 0,
@@ -46,6 +44,8 @@ fn main() {
         updated_at: 1_700_000_100_000,
         color: None,
         sort_order: 1,
+        tags: Vec::new(),
+        reminder: None,
     }];
     let document = build_document(&request, &groups, notes).unwrap();
     let md_path = "C:/Users/merit/Documents/Codex/2026-08-01/tidbit-export-pdf/outputs/all.md";

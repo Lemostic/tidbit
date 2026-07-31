@@ -3,14 +3,14 @@ import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
 describe("Tauri production build", () => {
-  test("uses v0.1.3 consistently", () => {
+  test("uses v0.2.0 consistently", () => {
     const packageConfig = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as { version: string };
     const tauriConfig = JSON.parse(readFileSync(resolve(process.cwd(), "src-tauri/tauri.conf.json"), "utf8")) as { version: string };
     const cargoManifest = readFileSync(resolve(process.cwd(), "src-tauri/Cargo.toml"), "utf8");
 
-    expect(packageConfig.version).toBe("0.1.3");
+    expect(packageConfig.version).toBe("0.2.0");
     expect(tauriConfig.version).toBe(packageConfig.version);
-    expect(cargoManifest).toMatch(/^version = "0\.1\.3"$/m);
+    expect(cargoManifest).toMatch(/^version = "0\.2\.0"$/m);
   });
 
   test("rebuilds the frontend before packaging", () => {
