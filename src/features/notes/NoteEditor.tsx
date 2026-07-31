@@ -43,6 +43,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
 
@@ -125,6 +126,11 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
     } catch { setStatus("error"); }
   };
 
+  const saveTags = async (value: string) => {
+    const tags = value.split(/[\\s,，]+/).map((tag) => tag.trim()).filter(Boolean);
+    try { setCurrent(await client.notes.setTags(current.id, tags)); onChanged(); } catch { setStatus("error"); }
+  };
+
   const panel = (
       <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-modal={embedded ? undefined : true} aria-label="编辑便签" onClick={(event) => event.stopPropagation()}>
         {!embedded && <header className="note-editor__head">
@@ -168,6 +174,10 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
                 title={color ? "设置便签颜色" : "默认颜色"}
               >{current.color === color && <Check size={11} weight="bold" />}</button>
             ))}
+          </div>
+          <div className="note-editor__tags" aria-label="便签标签">
+            {(current.tags ?? []).map((tag) => <button type="button" className="note-tag" key={tag} onClick={() => void saveTags((current.tags ?? []).filter((item) => item !== tag).join(","))}>{tag} <X size={10} /></button>)}
+            <input aria-label="添加标签" value={tagDraft} placeholder="添加标签" onChange={(event) => setTagDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); void saveTags([...(current.tags ?? []), tagDraft].join(",")); setTagDraft(""); } }} onBlur={() => { if (tagDraft.trim()) { void saveTags([...(current.tags ?? []), tagDraft].join(",")); setTagDraft(""); } }} />
           </div>
         </div>
 

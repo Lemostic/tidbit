@@ -24,6 +24,7 @@ export interface Note {
   updated_at: number;
   color: string | null;
   sort_order: number;
+  tags?: string[];
 }
 
 export interface Group {

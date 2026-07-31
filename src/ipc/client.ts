@@ -50,6 +50,10 @@ export const client = {
       invoke<void>("notes_set_edge_dock", { id, edge }),
     trash: (id: number) => invoke<void>("notes_trash", { id }),
     restore: (id: number) => invoke<void>("notes_restore", { id }),
+    setTags: (id: number, tags: string[]) => invoke<Note>("notes_set_tags", { id, tags }).then(n => noteSchema.parse(n)),
+  },
+  tags: {
+    list: () => invoke<string[]>("tags_list"),
   },
   groups: {
     list: () =>

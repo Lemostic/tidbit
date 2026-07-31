@@ -35,6 +35,8 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
   const [confirmingNote, setConfirmingNote] = useState<Note | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [wanderedIds, setWanderedIds] = useState<Set<number>>(new Set());
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const lastCreateRequest = useRef(createRequest);
   const lastRefreshRequest = useRef(refreshRequest);
 
@@ -51,6 +53,10 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     void listen("tidbit://note-updated", () => void refresh()).then((dispose) => { disposeUpdated = dispose; });
     return () => { disposeWander?.(); disposeUpdated?.(); };
   }, [refresh]);
+
+  useEffect(() => { void client.tags.list().then(setAvailableTags).catch(() => setAvailableTags([])); }, [notes]);
+
+  const visibleNotes = useMemo(() => activeTag ? sortedNotes.filter((note) => note.tags?.includes(activeTag)) : sortedNotes, [activeTag, sortedNotes]);
 
   useEffect(() => {
     setShowArchived(localStorage.getItem(archiveStorageKey) === "true");
@@ -181,6 +187,11 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
 
         <NoteSortControl preference={sortPreference} onChange={changeSort} />
 
+        {availableTags.length > 0 && <div className="notes__tag-filter" aria-label="按标签筛选">
+          <button className={`note-tag${activeTag === null ? " is-active" : ""}`} onClick={() => setActiveTag(null)}>全部</button>
+          {availableTags.map((tag) => <button key={tag} className={`note-tag${activeTag === tag ? " is-active" : ""}`} onClick={() => setActiveTag(tag)}>{tag}</button>)}
+        </div>}
+
         {loading ? (
           <div className="notes__body"><div className="note-skeleton"><span /><span /><span /></div></div>
         ) : error ? (
@@ -198,7 +209,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
         ) : (
           <div className="notes__body">
             <div className="notes__list">
-              {sortedNotes.map((note, index) => {
+              {visibleNotes.map((note, index) => {
                 const wanderActive = wanderedIds.has(note.id);
                 return (
                 <div

@@ -21,6 +21,7 @@ export const noteSchema = z.object({
   updated_at: z.number(),
   color: z.string().nullable(),
   sort_order: z.number(),
+  tags: z.array(z.string()).default([]),
 });
 
 export const groupSchema = z.object({

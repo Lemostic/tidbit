@@ -124,6 +124,8 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
         </div>
       </header>
 
+      {(note.tags?.length ?? 0) > 0 && <div className="note-card__tags" aria-label="便签标签">{note.tags?.map((tag) => <span key={tag} className="note-tag">{tag}</span>)}</div>}
+
       {note.is_content_hidden ? (
         <div className="note-card__encrypted"><LockKey size={17} weight="duotone" /><span>该条便签内容已加密</span></div>
       ) : renderedHtml ? (
