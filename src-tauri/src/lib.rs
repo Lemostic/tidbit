@@ -158,7 +158,9 @@ pub fn run() {
             if matches!(ev, tauri::WindowEvent::Moved { .. }) {
                 ipc::wander::schedule_wander_snap(win);
             }
-            window_state::install_close_to_tray(win.app_handle(), ev);
+            if win.label() == "main" {
+                window_state::install_close_to_tray(win.app_handle(), ev);
+            }
         })
         .run(tauri::generate_context!())
         .expect("failed to start tidbit");
