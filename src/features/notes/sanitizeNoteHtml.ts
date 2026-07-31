@@ -2,7 +2,7 @@ import { highlightCodeElement } from "./codeHighlighting";
 
 const allowedTags = new Set([
   "A", "BLOCKQUOTE", "BR", "CODE", "DEL", "EM", "H1", "H2", "H3", "H4",
-  "HR", "LI", "OL", "P", "PRE", "S", "STRIKE", "STRONG", "UL",
+  "HR", "IMG", "LI", "OL", "P", "PRE", "S", "STRIKE", "STRONG", "UL",
 ]);
 
 const removableTags = new Set(["IFRAME", "OBJECT", "SCRIPT", "STYLE", "TEMPLATE"]);
@@ -101,6 +101,16 @@ export function sanitizeNoteHtml(html: string): string {
 
     if (!allowedTags.has(element.tagName)) {
       element.replaceWith(...Array.from(element.childNodes));
+      continue;
+    }
+
+    if (element.tagName === "IMG") {
+      const src = element.getAttribute("src") ?? "";
+      const safe = /^data:image\/(?:png|jpeg|gif|webp|bmp);base64,[a-z0-9+/=]+$/i.test(src) || /^tidbit-img:\/\/[a-z0-9/_-]+$/i.test(src);
+      const alt = (element.getAttribute("alt") ?? "图片").replace(/[\r\n]+/g, " ").slice(0, 160);
+      for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+      if (!safe) { element.remove(); continue; }
+      element.setAttribute("src", src); element.setAttribute("alt", alt);
       continue;
     }
 

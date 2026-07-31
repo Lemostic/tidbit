@@ -914,6 +914,8 @@ input[type="range"] { accent-color: var(--accent); }
 .color-swatch:hover { transform: translateY(-1px) scale(1.05); }
 .color-swatch.is-active { box-shadow: 0 0 0 2px var(--accent); }
 
+.editor-content .ProseMirror img, .note-card__content img { display: block; max-width: 100%; max-height: 480px; margin: 8px auto; border-radius: 7px; object-fit: contain; }
+
 .toolbar {
   min-height: 40px;
   margin: 0 12px 7px;

@@ -55,6 +55,9 @@ export const client = {
   tags: {
     list: () => invoke<string[]>("tags_list"),
   },
+  attachments: {
+    save: (noteId: number, fileName: string, mime: string, data: number[]) => invoke<{ url: string }>("attachments_save", { noteId, fileName, mime, data }),
+  },
   groups: {
     list: () =>
       invoke<Group[]>("groups_list").then(arr =>

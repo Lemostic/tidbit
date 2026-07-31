@@ -1,4 +1,5 @@
 import { Check, PushPin, Trash, X } from "@phosphor-icons/react";
+import ImageExtension from "@tiptap/extension-image";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -44,6 +45,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
 
@@ -71,6 +73,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
       CodeBlockLowlight.configure({ lowlight: codeLowlight }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      ImageExtension.configure({ inline: false, allowBase64: true }),
       AudioRecording,
       Markdown.configure({ html: true, transformPastedText: true }),
     ],
@@ -79,6 +82,16 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
       attributes: { "aria-label": "便签内容" },
       handlePaste(view, event) {
         if (view.state.selection.$from.parent.type.spec.code) return false;
+        const image = Array.from(event.clipboardData?.items ?? []).find((item) => item.type.startsWith("image/"));
+        if (image) {
+          const file = image.getAsFile();
+          if (file) {
+            void file.arrayBuffer().then((buffer) => client.attachments.save(note.id, file.name || "pasted-image", file.type, Array.from(new Uint8Array(buffer))))
+              .then((attachment) => { const node = view.state.schema.nodes.image?.create({ src: attachment.url, alt: file.name }); if (node) view.dispatch(view.state.tr.replaceSelectionWith(node).scrollIntoView()); })
+              .catch(() => setStatus("error"));
+            return true;
+          }
+        }
         const rawText = event.clipboardData?.getData("text/plain") ?? "";
         const url = getStandaloneWebUrl(rawText);
         const link = view.state.schema.marks.link;
@@ -131,6 +144,14 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
     try { setCurrent(await client.notes.setTags(current.id, tags)); onChanged(); } catch { setStatus("error"); }
   };
 
+  const insertImage = async (file: File) => {
+    if (!editor || !file.type.startsWith("image/")) return;
+    try {
+      const attachment = await client.attachments.save(current.id, file.name || "image", file.type, Array.from(new Uint8Array(await file.arrayBuffer())));
+      editor.chain().focus().setImage({ src: attachment.url, alt: file.name }).run();
+    } catch { setStatus("error"); }
+  };
+
   const panel = (
       <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-modal={embedded ? undefined : true} aria-label="编辑便签" onClick={(event) => event.stopPropagation()}>
         {!embedded && <header className="note-editor__head">
@@ -181,7 +202,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
           </div>
         </div>
 
-        {editor && <EditorToolbar editor={editor} />}
+        {editor && <><EditorToolbar editor={editor} onInsertImage={() => fileInputRef.current?.click()} /><input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void insertImage(file); event.currentTarget.value = ""; }} /></>}
         <EditorContent editor={editor} className="editor-content" />
 
         <footer className="note-editor__status mono">

@@ -46,4 +46,12 @@ describe("sanitizeNoteHtml", () => {
     expect(html).not.toContain("unsafe");
     expect(html).not.toContain("onclick");
   });
+
+  it("keeps supported image data and strips unsafe image attributes", () => {
+    const html = sanitizeNoteHtml('<img src="data:image/png;base64,eA==" alt="示意图" onerror="alert(1)" style="position:fixed">');
+    expect(html).toContain('src="data:image/png;base64,eA=="');
+    expect(html).toContain('alt="示意图"');
+    expect(html).not.toContain("onerror");
+    expect(html).not.toContain("style");
+  });
 });
