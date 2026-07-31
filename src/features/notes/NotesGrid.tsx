@@ -37,6 +37,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
   const [wanderedIds, setWanderedIds] = useState<Set<number>>(new Set());
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [timeFilter, setTimeFilter] = useState<"all" | "today" | "week" | "overdue">("all");
   const lastCreateRequest = useRef(createRequest);
   const lastRefreshRequest = useRef(refreshRequest);
 
@@ -49,14 +50,19 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     void refreshWandered();
     let disposeWander: (() => void) | undefined;
     let disposeUpdated: (() => void) | undefined;
+    let disposeReminder: (() => void) | undefined;
     void listen("tidbit://wander-changed", () => void refreshWandered()).then((dispose) => { disposeWander = dispose; });
     void listen("tidbit://note-updated", () => void refresh()).then((dispose) => { disposeUpdated = dispose; });
-    return () => { disposeWander?.(); disposeUpdated?.(); };
+    void listen("tidbit://reminder-fired", () => void refresh()).then((dispose) => { disposeReminder = dispose; });
+    return () => { disposeWander?.(); disposeUpdated?.(); disposeReminder?.(); };
   }, [refresh]);
 
   useEffect(() => { void client.tags.list().then(setAvailableTags).catch(() => setAvailableTags([])); }, [notes]);
 
-  const visibleNotes = useMemo(() => activeTag ? sortedNotes.filter((note) => note.tags?.includes(activeTag)) : sortedNotes, [activeTag, sortedNotes]);
+  const visibleNotes = useMemo(() => {
+    const now = Date.now(); const today = new Date(); today.setHours(23, 59, 59, 999); const week = now + 7 * 86400000;
+    return sortedNotes.filter((note) => (!activeTag || note.tags?.includes(activeTag)) && (timeFilter === "all" || Boolean(note.reminder && (timeFilter === "overdue" ? note.reminder.remind_at < now : timeFilter === "today" ? note.reminder.remind_at <= today.getTime() && note.reminder.remind_at >= now : note.reminder.remind_at >= now && note.reminder.remind_at <= week))));
+  }, [activeTag, sortedNotes, timeFilter]);
 
   useEffect(() => {
     setShowArchived(localStorage.getItem(archiveStorageKey) === "true");
@@ -186,6 +192,8 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
         </header>
 
         <NoteSortControl preference={sortPreference} onChange={changeSort} />
+
+        <div className="notes__time-filter" aria-label="按提醒时间筛选">{([['all','全部'],['today','今天'],['week','未来 7 天'],['overdue','已逾期']] as const).map(([value,label]) => <button key={value} className={`note-tag${timeFilter === value ? " is-active" : ""}`} onClick={() => setTimeFilter(value)}>{label}</button>)}</div>
 
         {availableTags.length > 0 && <div className="notes__tag-filter" aria-label="按标签筛选">
           <button className={`note-tag${activeTag === null ? " is-active" : ""}`} onClick={() => setActiveTag(null)}>全部</button>

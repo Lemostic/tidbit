@@ -752,10 +752,16 @@ select:disabled {
 .note-card__tags, .notes__tag-filter, .note-editor__tags { display: flex; align-items: center; gap: 5px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .note-card__tags { margin: -2px 0 6px; }
 .notes__tag-filter { padding: 0 14px 8px; }
+.notes__time-filter { display: flex; gap: 5px; padding: 0 14px 7px; }
 .note-tag { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 3px; min-height: 22px; padding: 2px 7px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); color: var(--fg-muted); font-size: 10px; }
 .note-tag.is-active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .note-editor__tags { flex: 1 1 140px; }
 .note-editor__tags input { min-width: 62px; width: 74px; border: 0; outline: 0; background: transparent; color: var(--fg); font-size: 11px; }
+.note-card__reminder { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin: -2px 0 6px; color: var(--fg-muted); font-size: 10px; }
+.note-card__reminder.is-overdue { color: var(--danger); }
+.note-editor__reminder { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; }
+.note-editor__reminder input { width: 142px; border: 0; background: transparent; color: var(--fg-muted); font: inherit; }
+.note-editor__reminder button { display: inline-grid; place-items: center; color: var(--fg-muted); }
 
 .notes__empty {
   margin: 12px 14px 18px;

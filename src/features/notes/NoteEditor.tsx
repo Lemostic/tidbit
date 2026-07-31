@@ -26,6 +26,7 @@ interface NoteEditorProps {
 }
 
 const colors = [null, "#d75b57", "#d5a23f", "#4e9b75", "#4c86b8"] as const;
+function datetimeValue(timestamp?: number) { if (!timestamp) return ""; const date = new Date(timestamp); return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
 
 function getStandaloneWebUrl(value: string): string | null {
   const trimmed = value.trim();
@@ -206,6 +207,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
         <EditorContent editor={editor} className="editor-content" />
 
         <footer className="note-editor__status mono">
+          <label className="note-editor__reminder"><span>提醒</span><input aria-label="提醒时间" type="datetime-local" value={datetimeValue(current.reminder?.remind_at)} onChange={(event) => void mutate(client.notes.setReminder(current.id, event.target.value ? new Date(event.target.value).getTime() : null))} />{current.reminder && <button type="button" aria-label="清除提醒" title="清除提醒" onClick={() => void mutate(client.notes.setReminder(current.id, null))}><X size={11} /></button>}</label>
           <span className={`save-status save-status--${status}`}>{status === "saving" ? "正在保存" : status === "error" ? "保存失败" : "已保存"}</span>
           <span>{current.word_count} 字</span>
           {allowTrash && <button className="editor-trash" onClick={() => setConfirmingDelete(true)}><Trash size={14} /> 删除</button>}

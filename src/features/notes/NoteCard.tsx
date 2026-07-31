@@ -1,4 +1,4 @@
-import { Archive, CaretDown, CaretUp, Cloud, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
+import { Alarm, Archive, CaretDown, CaretUp, Cloud, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
 import { type MouseEvent as ReactMouseEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Note } from "../../ipc/types";
 import { sanitizeNoteHtml } from "./sanitizeNoteHtml";
@@ -125,6 +125,7 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
       </header>
 
       {(note.tags?.length ?? 0) > 0 && <div className="note-card__tags" aria-label="便签标签">{note.tags?.map((tag) => <span key={tag} className="note-tag">{tag}</span>)}</div>}
+      {note.reminder && <div className={`note-card__reminder${note.reminder.remind_at < Date.now() && !note.reminder.notified ? " is-overdue" : ""}`}><Alarm size={12} />{new Date(note.reminder.remind_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>}
 
       {note.is_content_hidden ? (
         <div className="note-card__encrypted"><LockKey size={17} weight="duotone" /><span>该条便签内容已加密</span></div>

@@ -25,6 +25,7 @@ export interface Note {
   color: string | null;
   sort_order: number;
   tags?: string[];
+  reminder?: { remind_at: number; notified: boolean } | null;
 }
 
 export interface Group {
