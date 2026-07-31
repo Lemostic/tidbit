@@ -33,6 +33,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0009_note_attachment",
         include_str!("../../migrations/0009_note_attachment.sql"),
     ),
+    (
+        "0010_note_reminder",
+        include_str!("../../migrations/0010_note_reminder.sql"),
+    ),
 ];
 
 /// Run all pending migrations in order. Already-applied migrations are skipped.

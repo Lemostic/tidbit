@@ -1,3 +1,4 @@
+use super::ReminderLite;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -34,4 +35,6 @@ pub struct Note {
     pub sort_order: i64,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub reminder: Option<ReminderLite>,
 }

@@ -1,4 +1,5 @@
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+use tauri_plugin_notification::NotificationExt;
 
 pub mod autostart;
 pub mod data_directory;
@@ -30,6 +31,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let default_dir = app.path().app_data_dir().expect("appdata");
             let dir = data_directory::resolve(&default_dir)?;
@@ -59,6 +61,41 @@ pub fn run() {
             }
             tray::build_tray(app)?;
             hotkey::register(&app.handle())?;
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                    let now = chrono::Utc::now().timestamp_millis();
+                    let reminders = handle
+                        .state::<state::AppState>()
+                        .reminders
+                        .due(now)
+                        .unwrap_or_default();
+                    for reminder in reminders {
+                        let title = handle
+                            .state::<state::AppState>()
+                            .notes
+                            .get(reminder.note_id)
+                            .ok()
+                            .and_then(|note| note.title)
+                            .unwrap_or_else(|| "无标题".into());
+                        if handle
+                            .notification()
+                            .builder()
+                            .title("tidbit 提醒")
+                            .body(&title)
+                            .show()
+                            .is_ok()
+                        {
+                            let _ = handle
+                                .state::<state::AppState>()
+                                .reminders
+                                .mark_notified(reminder.note_id);
+                            let _ = handle.emit("tidbit://reminder-fired", reminder.note_id);
+                        }
+                    }
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -79,6 +116,7 @@ pub fn run() {
             ipc::notes::notes_restore,
             ipc::notes::tags_list,
             ipc::notes::notes_set_tags,
+            ipc::notes::reminders_set,
             ipc::attachments::attachments_save,
             ipc::export::notes_export,
             ipc::groups::groups_list,

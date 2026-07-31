@@ -5,7 +5,19 @@ use tauri::State;
 
 fn attach_tags(state: &AppState, mut note: Note) -> Result<Note, AppError> {
     note.tags = state.tags.tags_for_note(note.id)?;
+    note.reminder = state.reminders.get(note.id)?;
     Ok(note)
+}
+
+#[tauri::command]
+pub async fn reminders_set(
+    state: State<'_, AppState>,
+    id: i64,
+    remind_at: Option<i64>,
+) -> Result<Note, AppError> {
+    state.notes.get(id)?;
+    state.reminders.set(id, remind_at)?;
+    attach_tags(&state, state.notes.get(id)?)
 }
 
 #[tauri::command]

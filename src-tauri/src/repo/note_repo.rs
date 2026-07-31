@@ -43,6 +43,7 @@ impl NoteRepo {
             color: r.get(18)?,
             sort_order: r.get(19)?,
             tags: Vec::new(),
+            reminder: None,
         })
     }
 
