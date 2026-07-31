@@ -8,6 +8,7 @@ describe("wander window routing", () => {
     expect(resolveWindowMode("main")).toEqual({ kind: "main" });
     expect(resolveWindowMode("wander-18")).toEqual({ kind: "wander", noteId: 18 });
     expect(resolveWindowMode("wander-editor-18")).toEqual({ kind: "wander-editor", noteId: 18 });
+    expect(resolveWindowMode("detach-18")).toEqual({ kind: "detach", noteId: 18 });
   });
 
   it("creates dynamic WebView2 windows asynchronously with the bundled app entry", () => {

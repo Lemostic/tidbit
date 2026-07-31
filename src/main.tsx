@@ -4,6 +4,7 @@ import App from "./App";
 import { disableDefaultContextMenu } from "./app/disableDefaultContextMenu";
 import { WanderNote } from "./features/notes/WanderNote";
 import { WanderEditor } from "./features/notes/WanderEditor";
+import { DetachedNote } from "./features/notes/DetachedNote";
 import { applyGlassEffect, applyGlassOpacity, loadGlassEffect, loadGlassOpacity } from "./ui/glassEffect";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { resolveWindowMode } from "./app/windowMode";
@@ -19,5 +20,7 @@ createRoot(document.getElementById("root")!).render(
     ? <WanderNote noteId={mode.noteId} initialOpacity={wanderOpacity} />
     : mode.kind === "wander-editor"
       ? <WanderEditor noteId={mode.noteId} />
+      : mode.kind === "detach"
+        ? <DetachedNote noteId={mode.noteId} />
       : <App />,
 );

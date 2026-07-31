@@ -1,4 +1,4 @@
-import { Alarm, Archive, CaretDown, CaretUp, Cloud, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
+import { Alarm, AppWindow, Archive, CaretDown, CaretUp, Cloud, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
 import { type MouseEvent as ReactMouseEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Note } from "../../ipc/types";
 import { sanitizeNoteHtml } from "./sanitizeNoteHtml";
@@ -10,6 +10,7 @@ interface NoteCardProps {
   onToggleVisibility: () => void;
   onToggleArchive: () => void;
   onWander: () => void;
+  onDetach?: () => void;
   onTrash: () => void;
   onToggleTask?: (taskIndex: number, checked: boolean) => Promise<void>;
   wanderActive?: boolean;
@@ -34,7 +35,7 @@ function formatTime(timestamp: number) {
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 }
 
-export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onToggleArchive, onWander, onTrash, onToggleTask, wanderActive = false }: NoteCardProps) {
+export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onToggleArchive, onWander, onDetach, onTrash, onToggleTask, wanderActive = false }: NoteCardProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [canCollapse, setCanCollapse] = useState(false);
@@ -87,6 +88,7 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
         {note.is_archived && <span className="note-card__archived">已归档</span>}
         {wanderActive && <span className="note-card__wandering">桌面云游中</span>}
         <div className="note-card__actions">
+          <button className="note-action" aria-label="撕出独立窗口" title="撕出独立窗口" disabled={wanderActive} onClick={(event) => { event.stopPropagation(); onDetach?.(); }}><AppWindow size={14} /></button>
           <button
             className="note-action"
             aria-label="云游便签"

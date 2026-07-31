@@ -10,7 +10,11 @@ pub async fn notes_export(
     request: ExportRequest,
 ) -> Result<Option<ExportResult>, AppError> {
     let groups = state.groups.list()?;
-    let notes = state.notes.list_by_group(None, true)?;
+    let mut notes = state.notes.list_by_group(None, true)?;
+    for note in &mut notes {
+        note.tags = state.tags.tags_for_note(note.id)?;
+        note.reminder = state.reminders.get(note.id)?;
+    }
     let document = export::build_document(&request, &groups, notes)?;
     let extension = match &request.format {
         export::ExportFormat::Markdown => "md",

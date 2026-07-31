@@ -304,7 +304,7 @@ pub fn choose_save_path(
 
 fn metadata_markdown(note: &Note) -> String {
     format!(
-        "> 创建时间：{}\n> 更新时间：{}\n> 状态：{}{}{}\n> 隐私内容：{}\n> 字数：{}\n",
+        "> 创建时间：{}\n> 更新时间：{}\n> 状态：{}{}{}\n> 标签：{}\n> 隐私内容：{}\n> 字数：{}\n",
         format_timestamp(note.created_at),
         format_timestamp(note.updated_at),
         if note.is_archived {
@@ -314,6 +314,11 @@ fn metadata_markdown(note: &Note) -> String {
         },
         if note.is_pinned { " · 已置顶" } else { "" },
         if note.is_trashed { " · 回收站" } else { "" },
+        if note.tags.is_empty() {
+            "无".into()
+        } else {
+            note.tags.join("、")
+        },
         if note.is_content_hidden { "是" } else { "否" },
         note.word_count,
     )
@@ -321,7 +326,7 @@ fn metadata_markdown(note: &Note) -> String {
 
 fn metadata_plain(note: &Note) -> String {
     format!(
-        "创建：{} · 更新：{} · 状态：{}{}{} · 隐私内容：{} · 字数：{}",
+        "创建：{} · 更新：{} · 状态：{}{}{} · 标签：{} · 隐私内容：{} · 字数：{}",
         format_timestamp(note.created_at),
         format_timestamp(note.updated_at),
         if note.is_archived {
@@ -331,6 +336,11 @@ fn metadata_plain(note: &Note) -> String {
         },
         if note.is_pinned { " · 已置顶" } else { "" },
         if note.is_trashed { " · 回收站" } else { "" },
+        if note.tags.is_empty() {
+            "无".into()
+        } else {
+            note.tags.join("、")
+        },
         if note.is_content_hidden { "是" } else { "否" },
         note.word_count,
     )
@@ -504,6 +514,8 @@ mod tests {
             updated_at: 0,
             color: None,
             sort_order: id,
+            tags: Vec::new(),
+            reminder: None,
         }
     }
 

@@ -18,6 +18,8 @@ fn main() {
         background_color: None,
         icon: None,
         sort_order: 1,
+        tags: Vec::new(),
+        reminder: None,
         pinned: false,
         collapsed: false,
         created_at: 0,

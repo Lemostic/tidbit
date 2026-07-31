@@ -10,6 +10,8 @@ fn round_trip_group_serializes() {
         background_color: Some("#244".into()),
         icon: None,
         sort_order: 0,
+        tags: Vec::new(),
+        reminder: None,
         pinned: false,
         collapsed: false,
         created_at: Utc::now().timestamp_millis(),

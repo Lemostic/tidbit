@@ -118,6 +118,8 @@ pub fn run() {
             ipc::notes::notes_set_tags,
             ipc::notes::reminders_set,
             ipc::attachments::attachments_save,
+            ipc::detach::note_detach_open,
+            ipc::detach::note_detach_close,
             ipc::export::notes_export,
             ipc::groups::groups_list,
             ipc::groups::groups_create,

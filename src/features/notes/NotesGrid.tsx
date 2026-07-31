@@ -126,6 +126,11 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     }
   };
 
+  const detachNote = async (note: Note) => {
+    try { await invoke("note_detach_open", { noteId: note.id }); onNotice({ kind: "success", message: "便签已撕出独立窗口" }); }
+    catch { onNotice({ kind: "error", message: "独立窗口打开失败" }); }
+  };
+
   const changeSort = (preference: NoteSortPreference) => {
     setSortPreference(preference);
     saveNoteSortPreference(preference);
@@ -233,6 +238,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
                     onTogglePin={() => void client.notes.setPinned(note.id, !note.is_pinned).then(refresh).catch(() => onNotice({ kind: "error", message: "置顶操作失败" }))}
                     onToggleArchive={() => void client.notes.setArchived(note.id, !note.is_archived).then(refresh).then(() => onNotice({ kind: "success", message: note.is_archived ? "便签已取消归档" : "便签已归档" })).catch(() => onNotice({ kind: "error", message: "归档操作失败" }))}
                     onWander={() => void wanderNote(note)}
+                    onDetach={() => void detachNote(note)}
                     onTrash={() => setConfirmingNote(note)}
                     onToggleTask={(taskIndex, checked) => toggleTask(note, taskIndex, checked)}
                   />
