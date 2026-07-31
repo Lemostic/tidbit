@@ -1,5 +1,5 @@
 import { Check, Plus, Trash, X } from "@phosphor-icons/react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { type CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
 import type { Group } from "../../ipc/types";
 import type { ToastState } from "../../ui/Toast";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
@@ -83,6 +83,7 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
       <nav className="groups-rail" aria-label="便签分组">
         <button
           className={`group-tab${selectedId === null ? " is-active" : ""}${allDropActive ? " is-drop-target" : ""}`}
+          style={{ "--group-tab-bg": "var(--accent)" } as CSSProperties}
           aria-selected={selectedId === null}
           title="全部便签"
           onClick={() => onSelect(null)}
@@ -118,8 +119,8 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
       </nav>
 
       {editing && (
-        <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) setEditing(null); }}>
-          <form className="group-editor" onSubmit={saveEditor}>
+        <div className="modal-scrim" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setEditing(null); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) setEditing(null); }}>
+          <form className="group-editor" role="dialog" aria-modal="true" aria-label="编辑分组" onClick={(event) => event.stopPropagation()} onSubmit={saveEditor}>
             <header><strong>编辑分组</strong><button type="button" className="btn-icon" onClick={() => setEditing(null)} aria-label="关闭分组编辑"><X size={15} /></button></header>
             <label><span>分组名称</span><input className="field" autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} /></label>
             <div className="settings-field"><label>标记颜色</label><div className="color-swatches">

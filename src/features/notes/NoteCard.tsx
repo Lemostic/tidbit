@@ -17,6 +17,14 @@ interface NoteCardProps {
 
 const collapsedHeight = 220;
 
+function isInteractiveTarget(target: EventTarget | null, container: HTMLElement) {
+  if (!(target instanceof Element)) return false;
+  const interactive = target.closest(
+    "button, a, input, select, textarea, audio, video, [contenteditable='true'], [role='button'], [data-audio-recording]",
+  );
+  return Boolean(interactive && interactive !== container);
+}
+
 function formatTime(timestamp: number) {
   const date = new Date(timestamp);
   const today = new Date();
@@ -60,8 +68,17 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
   return (
     <article
       className={`note-card__inner${note.is_content_hidden ? " is-content-hidden" : ""}${wanderActive ? " is-wandering" : ""}`}
+      tabIndex={note.is_content_hidden || wanderActive ? undefined : 0}
+      aria-label={note.is_content_hidden || wanderActive ? undefined : `打开便签：${note.title?.trim() || "无标题"}`}
       onClick={note.is_content_hidden || wanderActive ? undefined : (event) => {
-        if (event.target instanceof Element && event.target.closest("[data-audio-recording], input[data-task-checkbox='true']")) return;
+        if (isInteractiveTarget(event.target, event.currentTarget)) return;
+        onOpen();
+      }}
+      onKeyDown={note.is_content_hidden || wanderActive ? undefined : (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        if (isInteractiveTarget(event.target, event.currentTarget)) return;
+        event.preventDefault();
+        event.stopPropagation();
         onOpen();
       }}
     >

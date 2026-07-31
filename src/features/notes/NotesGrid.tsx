@@ -162,11 +162,12 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
       <section className="notes">
         <header className="notes__head">
           <div className="notes__heading">
-            <span className="notes__eyebrow">MY NOTES</span>
+            <span className="notes__eyebrow">当前分组</span>
             <div className="notes__title-row">
               <h1 className="notes__title">{activeGroupName}</h1>
               <span className="notes__count mono">{notes.length}</span>
             </div>
+            <p className="notes__description">随手记下，也能随时找回</p>
           </div>
           <div className="notes__head-actions">
             <div className="notes__archive-toggle" title="显示归档便签">

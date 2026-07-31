@@ -35,7 +35,10 @@ export function Titlebar({ onOpenPalette, onOpenSettings, onDragStart }: Titleba
         void startWindowDrag();
       }}
     >
-      <strong className="titlebar__brand">tidbit</strong>
+      <strong className="titlebar__brand" aria-label="tidbit 随记">
+        <span className="titlebar__brand-mark" aria-hidden="true"><span /></span>
+        <span className="titlebar__brand-copy">tidbit<small>随记</small></span>
+      </strong>
       <button
         onClick={onOpenPalette}
         className="titlebar__search"

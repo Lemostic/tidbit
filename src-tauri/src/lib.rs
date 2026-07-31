@@ -4,6 +4,7 @@ pub mod autostart;
 pub mod data_directory;
 pub mod domain;
 pub mod error;
+pub mod export;
 pub mod hotkey;
 pub mod infra;
 pub mod ipc;
@@ -76,6 +77,7 @@ pub fn run() {
             ipc::notes::notes_set_edge_dock,
             ipc::notes::notes_trash,
             ipc::notes::notes_restore,
+            ipc::export::notes_export,
             ipc::groups::groups_list,
             ipc::groups::groups_create,
             ipc::groups::groups_update,

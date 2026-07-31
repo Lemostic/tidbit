@@ -1,4 +1,5 @@
 import { Check, PushPin, Trash, X } from "@phosphor-icons/react";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TaskItem from "@tiptap/extension-task-item";
@@ -9,6 +10,7 @@ import { client } from "../../ipc/client";
 import type { Group, Note } from "../../ipc/types";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { AudioRecording } from "./AudioRecording";
+import { codeLowlight } from "./codeHighlighting";
 import { EditorToolbar } from "./EditorToolbar";
 
 interface NoteEditorProps {
@@ -23,6 +25,17 @@ interface NoteEditorProps {
 }
 
 const colors = [null, "#d75b57", "#d5a23f", "#4e9b75", "#4c86b8"] as const;
+
+function getStandaloneWebUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || /\s/.test(trimmed)) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
 
 export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false }: NoteEditorProps) {
   const [current, setCurrent] = useState(note);
@@ -52,9 +65,32 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   }, [note.id, onChanged]);
 
   const editor = useEditor({
-    extensions: [StarterKit, TaskList, TaskItem.configure({ nested: true }), AudioRecording, Markdown.configure({ html: true, transformPastedText: true })],
+    extensions: [
+      StarterKit.configure({ codeBlock: false }),
+      CodeBlockLowlight.configure({ lowlight: codeLowlight }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      AudioRecording,
+      Markdown.configure({ html: true, transformPastedText: true }),
+    ],
     content: note.content_html || note.content_md,
-    editorProps: { attributes: { "aria-label": "便签内容" } },
+    editorProps: {
+      attributes: { "aria-label": "便签内容" },
+      handlePaste(view, event) {
+        if (view.state.selection.$from.parent.type.spec.code) return false;
+        const rawText = event.clipboardData?.getData("text/plain") ?? "";
+        const url = getStandaloneWebUrl(rawText);
+        const link = view.state.schema.marks.link;
+        if (!url || !link || rawText === url) return false;
+
+        const transaction = view.state.tr.replaceSelectionWith(
+          view.state.schema.text(url, [link.create({ href: url })]),
+          false,
+        );
+        view.dispatch(transaction.scrollIntoView());
+        return true;
+      },
+    },
     onUpdate({ editor: instance }) {
       dirtyRef.current = true;
       setStatus("saving");
@@ -90,7 +126,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   };
 
   const panel = (
-      <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-label="编辑便签">
+      <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-modal={embedded ? undefined : true} aria-label="编辑便签" onClick={(event) => event.stopPropagation()}>
         {!embedded && <header className="note-editor__head">
           <span data-tauri-drag-region={desktopWindow ? true : undefined} className="note-editor__accent" style={{ background: current.color ?? "var(--accent)" }} />
           <input
@@ -148,7 +184,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
 
   return (
     <>
-    {embedded ? panel : <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
+    {embedded ? panel : <div className="modal-scrim" onKeyDown={(event) => { if (event.key === "Escape" && !confirmingDelete) { event.stopPropagation(); onClose(); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
     {allowTrash && <ConfirmDialog
       open={confirmingDelete}
       title="删除这条便签？"

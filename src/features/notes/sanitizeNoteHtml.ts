@@ -1,3 +1,5 @@
+import { highlightCodeElement } from "./codeHighlighting";
+
 const allowedTags = new Set([
   "A", "BLOCKQUOTE", "BR", "CODE", "DEL", "EM", "H1", "H2", "H3", "H4",
   "HR", "LI", "OL", "P", "PRE", "S", "STRIKE", "STRONG", "UL",
@@ -103,12 +105,21 @@ export function sanitizeNoteHtml(html: string): string {
     }
 
     const href = element.tagName === "A" ? element.getAttribute("href") : null;
+    const codeLanguage = element.tagName === "CODE" && element.parentElement?.tagName === "PRE"
+      ? Array.from(element.classList).find((name) => /^language-[a-z0-9_+-]{1,32}$/i.test(name))
+      : undefined;
     for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
     if (element.tagName === "A" && href && /^(https?:|mailto:|#)/i.test(href)) {
       element.setAttribute("href", href);
       element.setAttribute("target", "_blank");
       element.setAttribute("rel", "noreferrer noopener");
     }
+    if (codeLanguage) element.classList.add(codeLanguage.toLowerCase());
+  }
+
+  for (const code of Array.from(document.body.querySelectorAll<HTMLElement>("pre > code"))) {
+    const languageClass = Array.from(code.classList).find((name) => name.startsWith("language-"));
+    highlightCodeElement(code, languageClass?.slice("language-".length));
   }
 
   return document.body.innerHTML;

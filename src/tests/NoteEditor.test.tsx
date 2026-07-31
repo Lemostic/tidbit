@@ -92,6 +92,30 @@ it("creates and saves a task list from the toolbar", async () => {
   })), { timeout: 2_000 });
 });
 
+it("trims clipboard padding when pasting a standalone web link", async () => {
+  const emptyNote = { ...note, content_md: "", content_html: "<p></p>" };
+  const { container, getByLabelText } = render(
+    <NoteEditor note={emptyNote} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />
+  );
+
+  fireEvent.paste(getByLabelText("便签内容"), {
+    clipboardData: { getData: (type: string) => type === "text/plain" ? "\n\nhttps://example.com/path\n\n" : "" },
+  });
+
+  await waitFor(() => expect(container.querySelector('.ProseMirror a[href="https://example.com/path"]')).toHaveTextContent("https://example.com/path"));
+  expect(container.querySelectorAll(".ProseMirror > p")).toHaveLength(1);
+});
+
+it("highlights fenced code blocks using their Markdown language", async () => {
+  const codeNote = { ...note, content_md: "```typescript\nconst answer: number = 42\n```", content_html: "" };
+  const { container } = render(
+    <NoteEditor note={codeNote} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />
+  );
+
+  await waitFor(() => expect(container.querySelector("pre code.language-typescript .hljs-keyword")).toHaveTextContent("const"));
+  expect(container.querySelector("pre code")?.textContent).toContain("answer: number = 42");
+});
+
 it("records, inserts, and renames a voice memo block", async () => {
   const { getByLabelText } = render(
     <NoteEditor note={note} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />

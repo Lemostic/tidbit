@@ -38,4 +38,12 @@ describe("sanitizeNoteHtml", () => {
     expect(html).toContain('type="checkbox" data-task-checkbox="true" checked=""');
     expect(html).not.toContain("onclick");
   });
+
+  it("keeps a safe code language and renders syntax tokens", () => {
+    const html = sanitizeNoteHtml('<pre><code class="language-javascript unsafe" onclick="alert(1)">const answer = 42;</code></pre>');
+    expect(html).toContain('class="language-javascript hljs"');
+    expect(html).toContain('class="hljs-keyword"');
+    expect(html).not.toContain("unsafe");
+    expect(html).not.toContain("onclick");
+  });
 });

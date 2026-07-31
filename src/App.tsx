@@ -1,12 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { currentMonitor, getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { currentMonitor, getCurrentWindow, LogicalPosition, LogicalSize, primaryMonitor } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildCommands } from "./app/buildCommands";
 import { CommandPalette } from "./app/CommandPalette";
 import { EdgePresence } from "./app/EdgePresence";
 import { Titlebar } from "./app/Titlebar";
 import { RestoreWizard } from "./features/backup/RestoreWizard";
+import { ExportDialog } from "./features/export/ExportDialog";
 import { useBackupStatus } from "./features/backup/useBackupStatus";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
 import { NotesGrid } from "./features/notes/NotesGrid";
@@ -21,6 +22,7 @@ import { broadcastAppearance } from "./ui/appearance";
 import { commonSystemFonts, loadSystemFonts } from "./ui/systemFonts";
 import {
   defaultMainWindowSize,
+  fitMainWindowSizeToWorkArea,
   loadMainWindowSize,
   logicalSizeFromPhysical,
   normalizeMainWindowSize,
@@ -36,11 +38,41 @@ interface DataDirectoryInfo {
   pending_dir: string | null;
 }
 
+async function fitCurrentWindowToWorkArea(requested: MainWindowSize) {
+  const normalized = normalizeMainWindowSize(requested);
+  const win = getCurrentWindow();
+  const monitor = await currentMonitor() ?? await primaryMonitor();
+  if (!monitor) {
+    await win.setSize(new LogicalSize(normalized.width, normalized.height));
+    return normalized;
+  }
+
+  const logicalWorkAreaSize = monitor.workArea.size.toLogical(monitor.scaleFactor);
+  const fitted = fitMainWindowSizeToWorkArea(normalized, logicalWorkAreaSize);
+  const [position, outerSize] = await Promise.all([win.outerPosition(), win.outerSize()]);
+  const workArea = monitor.workArea;
+  const clipped = position.x < workArea.position.x
+    || position.y < workArea.position.y
+    || position.x + outerSize.width > workArea.position.x + workArea.size.width
+    || position.y + outerSize.height > workArea.position.y + workArea.size.height;
+
+  await win.setSize(new LogicalSize(fitted.width, fitted.height));
+  if (clipped || fitted.width !== normalized.width || fitted.height !== normalized.height) {
+    const logicalWorkAreaPosition = workArea.position.toLogical(monitor.scaleFactor);
+    await win.setPosition(new LogicalPosition(
+      Math.round(logicalWorkAreaPosition.x + Math.max(0, (logicalWorkAreaSize.width - fitted.width) / 2)),
+      Math.round(logicalWorkAreaPosition.y + Math.max(0, (logicalWorkAreaSize.height - fitted.height) / 2)),
+    ));
+  }
+  return fitted;
+}
+
 export default function App() {
   const [groupId, setGroupId] = useState<number | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [locked, setLocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
@@ -66,17 +98,26 @@ export default function App() {
   const [windowSizeBusy, setWindowSizeBusy] = useState(false);
   const [hiddenEdge, setHiddenEdge] = useState<"left" | "right" | "top" | "bottom" | null>(null);
   const backup = useBackupStatus();
-  const interactionLocked = settingsOpen || paletteOpen || restoreOpen || locked;
+  const interactionLocked = settingsOpen || paletteOpen || restoreOpen || exportOpen || locked;
 
   const openSettings = useCallback(() => {
     setPaletteOpen(false);
     setRestoreOpen(false);
-    setSettingsOpen(true);
+    setExportOpen(false);
+    setHiddenEdge(null);
+    void invoke("window_undock").catch(() => undefined);
+    void fitCurrentWindowToWorkArea(loadMainWindowSize())
+      .then((fitted) => {
+        setMainWindowSize(saveMainWindowSize(fitted));
+        setSettingsOpen(true);
+      })
+      .catch(() => setSettingsOpen(true));
   }, []);
 
   const openPalette = useCallback(() => {
     setSettingsOpen(false);
     setRestoreOpen(false);
+    setExportOpen(false);
     setPaletteOpen(true);
   }, []);
 
@@ -139,8 +180,9 @@ export default function App() {
 
   useEffect(() => {
     const preferred = loadMainWindowSize();
-    setMainWindowSize(preferred);
-    void getCurrentWindow().setSize(new LogicalSize(preferred.width, preferred.height));
+    void fitCurrentWindowToWorkArea(preferred)
+      .then((fitted) => setMainWindowSize(saveMainWindowSize(fitted)))
+      .catch(() => setMainWindowSize(preferred));
   }, []);
 
   useEffect(() => {
@@ -226,11 +268,10 @@ export default function App() {
   }, []);
 
   const applyMainWindowSize = useCallback(async (requested: MainWindowSize) => {
-    const next = normalizeMainWindowSize(requested);
     setWindowSizeBusy(true);
     try {
-      await getCurrentWindow().setSize(new LogicalSize(next.width, next.height));
-      const saved = saveMainWindowSize(next);
+      const fitted = await fitCurrentWindowToWorkArea(requested);
+      const saved = saveMainWindowSize(fitted);
       setMainWindowSize(saved);
       notify({ kind: "success", message: `窗口尺寸已调整为 ${saved.width} × ${saved.height}` });
     } catch {
@@ -439,6 +480,7 @@ export default function App() {
         onRestore={() => { setSettingsOpen(false); setRestoreOpen(true); }}
         onOpenBackups={() => void openBackups()}
         onShowHidden={() => void showHidden()}
+        onExport={() => { setSettingsOpen(false); setExportOpen(true); }}
         dataDirectory={dataDirectory}
         defaultDataDirectory={defaultDataDirectory}
         dataDirectoryBusy={dataDirectoryBusy}
@@ -447,6 +489,7 @@ export default function App() {
         onSaveDataDirectory={() => void saveDataDirectory()}
         onResetDataDirectory={() => setDataDirectory(defaultDataDirectory)}
       />
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} onDone={(result) => { setExportOpen(false); notify({ kind: "success", message: `已导出 ${result.noteCount} 条便签：${result.path}` }); }} />
       {restoreOpen && <RestoreWizard onDone={() => setRestoreOpen(false)} onClose={() => setRestoreOpen(false)} />}
       {locked && <LockScreen pin={lockPin} onUnlock={() => setLocked(false)} />}
       <Toast toast={toast} onClose={() => setToast(null)} />

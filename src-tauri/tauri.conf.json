@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "tidbit",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "identifier": "tidbit",
   "build": { "beforeDevCommand": "pnpm dev", "beforeBuildCommand": "pnpm build", "frontendDist": "../dist", "devUrl": "http://localhost:1420" },
   "app": {
     "windows": [
-      { "label": "main", "title": "tidbit", "url": "index.html", "width": 780, "height": 1100, "minWidth": 520, "minHeight": 620, "center": true, "decorations": false, "resizable": true, "transparent": true, "shadow": false }
+      { "label": "main", "title": "tidbit", "url": "index.html", "width": 780, "height": 820, "minWidth": 520, "minHeight": 620, "center": true, "decorations": false, "resizable": true, "transparent": true, "shadow": false }
     ],
     "security": { "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'" }
   },
