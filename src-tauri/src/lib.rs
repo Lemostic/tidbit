@@ -7,6 +7,7 @@ pub mod error;
 pub mod hotkey;
 pub mod infra;
 pub mod ipc;
+pub mod platform;
 pub mod repo;
 pub mod security;
 pub mod state;
@@ -18,7 +19,17 @@ pub mod backup;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .macos_launcher(tauri_plugin_autostart::MacosLauncher::LaunchAgent)
+                .build(),
+        )
+        .plugin(tauri_plugin_dialog::init());
+
+    let app = builder
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .with_filter(|label| label == "main")
@@ -52,6 +63,7 @@ pub fn run() {
             app.manage(window::edge_dock::DockRuntimeState::default());
             // BackupKey: v1 uses a zeroed key (M5 will wire from UI PIN)
             app.manage(state::BackupKey([0u8; 32]));
+            platform::initialize(app)?;
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.center();
                 let _ = window.show();
@@ -61,6 +73,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            platform::desktop_profile,
             ipc::notes::notes_list,
             ipc::notes::notes_get,
             ipc::notes::notes_create,
@@ -113,8 +126,9 @@ pub fn run() {
             if matches!(ev, tauri::WindowEvent::Moved { .. }) {
                 ipc::wander::schedule_wander_snap(win);
             }
-            window_state::install_close_to_tray(win.app_handle(), ev);
+            window_state::install_close_to_tray(win.app_handle(), win.label(), ev);
         })
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("failed to start tidbit");
+    app.run(platform::handle_run_event);
 }

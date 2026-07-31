@@ -25,7 +25,7 @@ env:
 
 jobs:
   windows:
-    name: Publish Windows installers
+    name: Create draft with Windows installers
     runs-on: windows-latest
     timeout-minutes: 60
     defaults:
@@ -64,6 +64,58 @@ jobs:
           prerelease: false
           args: --bundles nsis,msi
 
+  macos:
+    name: Sign, notarize, and upload universal DMG
+    needs: windows
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install pnpm
+        run: npm install --global pnpm@$PNPM_VERSION
+
+      - name: Setup Rust targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and upload signed DMG
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: tidbit ${{ env.RELEASE_TAG }}
+          releaseBody: See CHANGELOG.md for release details.
+          releaseDraft: true
+          prerelease: false
+          args: --target universal-apple-darwin --bundles dmg
+
+  publish:
+    name: Publish complete desktop release
+    needs: macos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
       - name: Publish release
         uses: actions/github-script@v8
         env:

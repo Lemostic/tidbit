@@ -4,6 +4,7 @@ use crate::error::AppError;
 use std::path::PathBuf;
 use tauri::Manager;
 
+#[cfg(any(target_os = "windows", test))]
 fn clean_font_registry_name(value_name: &str) -> Option<String> {
     let mut name = value_name.trim().trim_start_matches('@').trim().to_string();
     const SUFFIXES: [&str; 6] = [
@@ -81,7 +82,7 @@ pub fn data_directory_get(app: tauri::AppHandle) -> Result<DataDirectoryInfo, Ap
 }
 
 #[tauri::command]
-pub async fn data_directory_pick() -> Result<Option<String>, AppError> {
+pub async fn data_directory_pick(app: tauri::AppHandle) -> Result<Option<String>, AppError> {
     #[cfg(target_os = "windows")]
     {
         let output = tokio::task::spawn_blocking(|| {
@@ -102,8 +103,25 @@ pub async fn data_directory_pick() -> Result<Option<String>, AppError> {
         let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
         return Ok((!selected.is_empty()).then_some(selected));
     }
-    #[cfg(not(target_os = "windows"))]
-    Ok(None)
+    #[cfg(target_os = "macos")]
+    {
+        use tauri_plugin_dialog::DialogExt;
+
+        return Ok(app
+            .dialog()
+            .file()
+            .set_title("选择 tidbit 数据目录")
+            .blocking_pick_folder()
+            .and_then(|path| {
+                path.as_path()
+                    .map(|path| path.to_string_lossy().into_owned())
+            }));
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = app;
+        Ok(None)
+    }
 }
 
 #[tauri::command]
@@ -114,13 +132,13 @@ pub fn data_directory_set(app: tauri::AppHandle, path: String) -> Result<(), App
 }
 
 #[tauri::command]
-pub fn autostart_get() -> Result<bool, AppError> {
-    autostart::is_enabled()
+pub fn autostart_get(app: tauri::AppHandle) -> Result<bool, AppError> {
+    autostart::is_enabled(&app)
 }
 
 #[tauri::command]
-pub fn autostart_set(enabled: bool) -> Result<(), AppError> {
-    autostart::set_enabled(enabled)
+pub fn autostart_set(app: tauri::AppHandle, enabled: bool) -> Result<(), AppError> {
+    autostart::set_enabled(&app, enabled)
 }
 
 #[cfg(test)]

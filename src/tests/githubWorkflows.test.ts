@@ -17,6 +17,15 @@ describe("GitHub Actions workflows", () => {
     expect(ci).not.toContain("pnpm lint");
   });
 
+  it("checks and builds a universal macOS DMG in CI", () => {
+    const ci = workflow("ci.yml");
+    expect(ci).toContain("runs-on: macos-14");
+    expect(ci).toContain("targets: aarch64-apple-darwin,x86_64-apple-darwin");
+    expect(ci).toContain("cargo check --manifest-path src-tauri/Cargo.toml");
+    expect(ci).toMatch(/^\s+run: cargo test --manifest-path src-tauri\/Cargo\.toml$/m);
+    expect(ci).toContain("pnpm tauri build --target universal-apple-darwin --bundles dmg");
+  });
+
   it("automatically builds and uploads both Windows installer formats", () => {
     const build = workflow("build.yml");
     expect(build).toContain("branches: [main]");
@@ -28,7 +37,15 @@ describe("GitHub Actions workflows", () => {
     expect(build).toContain("src-tauri/target/release/bundle/msi/*.msi");
   });
 
-  it("publishes tagged NSIS and MSI bundles with write permission", () => {
+  it("uploads an unsigned universal DMG for ordinary main branch builds", () => {
+    const build = workflow("build.yml");
+    expect(build).toContain("runs-on: macos-14");
+    expect(build).toContain("targets: aarch64-apple-darwin,x86_64-apple-darwin");
+    expect(build).toContain("pnpm tauri build --target universal-apple-darwin --bundles dmg");
+    expect(build).toContain("src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg");
+  });
+
+  it("publishes Windows and signed macOS bundles only after both uploads finish", () => {
     const release = workflow("release.yml");
     expect(release).toContain("contents: write");
     expect(release).toContain("package-manager-cache: false");
@@ -39,7 +56,15 @@ describe("GitHub Actions workflows", () => {
     expect(release).toContain('tagName: ${{ env.RELEASE_TAG }}');
     expect(release).toContain("releaseDraft: true");
     expect(release).toContain("args: --bundles nsis,msi");
+    expect(release).toContain("macos:");
+    expect(release).toContain("needs: windows");
+    expect(release).toContain("APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}");
+    expect(release).toContain("APPLE_ID: ${{ secrets.APPLE_ID }}");
+    expect(release).toContain("args: --target universal-apple-darwin --bundles dmg");
+    expect(release).toContain("publish:");
+    expect(release).toContain("needs: macos");
     expect(release).toContain("uses: actions/github-script@v8");
     expect(release).toContain('make_latest: "true"');
+    expect(release.indexOf("publish:")).toBeGreaterThan(release.indexOf("macos:"));
   });
 });

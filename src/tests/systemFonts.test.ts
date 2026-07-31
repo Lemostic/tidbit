@@ -28,4 +28,18 @@ describe("system font loading", () => {
 
     expect(fonts).toEqual(["Arial", "Microsoft YaHei UI"]);
   });
+
+  it("includes the common macOS family names in the portable fallback", async () => {
+    const fonts = await loadSystemFonts({
+      nativeList: async () => { throw new Error("native listing unavailable"); },
+    });
+
+    expect(fonts).toEqual(expect.arrayContaining([
+      "SF Pro",
+      "PingFang SC",
+      "Hiragino Sans",
+      "Songti SC",
+      "Kaiti SC",
+    ]));
+  });
 });

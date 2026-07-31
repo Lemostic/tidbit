@@ -1,0 +1,11 @@
+/* macOS title-bar overlays place the native traffic lights over web content. */
+:root[data-platform="macos"] {
+  --macos-traffic-lights-safe-end: 78px;
+}
+
+:root[data-platform="macos"] .titlebar--macos {
+  padding-left: max(
+    12px,
+    calc(var(--macos-traffic-lights-safe-end) - var(--shell-pad) - var(--rail-w))
+  );
+}

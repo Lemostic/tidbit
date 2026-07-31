@@ -1,6 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 
 export const commonSystemFonts = [
+  "SF Pro",
+  "SF Pro Text",
+  "PingFang SC",
+  "Hiragino Sans",
+  "Hiragino Sans GB",
+  "Songti SC",
+  "Kaiti SC",
   "Microsoft YaHei UI",
   "Microsoft YaHei",
   "Segoe UI Variable",

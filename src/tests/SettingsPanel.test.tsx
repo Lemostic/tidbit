@@ -3,12 +3,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, it, vi } from "vitest";
 import { SettingsPanel } from "../features/settings/SettingsPanel";
+import { macDesktopProfile, windowsDesktopProfile } from "../desktop/DesktopProfile";
 import "../styles/globals.css";
 
 function renderSettings(overrides: Partial<Parameters<typeof SettingsPanel>[0]> = {}) {
   const props: Parameters<typeof SettingsPanel>[0] = {
     open: true,
     dockingEnabled: true,
+    capabilities: windowsDesktopProfile.capabilities,
     autostartEnabled: false,
     autostartBusy: false,
     lockPin: "",
@@ -103,7 +105,7 @@ it("applies, tracks, and resets the main window dimensions", () => {
   expect(screen.getByLabelText("软件主体高度")).toHaveValue(1100);
 });
 
-it("shows the loaded Windows font list in every font selector", () => {
+it("shows the loaded system font list in every font selector", () => {
   const onFontsChange = vi.fn();
   renderSettings({ availableFonts: ["Arial", "Consolas", "Microsoft YaHei UI"], onFontsChange });
 
@@ -114,9 +116,17 @@ it("shows the loaded Windows font list in every font selector", () => {
   expect(screen.getByText(/已加载 \d+ 种可用字体/)).toBeInTheDocument();
 });
 
-it("reports while the Windows font list is loading", () => {
+it("reports while the system font list is loading", () => {
   renderSettings({ fontsLoading: true });
-  expect(screen.getByText("正在读取 Windows 系统字体…")).toBeInTheDocument();
+  expect(screen.getByText("正在读取系统字体…")).toBeInTheDocument();
+});
+
+it("hides unsupported docking and uses platform-neutral system copy", () => {
+  renderSettings({ capabilities: macDesktopProfile.capabilities });
+  expect(screen.queryByRole("checkbox", { name: "边缘吸附" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /显示窗口/ })).not.toBeInTheDocument();
+  expect(screen.getByText("登录系统后自动启动 tidbit")).toBeInTheDocument();
+  expect(screen.queryByText(/Windows/)).not.toBeInTheDocument();
 });
 
 it("closes only when the empty scrim is clicked", () => {

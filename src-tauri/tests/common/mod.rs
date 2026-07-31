@@ -1,7 +1,15 @@
 // Shared test helpers.
+use r2d2::CustomizeConnection;
 use r2d2_sqlite::SqliteConnectionManager;
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
 use tidbit_lib::infra::db::Pool;
+
+#[derive(Debug)]
+struct TempDirGuard {
+    _dir: TempDir,
+}
+
+impl CustomizeConnection<rusqlite::Connection, rusqlite::Error> for TempDirGuard {}
 
 /// Build an in-memory Pool pre-seeded with all migrations (except FTS5).
 /// The FTS trigger path requires unicode61 tokenizer which may not be available
@@ -12,7 +20,11 @@ pub fn pool() -> Pool {
     let p = dir.path().join("t.db");
     let m = SqliteConnectionManager::file(p)
         .with_init(|c| c.execute_batch("PRAGMA key='x'; PRAGMA cipher_compatibility=4;"));
-    let pool = Pool::builder().max_size(2).build(m).unwrap();
+    let pool = Pool::builder()
+        .max_size(2)
+        .connection_customizer(Box::new(TempDirGuard { _dir: dir }))
+        .build(m)
+        .unwrap();
 
     let conn = pool.get().unwrap();
     // Run only the migrations needed for note/revision CRUD.

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildCommands } from "./app/buildCommands";
 import { CommandPalette } from "./app/CommandPalette";
 import { EdgePresence } from "./app/EdgePresence";
-import { Titlebar } from "./app/Titlebar";
+import { DesktopTitlebar } from "./app/DesktopTitlebar";
 import { RestoreWizard } from "./features/backup/RestoreWizard";
 import { useBackupStatus } from "./features/backup/useBackupStatus";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
@@ -27,6 +27,8 @@ import {
   saveMainWindowSize,
   type MainWindowSize,
 } from "./ui/windowSizePreferences";
+import { useDesktopProfile } from "./desktop/DesktopProvider";
+import { isDockingEnabled } from "./desktop/DesktopProfile";
 
 const themes: Theme[] = ["light", "dark", "sepia"];
 
@@ -37,6 +39,7 @@ interface DataDirectoryInfo {
 }
 
 export default function App() {
+  const profile = useDesktopProfile();
   const [groupId, setGroupId] = useState<number | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -48,7 +51,9 @@ export default function App() {
   const [createGroupRequest, setCreateGroupRequest] = useState(0);
   const [openNoteId, setOpenNoteId] = useState<number | null>(null);
   const [notesRefreshRequest, setNotesRefreshRequest] = useState(0);
-  const [dockingEnabled, setDockingEnabled] = useState(() => localStorage.getItem("docking-enabled") !== "false");
+  const [dockingEnabled, setDockingEnabled] = useState(() => (
+    isDockingEnabled(profile, localStorage.getItem("docking-enabled") !== "false")
+  ));
   const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [autostartBusy, setAutostartBusy] = useState(false);
   const [lockPin, setLockPin] = useState(() => localStorage.getItem("privacy-pin") ?? "");
@@ -81,6 +86,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen("tidbit://open-settings", openSettings)
+      .then((dispose) => { unlisten = dispose; });
+    return () => { unlisten?.(); };
+  }, [openSettings]);
+
+  useEffect(() => {
     void invoke<DataDirectoryInfo>("data_directory_get").then((info) => {
       setDefaultDataDirectory(info.default_dir);
       setDataDirectory(info.pending_dir ?? info.active_dir);
@@ -88,10 +100,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!profile.capabilities.autostart) return;
     void invoke<boolean>("autostart_get")
       .then(setAutostartEnabled)
       .catch(() => setAutostartEnabled(false));
-  }, []);
+  }, [profile.capabilities.autostart]);
 
   const notify = useCallback((next: ToastState) => setToast(next), []);
   const requestNote = useCallback(() => setCreateNoteRequest((value) => value + 1), []);
@@ -108,6 +121,7 @@ export default function App() {
   }, [notify]);
 
   useEffect(() => {
+    if (!profile.capabilities.edgeAutoHide) return;
     let stopHidden: (() => void) | undefined;
     let stopShown: (() => void) | undefined;
     void listen<string>("tidbit://edge-hidden", (event) => {
@@ -115,7 +129,7 @@ export default function App() {
     }).then((dispose) => { stopHidden = dispose; });
     void listen("tidbit://edge-shown", () => setHiddenEdge(null)).then((dispose) => { stopShown = dispose; });
     return () => { stopHidden?.(); stopShown?.(); };
-  }, []);
+  }, [profile.capabilities.edgeAutoHide]);
 
   useEffect(() => {
     applyFontPreferences(fonts);
@@ -176,10 +190,11 @@ export default function App() {
   }, [toast]);
 
   const setDocking = useCallback((enabled: boolean) => {
-    setDockingEnabled(enabled);
-    localStorage.setItem("docking-enabled", String(enabled));
-    notify({ kind: "info", message: enabled ? "边缘吸附已开启" : "边缘吸附已关闭" });
-  }, [notify]);
+    const next = isDockingEnabled(profile, enabled);
+    setDockingEnabled(next);
+    localStorage.setItem("docking-enabled", String(next));
+    notify({ kind: "info", message: next ? "边缘吸附已开启" : "边缘吸附已关闭" });
+  }, [notify, profile]);
 
   const updateAutostart = useCallback(async (enabled: boolean) => {
     setAutostartBusy(true);
@@ -290,14 +305,15 @@ export default function App() {
   }, [backup, notify]);
 
   const showHidden = useCallback(async () => {
+    if (!profile.capabilities.edgeAutoHide) return;
     try {
       await invoke("window_show_all_hidden");
       notify({ kind: "success", message: "已显示隐藏窗口" });
     } catch { notify({ kind: "error", message: "显示窗口失败" }); }
-  }, [notify]);
+  }, [notify, profile.capabilities.edgeAutoHide]);
 
   const reportDocking = useCallback(async () => {
-    if (!dockingEnabled || interactionLocked) return;
+    if (!profile.capabilities.edgeDock || !dockingEnabled || interactionLocked) return;
     try {
       const monitor = await currentMonitor();
       if (!monitor) return;
@@ -316,16 +332,16 @@ export default function App() {
         winH: size.height,
       });
     } catch { /* Window metrics are unavailable in browser-based tests. */ }
-  }, [dockingEnabled, interactionLocked]);
+  }, [dockingEnabled, interactionLocked, profile.capabilities.edgeDock]);
 
   const undockForDrag = useCallback(() => {
-    if (!dockingEnabled) return;
+    if (!profile.capabilities.edgeDock || !dockingEnabled) return;
     setHiddenEdge(null);
     void invoke("window_undock");
-  }, [dockingEnabled]);
+  }, [dockingEnabled, profile.capabilities.edgeDock]);
 
   useEffect(() => {
-    if (!dockingEnabled || interactionLocked) return;
+    if (!profile.capabilities.edgeDock || !dockingEnabled || interactionLocked) return;
     const win = getCurrentWindow();
     let dispose: (() => void) | undefined;
     let timer: number | undefined;
@@ -337,9 +353,10 @@ export default function App() {
       if (timer !== undefined) window.clearTimeout(timer);
       dispose?.();
     };
-  }, [dockingEnabled, interactionLocked, reportDocking]);
+  }, [dockingEnabled, interactionLocked, profile.capabilities.edgeDock, reportDocking]);
 
   useEffect(() => {
+    if (!profile.capabilities.edgeAutoHide) return;
     if (!dockingEnabled || interactionLocked) {
       if (interactionLocked) void invoke("window_cancel_autohide");
       return;
@@ -361,7 +378,7 @@ export default function App() {
       root.removeEventListener("mouseenter", cancelHide);
       root.removeEventListener("pointermove", cancelHide);
     };
-  }, [dockingEnabled, interactionLocked]);
+  }, [dockingEnabled, interactionLocked, profile.capabilities.edgeAutoHide]);
 
   const commands = useMemo(() => buildCommands({
     newNote: requestNote,
@@ -373,7 +390,7 @@ export default function App() {
     lockNow: () => setLocked(true),
     showHidden: () => void showHidden(),
     openSettings,
-  }), [cycleTheme, dockingEnabled, openBackups, openSettings, requestGroup, requestNote, setDocking, showHidden, snapshotNow]);
+  }, profile), [cycleTheme, dockingEnabled, openBackups, openSettings, profile, requestGroup, requestNote, setDocking, showHidden, snapshotNow]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -398,8 +415,8 @@ export default function App() {
   return (
     <>
       <div className="app-shell">
-        <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
-        <EdgePresence edge={hiddenEdge} />
+        <DesktopTitlebar profile={profile} onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
+        {profile.capabilities.edgeAutoHide && <EdgePresence edge={hiddenEdge} />}
         <div className="app-body">
           <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={setGroupId} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} />
           <main className="app-main">
@@ -412,6 +429,7 @@ export default function App() {
       <SettingsPanel
         open={settingsOpen}
         dockingEnabled={dockingEnabled}
+        capabilities={profile.capabilities}
         autostartEnabled={autostartEnabled}
         autostartBusy={autostartBusy}
         lockPin={lockPin}

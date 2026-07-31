@@ -17,11 +17,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { FontPreferences } from "../../ui/fontPreferences";
 import { commonSystemFonts, normalizeFontFamilies } from "../../ui/systemFonts";
 import { defaultMainWindowSize, minimumMainWindowSize } from "../../ui/windowSizePreferences";
+import type { DesktopCapabilities } from "../../desktop/DesktopProfile";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
 interface SettingsPanelProps {
   open: boolean;
   dockingEnabled: boolean;
+  capabilities: DesktopCapabilities;
   autostartEnabled: boolean;
   autostartBusy: boolean;
   lockPin: string;
@@ -170,26 +172,28 @@ export function SettingsPanel(props: SettingsPanelProps) {
             </div>
           </div>
 
-          <div className="settings-row">
-            <div className="settings-row__icon"><PushPin size={17} /></div>
-            <div className="settings-row__copy">
-              <strong>边缘吸附</strong>
-              <span>拖动标题栏结束时靠齐屏幕边缘</span>
+          {props.capabilities.edgeDock && (
+            <div className="settings-row">
+              <div className="settings-row__icon"><PushPin size={17} /></div>
+              <div className="settings-row__copy">
+                <strong>边缘吸附</strong>
+                <span>拖动标题栏结束时靠齐屏幕边缘</span>
+              </div>
+              <input
+                type="checkbox"
+                className="switch"
+                checked={props.dockingEnabled}
+                onChange={(e) => props.onDockingChange(e.target.checked)}
+                aria-label="边缘吸附"
+              />
             </div>
-            <input
-              type="checkbox"
-              className="switch"
-              checked={props.dockingEnabled}
-              onChange={(e) => props.onDockingChange(e.target.checked)}
-              aria-label="边缘吸附"
-            />
-          </div>
+          )}
 
           <div className="settings-row">
             <div className="settings-row__icon"><Power size={17} /></div>
             <div className="settings-row__copy">
               <strong>开机自动启动</strong>
-              <span>登录 Windows 后自动启动 tidbit</span>
+              <span>登录系统后自动启动 tidbit</span>
             </div>
             <input
               type="checkbox"
@@ -224,7 +228,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               </label>
             </div>
             <small className="settings-fonts__status" aria-live="polite">
-              {props.fontsLoading ? "正在读取 Windows 系统字体…" : `已加载 ${fontOptions.length} 种可用字体。`}
+              {props.fontsLoading ? "正在读取系统字体…" : `已加载 ${fontOptions.length} 种可用字体。`}
             </small>
           </div>
 
@@ -281,10 +285,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <FolderOpen size={18} />
               <span><strong>打开目录</strong><small>查看备份文件</small></span>
             </button>
-            <button className="settings-action" onClick={props.onShowHidden}>
-              <Eye size={18} />
-              <span><strong>显示窗口</strong><small>找回已隐藏便签</small></span>
-            </button>
+            {props.capabilities.edgeAutoHide && (
+              <button className="settings-action" onClick={props.onShowHidden}>
+                <Eye size={18} />
+                <span><strong>显示窗口</strong><small>找回已隐藏便签</small></span>
+              </button>
+            )}
           </div>
         </div>
       </section>

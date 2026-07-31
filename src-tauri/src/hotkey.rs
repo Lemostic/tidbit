@@ -1,12 +1,14 @@
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
+
+use crate::platform::{current_os, shortcut_modifiers_for};
 
 pub fn new_note_shortcut() -> Shortcut {
-    Shortcut::new(Some(Modifiers::ALT | Modifiers::CONTROL), Code::KeyN)
+    Shortcut::new(Some(shortcut_modifiers_for(current_os())), Code::KeyN)
 }
 
 pub fn show_shortcut() -> Shortcut {
-    Shortcut::new(Some(Modifiers::ALT | Modifiers::CONTROL), Code::KeyB)
+    Shortcut::new(Some(shortcut_modifiers_for(current_os())), Code::KeyB)
 }
 
 pub fn register<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
