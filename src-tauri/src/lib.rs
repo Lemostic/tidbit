@@ -79,6 +79,7 @@ pub fn run() {
             ipc::notes::notes_restore,
             ipc::notes::tags_list,
             ipc::notes::notes_set_tags,
+            ipc::attachments::attachments_save,
             ipc::export::notes_export,
             ipc::groups::groups_list,
             ipc::groups::groups_create,

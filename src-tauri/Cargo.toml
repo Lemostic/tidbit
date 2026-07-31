@@ -36,6 +36,8 @@ aes-gcm = "0.10"
 zip = "8.6.0"
 async-trait = "0.1.89"
 genpdf = "0.2"
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

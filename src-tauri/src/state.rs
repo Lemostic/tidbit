@@ -1,6 +1,7 @@
 use crate::infra::db::Pool;
 use crate::repo::{
-    group_repo::GroupRepo, note_repo::NoteRepo, revision_repo::RevisionRepo, tag_repo::TagRepo,
+    attachment_repo::AttachmentRepo, group_repo::GroupRepo, note_repo::NoteRepo,
+    revision_repo::RevisionRepo, tag_repo::TagRepo,
 };
 use std::sync::Arc;
 
@@ -12,6 +13,7 @@ pub struct AppState {
     pub notes: Arc<NoteRepo>,
     pub revisions: Arc<RevisionRepo>,
     pub tags: Arc<TagRepo>,
+    pub attachments: Arc<AttachmentRepo>,
 }
 
 impl AppState {
@@ -21,6 +23,7 @@ impl AppState {
             notes: Arc::new(NoteRepo::new(pool.clone())),
             revisions: Arc::new(RevisionRepo::new(pool.clone())),
             tags: Arc::new(TagRepo::new(pool.clone())),
+            attachments: Arc::new(AttachmentRepo::new(pool.clone())),
             pool,
         }
     }
