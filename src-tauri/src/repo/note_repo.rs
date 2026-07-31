@@ -42,6 +42,7 @@ impl NoteRepo {
             updated_at: r.get(17)?,
             color: r.get(18)?,
             sort_order: r.get(19)?,
+            tags: Vec::new(),
         })
     }
 

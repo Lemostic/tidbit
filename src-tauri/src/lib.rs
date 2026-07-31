@@ -77,6 +77,8 @@ pub fn run() {
             ipc::notes::notes_set_edge_dock,
             ipc::notes::notes_trash,
             ipc::notes::notes_restore,
+            ipc::notes::tags_list,
+            ipc::notes::notes_set_tags,
             ipc::export::notes_export,
             ipc::groups::groups_list,
             ipc::groups::groups_create,

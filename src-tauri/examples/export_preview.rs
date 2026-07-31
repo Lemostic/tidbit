@@ -1,6 +1,8 @@
-use tidbit_lib::domain::{Group, Note};
-use tidbit_lib::export::{build_document, render_markdown, render_pdf, ExportFormat, ExportRequest, ExportScope};
 use std::fs;
+use tidbit_lib::domain::{Group, Note};
+use tidbit_lib::export::{
+    build_document, render_markdown, render_pdf, ExportFormat, ExportRequest, ExportScope,
+};
 
 fn main() {
     let request = ExportRequest {
@@ -9,7 +11,18 @@ fn main() {
         format: ExportFormat::Pdf,
         include_metadata: true,
     };
-    let groups = vec![Group { id: 1, name: "工作".into(), color: None, background_color: None, icon: None, sort_order: 1, pinned: false, collapsed: false, created_at: 0, updated_at: 0 }];
+    let groups = vec![Group {
+        id: 1,
+        name: "工作".into(),
+        color: None,
+        background_color: None,
+        icon: None,
+        sort_order: 1,
+        pinned: false,
+        collapsed: false,
+        created_at: 0,
+        updated_at: 0,
+    }];
     let notes = vec![Note {
         id: 1,
         group_id: Some(1),

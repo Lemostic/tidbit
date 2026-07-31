@@ -32,4 +32,6 @@ pub struct Note {
     pub updated_at: i64,
     pub color: Option<String>,
     pub sort_order: i64,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }

@@ -27,7 +27,8 @@ pub async fn notes_export(
         move || export::choose_save_path(&format, &suggested)
     })
     .await
-    .map_err(|error| AppError::Migration(error.to_string()))?? else {
+    .map_err(|error| AppError::Migration(error.to_string()))??
+    else {
         return Ok(None);
     };
 
@@ -49,10 +50,20 @@ pub async fn notes_export(
 fn safe_filename(value: &str) -> String {
     let cleaned = value
         .chars()
-        .map(|character| if r#"<>:"/\|?*"#.contains(character) { '_' } else { character })
+        .map(|character| {
+            if r#"<>:"/\|?*"#.contains(character) {
+                '_'
+            } else {
+                character
+            }
+        })
         .collect::<String>();
     let cleaned = cleaned.trim().trim_end_matches('.').trim();
-    if cleaned.is_empty() { "tidbit-export".into() } else { cleaned.into() }
+    if cleaned.is_empty() {
+        "tidbit-export".into()
+    } else {
+        cleaned.into()
+    }
 }
 
 #[cfg(test)]

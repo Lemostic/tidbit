@@ -1,5 +1,7 @@
 use crate::infra::db::Pool;
-use crate::repo::{group_repo::GroupRepo, note_repo::NoteRepo, revision_repo::RevisionRepo};
+use crate::repo::{
+    group_repo::GroupRepo, note_repo::NoteRepo, revision_repo::RevisionRepo, tag_repo::TagRepo,
+};
 use std::sync::Arc;
 
 pub struct BackupKey(pub [u8; 32]);
@@ -9,6 +11,7 @@ pub struct AppState {
     pub groups: Arc<GroupRepo>,
     pub notes: Arc<NoteRepo>,
     pub revisions: Arc<RevisionRepo>,
+    pub tags: Arc<TagRepo>,
 }
 
 impl AppState {
@@ -17,6 +20,7 @@ impl AppState {
             groups: Arc::new(GroupRepo::new(pool.clone())),
             notes: Arc::new(NoteRepo::new(pool.clone())),
             revisions: Arc::new(RevisionRepo::new(pool.clone())),
+            tags: Arc::new(TagRepo::new(pool.clone())),
             pool,
         }
     }
