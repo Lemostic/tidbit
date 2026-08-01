@@ -60,4 +60,23 @@ describe("sanitizeNoteHtml", () => {
     expect(html).toContain('src="http://tidbit-img.localhost/12/abc-123.png"');
     expect(html).not.toContain("../secret");
   });
+
+  it("keeps timeline cards while stripping unsafe markup and attributes", () => {
+    const html = sanitizeNoteHtml('<div data-timeline-card="true" onclick="alert(1)"><ol data-timeline-items="true"><li data-timeline-item="true" data-datetime="2026-08-01T09:30" onmouseover="alert(2)"><time data-timeline-date="true" datetime="2026-08-01T09:30">2026-08-01 09:30</time><div data-timeline-content="true"><strong data-timeline-item-title="true">开始内测</strong><p data-timeline-item-description="true">邀请首批用户<script>alert(3)</script></p></div></li></ol></div>');
+    expect(html).toContain('data-timeline-card="true"');
+    expect(html).not.toContain("data-title");
+    expect(html).toContain('data-timeline-item="true" data-datetime="2026-08-01T09:30"');
+    expect(html).toContain('<time data-timeline-date="true" datetime="2026-08-01T09:30">2026-08-01 09:30</time>');
+    expect(html).toContain('data-timeline-item-title="true">开始内测</strong>');
+    expect(html).not.toContain("onclick");
+    expect(html).not.toContain("onmouseover");
+    expect(html).not.toContain("<script");
+  });
+
+  it("drops impossible timeline date-times", () => {
+    const html = sanitizeNoteHtml('<div data-timeline-card="true"><ol data-timeline-items="true"><li data-timeline-item="true" data-datetime="2026-99-99T29:75"><time data-timeline-date="true" datetime="2026-99-99T29:75">异常</time><div data-timeline-content="true"><strong data-timeline-item-title="true">错误节点</strong></div></li></ol></div>');
+    expect(html).not.toContain(' data-datetime="');
+    expect(html).not.toContain(' datetime="');
+    expect(html).toContain("未设置时间");
+  });
 });

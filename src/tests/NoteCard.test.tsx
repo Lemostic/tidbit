@@ -112,4 +112,16 @@ describe("NoteCard privacy", () => {
     expect(onToggleTask).toHaveBeenCalledWith(0, true);
     expect(onOpen).not.toHaveBeenCalled();
   });
+
+  it("renders a timeline card as part of the note preview", () => {
+    const timelineHtml = '<div data-timeline-card="true"><ol data-timeline-items="true"><li data-timeline-item="true" data-datetime="2026-08-01T09:30"><time data-timeline-date="true" datetime="2026-08-01T09:30">2026-08-01 09:30</time><div data-timeline-content="true"><strong data-timeline-item-title="true">开始内测</strong><p data-timeline-item-description="true">邀请首批用户</p></div></li><li data-timeline-item="true" data-datetime="2026-08-15T14:00"><time data-timeline-date="true" datetime="2026-08-15T14:00">2026-08-15 14:00</time><div data-timeline-content="true"><strong data-timeline-item-title="true">正式发布</strong></div></li></ol></div>';
+    const { container } = render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_html: timelineHtml }} onOpen={() => {}} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
+
+    expect(container.querySelector("[data-timeline-header]")).not.toBeInTheDocument();
+    expect(container.querySelectorAll('[data-timeline-item="true"]')).toHaveLength(2);
+    expect(screen.getByText("2026-08-01 09:30")).toBeInTheDocument();
+    expect(screen.getByText("开始内测")).toBeInTheDocument();
+    expect(screen.getByText("邀请首批用户")).toBeInTheDocument();
+    expect(screen.getByText("正式发布")).toBeInTheDocument();
+  });
 });

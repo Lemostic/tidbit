@@ -13,6 +13,7 @@ import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { AudioRecording } from "./AudioRecording";
 import { codeLowlight } from "./codeHighlighting";
 import { EditorToolbar } from "./EditorToolbar";
+import { TimelineCard } from "./TimelineCard";
 
 interface NoteEditorProps {
   note: Note;
@@ -76,6 +77,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
       TaskItem.configure({ nested: true }),
       ImageExtension.configure({ inline: false, allowBase64: true }),
       AudioRecording,
+      TimelineCard,
       Markdown.configure({ html: true, transformPastedText: true }),
     ],
     content: note.content_html || note.content_md,

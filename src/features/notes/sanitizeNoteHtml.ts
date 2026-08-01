@@ -1,4 +1,5 @@
 import { highlightCodeElement } from "./codeHighlighting";
+import { cleanTimelineDescription, cleanTimelineSingleLine, normalizeTimelineDateTime, normalizeTimelineItem } from "./timelineCardModel";
 
 const allowedTags = new Set([
   "A", "BLOCKQUOTE", "BR", "CODE", "DEL", "EM", "H1", "H2", "H3", "H4",
@@ -17,6 +18,7 @@ function isSafeAudioDataUrl(value: string): boolean {
 export function sanitizeNoteHtml(html: string): string {
   if (!html || typeof DOMParser === "undefined") return "";
   const document = new DOMParser().parseFromString(html, "text/html");
+  for (const element of Array.from(document.body.querySelectorAll("iframe, object, script, style, template"))) element.remove();
 
   for (const element of Array.from(document.body.querySelectorAll("*"))) {
     if (removableTags.has(element.tagName)) {
@@ -35,6 +37,74 @@ export function sanitizeNoteHtml(html: string): string {
       if (/^audio\/(?:webm|ogg|mp4|mpeg|wav|x-m4a)(?:;codecs=[a-z0-9.+-]+)?$/i.test(mimeType)) {
         element.setAttribute("data-mime-type", mimeType);
       }
+      continue;
+    }
+
+    if (element.tagName === "DIV" && element.hasAttribute("data-timeline-card")) {
+      for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+      element.setAttribute("data-timeline-card", "true");
+      continue;
+    }
+
+    const timelineContainer = element.closest("div[data-timeline-card]");
+    if (timelineContainer) {
+      if (element.hasAttribute("data-timeline-header") || element.hasAttribute("data-timeline-title")) {
+        element.remove();
+        continue;
+      }
+
+      if (element.tagName === "DIV" && element.hasAttribute("data-timeline-content")) {
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-content", "true");
+        continue;
+      }
+
+      if (element.tagName === "OL" && element.hasAttribute("data-timeline-items")) {
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-items", "true");
+        continue;
+      }
+
+      if (element.tagName === "LI" && element.hasAttribute("data-timeline-item")) {
+        const id = cleanTimelineSingleLine(element.getAttribute("data-id"));
+        const { datetime } = normalizeTimelineItem({
+          datetime: element.getAttribute("data-datetime"),
+          date: element.getAttribute("data-date"),
+          time: element.getAttribute("data-time"),
+        }, 0);
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-item", "true");
+        if (id) element.setAttribute("data-id", id);
+        if (datetime) element.setAttribute("data-datetime", datetime);
+        continue;
+      }
+
+      if (element.tagName === "TIME" && element.hasAttribute("data-timeline-date")) {
+        const datetime = normalizeTimelineDateTime(element.closest("li[data-timeline-item]")?.getAttribute("data-datetime"));
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-date", "true");
+        if (datetime) element.setAttribute("datetime", datetime);
+        element.textContent = datetime.replace("T", " ") || "未设置时间";
+        continue;
+      }
+
+      if (element.tagName === "STRONG" && element.hasAttribute("data-timeline-item-title")) {
+        const title = cleanTimelineSingleLine(element.textContent, "未命名事件");
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-item-title", "true");
+        element.textContent = title;
+        continue;
+      }
+
+      if (element.tagName === "P" && element.hasAttribute("data-timeline-item-description")) {
+        const description = cleanTimelineDescription(element.textContent);
+        for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+        element.setAttribute("data-timeline-item-description", "true");
+        element.textContent = description;
+        continue;
+      }
+
+      element.replaceWith(...Array.from(element.childNodes));
       continue;
     }
 
