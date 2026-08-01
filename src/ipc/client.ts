@@ -2,6 +2,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { noteSchema, groupSchema } from "./schema";
 import type { Note, Group } from "./types";
 
+export type ExportScope = "all" | "group" | "ungrouped";
+export type ExportFormat = "markdown" | "pdf";
+export interface ExportRequest {
+  scope: ExportScope;
+  groupId?: number;
+  format: ExportFormat;
+  includeMetadata: boolean;
+}
+export interface ExportResult {
+  path: string;
+  noteCount: number;
+}
+
 export const client = {
   notes: {
     list: (group_id: number | null, include_archived = false) =>
@@ -37,6 +50,14 @@ export const client = {
       invoke<void>("notes_set_edge_dock", { id, edge }),
     trash: (id: number) => invoke<void>("notes_trash", { id }),
     restore: (id: number) => invoke<void>("notes_restore", { id }),
+    setTags: (id: number, tags: string[]) => invoke<Note>("notes_set_tags", { id, tags }).then(n => noteSchema.parse(n)),
+    setReminder: (id: number, remindAt: number | null) => invoke<Note>("reminders_set", { id, remindAt }).then(n => noteSchema.parse(n)),
+  },
+  tags: {
+    list: () => invoke<string[]>("tags_list"),
+  },
+  attachments: {
+    save: (noteId: number, fileName: string, mime: string, data: number[]) => invoke<{ url: string }>("attachments_save", { noteId, fileName, mime, data }),
   },
   groups: {
     list: () =>
@@ -48,5 +69,8 @@ export const client = {
     update: (id: number, name: string, color: string | null, background_color: string | null) =>
       invoke<Group>("groups_update", { id, name, color, backgroundColor: background_color }).then(g => groupSchema.parse(g)),
     delete: (id: number) => invoke<void>("groups_delete", { id }),
+  },
+  exports: {
+    run: (request: ExportRequest) => invoke<ExportResult | null>("notes_export", { request }),
   },
 };

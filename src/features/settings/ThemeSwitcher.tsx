@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
-import { Leaf, MoonStars, SunDim } from "@phosphor-icons/react";
+import { ChatCircleDots, City, Leaf, MoonStars, SunDim } from "@phosphor-icons/react";
 import { applyTheme, type Theme } from "../../ui/theme";
 import { broadcastAppearance } from "../../ui/appearance";
 
-const labels: Record<Theme, string> = { light: "浅色", dark: "深色", sepia: "护眼" };
-const themes: Theme[] = ["light", "dark", "sepia"];
+const labels: Record<Theme, string> = {
+  light: "浅色",
+  dark: "深色",
+  sepia: "护眼",
+  "tokyo-night": "Tokyo Night",
+  wechat: "微信风格",
+};
+const themes: Theme[] = ["light", "dark", "sepia", "tokyo-night", "wechat"];
 
 export function ThemeSwitcher({ expanded = false }: { expanded?: boolean }) {
   const [t, setT] = useState<Theme>((localStorage.getItem("theme") as Theme) ?? "light");
@@ -21,10 +27,18 @@ export function ThemeSwitcher({ expanded = false }: { expanded?: boolean }) {
   }, []);
   if (expanded) {
     return <select className="select" value={t} onChange={(e) => setT(e.target.value as Theme)} aria-label="主题">
-      <option value="light">浅色</option><option value="dark">深色</option><option value="sepia">护眼</option>
+      <option value="light">浅色</option><option value="dark">深色</option><option value="sepia">护眼</option><option value="tokyo-night">Tokyo Night</option><option value="wechat">微信风格</option>
     </select>;
   }
-  const Icon = t === "dark" ? MoonStars : t === "sepia" ? Leaf : SunDim;
+  const Icon = t === "dark"
+    ? MoonStars
+    : t === "sepia"
+      ? Leaf
+      : t === "tokyo-night"
+        ? City
+        : t === "wechat"
+          ? ChatCircleDots
+          : SunDim;
   return (
     <button
       className="btn-icon"

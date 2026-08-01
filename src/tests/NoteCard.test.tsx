@@ -35,6 +35,19 @@ const hiddenNote: Note = {
 };
 
 describe("NoteCard privacy", () => {
+  it("opens from the card surface and keyboard without bubbling from nested controls", () => {
+    const onOpen = vi.fn();
+    render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false }} onOpen={onOpen} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
+
+    const card = screen.getByRole("article", { name: "打开便签：机密计划" });
+    fireEvent.click(screen.getByText("机密计划"));
+    fireEvent.keyDown(card, { key: "Enter" });
+    expect(onOpen).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "置顶" }));
+    expect(onOpen).toHaveBeenCalledTimes(2);
+  });
+
   it("masks hidden note content until the eye action is used", () => {
     const onToggleVisibility = vi.fn();
     render(<NoteCard note={hiddenNote} onOpen={() => {}} onTogglePin={() => {}} onToggleVisibility={onToggleVisibility} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);

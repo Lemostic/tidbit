@@ -1,7 +1,7 @@
 {
   "name": "tidbit",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.2.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -36,11 +36,14 @@
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-global-shortcut": "^2.0.0",
     "@tauri-apps/plugin-window-state": "^2.0.0",
+    "@tiptap/extension-code-block-lowlight": "3.27.3",
+    "@tiptap/extension-image": "3.27.3",
     "@tiptap/extension-task-item": "^3.27.3",
     "@tiptap/extension-task-list": "^3.27.3",
     "@tiptap/pm": "^3.27.3",
     "@tiptap/react": "^3.27.3",
     "@tiptap/starter-kit": "^3.27.3",
+    "lowlight": "3.3.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "tiptap-markdown": "^0.9.0",

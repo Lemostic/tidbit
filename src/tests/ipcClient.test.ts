@@ -38,4 +38,12 @@ describe("IPC client", () => {
     expect(notes[0]!.group_id).toBe(null);
     expect(invoke).toHaveBeenCalledWith("notes_list", { groupId: null, includeArchived: false });
   });
+
+  it("wraps export options under the Rust command argument name", async () => {
+    invoke.mockResolvedValueOnce({ path: "D:\\notes.md", noteCount: 2 } as never);
+    await client.exports.run({ scope: "all", format: "markdown", includeMetadata: true });
+    expect(invoke).toHaveBeenCalledWith("notes_export", {
+      request: { scope: "all", format: "markdown", includeMetadata: true },
+    });
+  });
 });

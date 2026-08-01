@@ -6,6 +6,7 @@ import {
   CheckSquare,
   ListBullets,
   ListNumbers,
+  Image,
   Quotes,
   TextB,
   TextItalic,
@@ -15,9 +16,9 @@ import type { Editor } from "@tiptap/react";
 import { VoiceRecorderControls } from "./VoiceRecorderControls";
 import { createTimelineCardAttrs } from "./TimelineCard";
 
-interface EditorToolbarProps { editor: Editor; }
+interface EditorToolbarProps { editor: Editor; onInsertImage?: () => void; }
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({ editor, onInsertImage }: EditorToolbarProps) {
   const tools = [
     { label: "加粗", active: editor.isActive("bold"), icon: TextB, run: () => editor.chain().focus().toggleBold().run() },
     { label: "斜体", active: editor.isActive("italic"), icon: TextItalic, run: () => editor.chain().focus().toggleItalic().run() },
@@ -38,6 +39,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       ))}
       <span className="toolbar__divider" />
       <VoiceRecorderControls editor={editor} />
+      {onInsertImage && <button type="button" className="toolbar__btn" aria-label="插入图片" title="插入图片" onClick={onInsertImage}><Image size={16} /></button>}
       <span className="toolbar__divider" />
       <button type="button" className="toolbar__btn" aria-label="撤销" title="撤销" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}><ArrowCounterClockwise size={16} /></button>
       <button type="button" className="toolbar__btn" aria-label="重做" title="重做" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()}><ArrowClockwise size={16} /></button>

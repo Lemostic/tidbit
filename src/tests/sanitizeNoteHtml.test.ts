@@ -39,6 +39,28 @@ describe("sanitizeNoteHtml", () => {
     expect(html).not.toContain("onclick");
   });
 
+  it("keeps a safe code language and renders syntax tokens", () => {
+    const html = sanitizeNoteHtml('<pre><code class="language-javascript unsafe" onclick="alert(1)">const answer = 42;</code></pre>');
+    expect(html).toContain('class="language-javascript hljs"');
+    expect(html).toContain('class="hljs-keyword"');
+    expect(html).not.toContain("unsafe");
+    expect(html).not.toContain("onclick");
+  });
+
+  it("keeps supported image data and strips unsafe image attributes", () => {
+    const html = sanitizeNoteHtml('<img src="data:image/png;base64,eA==" alt="示意图" onerror="alert(1)" style="position:fixed">');
+    expect(html).toContain('src="data:image/png;base64,eA=="');
+    expect(html).toContain('alt="示意图"');
+    expect(html).not.toContain("onerror");
+    expect(html).not.toContain("style");
+  });
+
+  it("keeps tidbit-img attachment URLs and rejects traversal paths", () => {
+    const html = sanitizeNoteHtml('<img src="http://tidbit-img.localhost/12/abc-123.png" alt="截图"><img src="http://tidbit-img.localhost/12/../secret.png" alt="越权">');
+    expect(html).toContain('src="http://tidbit-img.localhost/12/abc-123.png"');
+    expect(html).not.toContain("../secret");
+  });
+
   it("keeps timeline cards while stripping unsafe markup and attributes", () => {
     const html = sanitizeNoteHtml('<div data-timeline-card="true" onclick="alert(1)"><ol data-timeline-items="true"><li data-timeline-item="true" data-datetime="2026-08-01T09:30" onmouseover="alert(2)"><time data-timeline-date="true" datetime="2026-08-01T09:30">2026-08-01 09:30</time><div data-timeline-content="true"><strong data-timeline-item-title="true">开始内测</strong><p data-timeline-item-description="true">邀请首批用户<script>alert(3)</script></p></div></li></ol></div>');
     expect(html).toContain('data-timeline-card="true"');

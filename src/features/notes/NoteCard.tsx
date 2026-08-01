@@ -1,4 +1,4 @@
-import { Archive, CaretDown, CaretUp, Cloud, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
+import { Alarm, AppWindow, Archive, CaretDown, CaretUp, Cloud, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
 import { type MouseEvent as ReactMouseEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Note } from "../../ipc/types";
 import { sanitizeNoteHtml } from "./sanitizeNoteHtml";
@@ -10,12 +10,21 @@ interface NoteCardProps {
   onToggleVisibility: () => void;
   onToggleArchive: () => void;
   onWander: () => void;
+  onDetach?: () => void;
   onTrash: () => void;
   onToggleTask?: (taskIndex: number, checked: boolean) => Promise<void>;
   wanderActive?: boolean;
 }
 
 const collapsedHeight = 220;
+
+function isInteractiveTarget(target: EventTarget | null, container: HTMLElement) {
+  if (!(target instanceof Element)) return false;
+  const interactive = target.closest(
+    "button, a, input, select, textarea, audio, video, [contenteditable='true'], [role='button'], [data-audio-recording]",
+  );
+  return Boolean(interactive && interactive !== container);
+}
 
 function formatTime(timestamp: number) {
   const date = new Date(timestamp);
@@ -26,7 +35,7 @@ function formatTime(timestamp: number) {
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 }
 
-export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onToggleArchive, onWander, onTrash, onToggleTask, wanderActive = false }: NoteCardProps) {
+export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onToggleArchive, onWander, onDetach, onTrash, onToggleTask, wanderActive = false }: NoteCardProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [canCollapse, setCanCollapse] = useState(false);
@@ -60,8 +69,17 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
   return (
     <article
       className={`note-card__inner${note.is_content_hidden ? " is-content-hidden" : ""}${wanderActive ? " is-wandering" : ""}`}
+      tabIndex={note.is_content_hidden || wanderActive ? undefined : 0}
+      aria-label={note.is_content_hidden || wanderActive ? undefined : `打开便签：${note.title?.trim() || "无标题"}`}
       onClick={note.is_content_hidden || wanderActive ? undefined : (event) => {
-        if (event.target instanceof Element && event.target.closest("[data-audio-recording], input[data-task-checkbox='true']")) return;
+        if (isInteractiveTarget(event.target, event.currentTarget)) return;
+        onOpen();
+      }}
+      onKeyDown={note.is_content_hidden || wanderActive ? undefined : (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        if (isInteractiveTarget(event.target, event.currentTarget)) return;
+        event.preventDefault();
+        event.stopPropagation();
         onOpen();
       }}
     >
@@ -70,6 +88,7 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
         {note.is_archived && <span className="note-card__archived">已归档</span>}
         {wanderActive && <span className="note-card__wandering">桌面云游中</span>}
         <div className="note-card__actions">
+          <button className="note-action" aria-label="撕出独立窗口" title="撕出独立窗口" disabled={wanderActive} onClick={(event) => { event.stopPropagation(); onDetach?.(); }}><AppWindow size={14} /></button>
           <button
             className="note-action"
             aria-label="云游便签"
@@ -106,6 +125,9 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
           ><Trash size={14} /></button>
         </div>
       </header>
+
+      {(note.tags?.length ?? 0) > 0 && <div className="note-card__tags" aria-label="便签标签">{note.tags?.map((tag) => <span key={tag} className="note-tag">{tag}</span>)}</div>}
+      {note.reminder && <div className={`note-card__reminder${note.reminder.remind_at < Date.now() && !note.reminder.notified ? " is-overdue" : ""}`}><Alarm size={12} />{new Date(note.reminder.remind_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>}
 
       {note.is_content_hidden ? (
         <div className="note-card__encrypted"><LockKey size={17} weight="duotone" /><span>该条便签内容已加密</span></div>

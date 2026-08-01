@@ -57,8 +57,8 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
   };
 
   return (
-    <div className="palette-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
-      <section role="dialog" aria-label="命令面板" className="palette">
+    <div className="palette-scrim" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
+      <section role="dialog" aria-modal="true" aria-label="命令面板" className="palette" onClick={(event) => event.stopPropagation()}>
         <header className="palette__head">
           <MagnifyingGlass size={17} />
           <input
@@ -77,11 +77,11 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
           <button className="btn-icon" onClick={onClose} aria-label="关闭命令面板" title="关闭命令面板"><X size={15} /></button>
         </header>
 
-        <div className="palette__tabs">
-          <button className="palette__tab" onClick={() => setTab("commands")} data-active={tab === "commands"}>
+        <div className="palette__tabs" role="tablist" aria-label="搜索范围">
+          <button className="palette__tab" role="tab" aria-selected={tab === "commands"} onClick={() => setTab("commands")} data-active={tab === "commands"}>
             <CommandIcon size={14} /> 命令 <span>{filtered.length}</span>
           </button>
-          <button className="palette__tab" onClick={() => setTab("search")} data-active={tab === "search"}>
+          <button className="palette__tab" role="tab" aria-selected={tab === "search"} onClick={() => setTab("search")} data-active={tab === "search"}>
             <FileText size={14} /> 便签 <span>{hits.length}</span>
           </button>
         </div>
@@ -98,7 +98,7 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
             if (e.key === "Escape") onClose();
           }}>
             {filtered.map((command, index) => (
-              <li key={command.id} className="palette__item" aria-selected={index === active}>
+              <li key={command.id} role="option" className="palette__item" aria-selected={index === active}>
                 <button onMouseEnter={() => setActive(index)} onClick={() => { void command.run(); onClose(); }}>
                   <span><strong>{command.title}</strong>{command.hint && <small>{command.hint}</small>}</span>
                   {command.shortcut && <kbd>{command.shortcut}</kbd>}

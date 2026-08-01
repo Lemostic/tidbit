@@ -1,8 +1,9 @@
+import { highlightCodeElement } from "./codeHighlighting";
 import { cleanTimelineDescription, cleanTimelineSingleLine, normalizeTimelineDateTime, normalizeTimelineItem } from "./timelineCardModel";
 
 const allowedTags = new Set([
   "A", "BLOCKQUOTE", "BR", "CODE", "DEL", "EM", "H1", "H2", "H3", "H4",
-  "HR", "LI", "OL", "P", "PRE", "S", "STRIKE", "STRONG", "UL",
+  "HR", "IMG", "LI", "OL", "P", "PRE", "S", "STRIKE", "STRONG", "UL",
 ]);
 
 const removableTags = new Set(["IFRAME", "OBJECT", "SCRIPT", "STYLE", "TEMPLATE"]);
@@ -173,13 +174,32 @@ export function sanitizeNoteHtml(html: string): string {
       continue;
     }
 
+    if (element.tagName === "IMG") {
+      const src = element.getAttribute("src") ?? "";
+      const safe = /^data:image\/(?:png|jpeg|gif|webp|bmp);base64,[a-z0-9+/=]+$/i.test(src) || /^https?:\/\/tidbit-img\.localhost\/\d+\/[a-z0-9_-]+\.[a-z0-9]+$/i.test(src);
+      const alt = (element.getAttribute("alt") ?? "图片").replace(/[\r\n]+/g, " ").slice(0, 160);
+      for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+      if (!safe) { element.remove(); continue; }
+      element.setAttribute("src", src); element.setAttribute("alt", alt);
+      continue;
+    }
+
     const href = element.tagName === "A" ? element.getAttribute("href") : null;
+    const codeLanguage = element.tagName === "CODE" && element.parentElement?.tagName === "PRE"
+      ? Array.from(element.classList).find((name) => /^language-[a-z0-9_+-]{1,32}$/i.test(name))
+      : undefined;
     for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
     if (element.tagName === "A" && href && /^(https?:|mailto:|#)/i.test(href)) {
       element.setAttribute("href", href);
       element.setAttribute("target", "_blank");
       element.setAttribute("rel", "noreferrer noopener");
     }
+    if (codeLanguage) element.classList.add(codeLanguage.toLowerCase());
+  }
+
+  for (const code of Array.from(document.body.querySelectorAll<HTMLElement>("pre > code"))) {
+    const languageClass = Array.from(code.classList).find((name) => name.startsWith("language-"));
+    highlightCodeElement(code, languageClass?.slice("language-".length));
   }
 
   return document.body.innerHTML;

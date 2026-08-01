@@ -28,8 +28,8 @@ export function RestoreWizard({ onDone, onClose }: { onDone: () => void; onClose
   };
 
   return (
-    <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
-      <section className="restore-panel" role="dialog" aria-label="恢复">
+    <div className="modal-scrim" onKeyDown={(event) => { if (event.key === "Escape" && !confirmFile) { event.stopPropagation(); onClose(); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
+      <section className="restore-panel" role="dialog" aria-modal="true" aria-label="恢复" onClick={(event) => event.stopPropagation()}>
         <header className="modal__head">
           <Archive size={18} weight="duotone" />
           <span className="modal__title">恢复备份</span>

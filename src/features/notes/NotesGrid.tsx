@@ -35,6 +35,9 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
   const [confirmingNote, setConfirmingNote] = useState<Note | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [wanderedIds, setWanderedIds] = useState<Set<number>>(new Set());
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [timeFilter, setTimeFilter] = useState<"all" | "today" | "week" | "overdue">("all");
   const lastCreateRequest = useRef(createRequest);
   const lastRefreshRequest = useRef(refreshRequest);
 
@@ -47,10 +50,19 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     void refreshWandered();
     let disposeWander: (() => void) | undefined;
     let disposeUpdated: (() => void) | undefined;
+    let disposeReminder: (() => void) | undefined;
     void listen("tidbit://wander-changed", () => void refreshWandered()).then((dispose) => { disposeWander = dispose; });
     void listen("tidbit://note-updated", () => void refresh()).then((dispose) => { disposeUpdated = dispose; });
-    return () => { disposeWander?.(); disposeUpdated?.(); };
+    void listen("tidbit://reminder-fired", () => void refresh()).then((dispose) => { disposeReminder = dispose; });
+    return () => { disposeWander?.(); disposeUpdated?.(); disposeReminder?.(); };
   }, [refresh]);
+
+  useEffect(() => { void client.tags.list().then(setAvailableTags).catch(() => setAvailableTags([])); }, [notes]);
+
+  const visibleNotes = useMemo(() => {
+    const now = Date.now(); const today = new Date(); today.setHours(23, 59, 59, 999); const week = now + 7 * 86400000;
+    return sortedNotes.filter((note) => (!activeTag || note.tags?.includes(activeTag)) && (timeFilter === "all" || Boolean(note.reminder && (timeFilter === "overdue" ? note.reminder.remind_at < now : timeFilter === "today" ? note.reminder.remind_at <= today.getTime() && note.reminder.remind_at >= now : note.reminder.remind_at >= now && note.reminder.remind_at <= week))));
+  }, [activeTag, sortedNotes, timeFilter]);
 
   useEffect(() => {
     setShowArchived(localStorage.getItem(archiveStorageKey) === "true");
@@ -114,6 +126,11 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     }
   };
 
+  const detachNote = async (note: Note) => {
+    try { await invoke("note_detach_open", { noteId: note.id }); onNotice({ kind: "success", message: "便签已撕出独立窗口" }); }
+    catch { onNotice({ kind: "error", message: "独立窗口打开失败" }); }
+  };
+
   const changeSort = (preference: NoteSortPreference) => {
     setSortPreference(preference);
     saveNoteSortPreference(preference);
@@ -162,11 +179,12 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
       <section className="notes">
         <header className="notes__head">
           <div className="notes__heading">
-            <span className="notes__eyebrow">MY NOTES</span>
+            <span className="notes__eyebrow">当前分组</span>
             <div className="notes__title-row">
               <h1 className="notes__title">{activeGroupName}</h1>
               <span className="notes__count mono">{notes.length}</span>
             </div>
+            <p className="notes__description">随手记下，也能随时找回</p>
           </div>
           <div className="notes__head-actions">
             <div className="notes__archive-toggle" title="显示归档便签">
@@ -179,6 +197,13 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
         </header>
 
         <NoteSortControl preference={sortPreference} onChange={changeSort} />
+
+        <div className="notes__time-filter" aria-label="按提醒时间筛选">{([['all','全部'],['today','今天'],['week','未来 7 天'],['overdue','已逾期']] as const).map(([value,label]) => <button key={value} className={`note-tag${timeFilter === value ? " is-active" : ""}`} onClick={() => setTimeFilter(value)}>{label}</button>)}</div>
+
+        {availableTags.length > 0 && <div className="notes__tag-filter" aria-label="按标签筛选">
+          <button className={`note-tag${activeTag === null ? " is-active" : ""}`} onClick={() => setActiveTag(null)}>全部</button>
+          {availableTags.map((tag) => <button key={tag} className={`note-tag${activeTag === tag ? " is-active" : ""}`} onClick={() => setActiveTag(tag)}>{tag}</button>)}
+        </div>}
 
         {loading ? (
           <div className="notes__body"><div className="note-skeleton"><span /><span /><span /></div></div>
@@ -197,7 +222,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
         ) : (
           <div className="notes__body">
             <div className="notes__list">
-              {sortedNotes.map((note, index) => {
+              {visibleNotes.map((note, index) => {
                 const wanderActive = wanderedIds.has(note.id);
                 return (
                 <div
@@ -213,6 +238,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
                     onTogglePin={() => void client.notes.setPinned(note.id, !note.is_pinned).then(refresh).catch(() => onNotice({ kind: "error", message: "置顶操作失败" }))}
                     onToggleArchive={() => void client.notes.setArchived(note.id, !note.is_archived).then(refresh).then(() => onNotice({ kind: "success", message: note.is_archived ? "便签已取消归档" : "便签已归档" })).catch(() => onNotice({ kind: "error", message: "归档操作失败" }))}
                     onWander={() => void wanderNote(note)}
+                    onDetach={() => void detachNote(note)}
                     onTrash={() => setConfirmingNote(note)}
                     onToggleTask={(taskIndex, checked) => toggleTask(note, taskIndex, checked)}
                   />

@@ -100,7 +100,18 @@ it("applies, tracks, and resets the main window dimensions", () => {
   fireEvent.click(screen.getByRole("button", { name: "恢复默认窗口尺寸" }));
   expect(onResetWindowSize).toHaveBeenCalledOnce();
   expect(screen.getByLabelText("软件主体宽度")).toHaveValue(780);
-  expect(screen.getByLabelText("软件主体高度")).toHaveValue(1100);
+  expect(screen.getByLabelText("软件主体高度")).toHaveValue(820);
+});
+
+it("blocks invalid window dimensions and explains the accepted range", () => {
+  const onApplyWindowSize = vi.fn();
+  renderSettings({ onApplyWindowSize });
+
+  fireEvent.change(screen.getByLabelText("软件主体宽度"), { target: { value: "400" } });
+  expect(screen.getByLabelText("软件主体宽度")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByText("宽度需在 520-3840 之间。")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "应用尺寸" })).toBeDisabled();
+  expect(onApplyWindowSize).not.toHaveBeenCalled();
 });
 
 it("shows the loaded Windows font list in every font selector", () => {
@@ -117,6 +128,32 @@ it("shows the loaded Windows font list in every font selector", () => {
 it("reports while the Windows font list is loading", () => {
   renderSettings({ fontsLoading: true });
   expect(screen.getByText("正在读取 Windows 系统字体…")).toBeInTheDocument();
+});
+
+it("provides a compact category navigator for the settings scroll region", () => {
+  renderSettings();
+  expect(screen.getByRole("navigation", { name: "设置分类" })).toBeInTheDocument();
+  const windowSectionButton = screen.getByRole("button", { name: "窗口" });
+  fireEvent.click(windowSectionButton);
+  expect(windowSectionButton).toHaveClass("is-active");
+  expect(windowSectionButton).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("button", { name: "外观" })).not.toHaveClass("is-active");
+});
+
+it("moves focus into the dialog and wraps keyboard focus within it", () => {
+  const onClose = vi.fn();
+  renderSettings({ onClose });
+  const close = screen.getByRole("button", { name: "关闭设置" });
+  const last = screen.getByRole("button", { name: /显示窗口/ });
+
+  expect(close).toHaveFocus();
+  last.focus();
+  fireEvent.keyDown(last, { key: "Tab" });
+  expect(close).toHaveFocus();
+  fireEvent.keyDown(close, { key: "Tab", shiftKey: true });
+  expect(last).toHaveFocus();
+  fireEvent.keyDown(close, { key: "Escape" });
+  expect(onClose).toHaveBeenCalledOnce();
 });
 
 it("closes only when the empty scrim is clicked", () => {
@@ -137,4 +174,42 @@ it("keeps the lower settings reachable through an internal scroll region", () =>
   expect(styles).toContain(".settings-panel__body { flex: 1; min-height: 0; overflow-y: auto;");
   expect(styles).toContain(".modal-scrim, .confirm-scrim { inset: 0; overflow: hidden; border-radius: var(--app-radius); }");
   expect(screen.getByLabelText("隐私锁定密码")).toBeInTheDocument();
+});
+
+it("routes wheel input from the settings panel to its scroll region", () => {
+  renderSettings();
+  const panel = screen.getByRole("dialog", { name: "设置" });
+  const body = screen.getByLabelText("设置内容");
+  Object.defineProperties(body, {
+    clientHeight: { configurable: true, value: 400 },
+    scrollHeight: { configurable: true, value: 1200 },
+  });
+
+  const wheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 240 });
+  fireEvent(panel, wheel);
+
+  expect(body.scrollTop).toBe(240);
+  expect(wheel.defaultPrevented).toBe(true);
+});
+
+it("supports keyboard paging without trapping wheel input at a scroll boundary", () => {
+  renderSettings();
+  const panel = screen.getByRole("dialog", { name: "设置" });
+  const body = screen.getByLabelText("设置内容");
+  Object.defineProperties(body, {
+    clientHeight: { configurable: true, value: 400 },
+    scrollHeight: { configurable: true, value: 1200 },
+  });
+
+  fireEvent.keyDown(body, { key: "PageDown" });
+  expect(body.scrollTop).toBe(352);
+  fireEvent.keyDown(body, { key: "End" });
+  expect(body.scrollTop).toBe(1200);
+  expect(screen.getByRole("button", { name: "维护" })).toHaveAttribute("aria-current", "page");
+
+  body.scrollTop = 800;
+  const boundaryWheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 120 });
+  fireEvent(panel, boundaryWheel);
+  expect(body.scrollTop).toBe(800);
+  expect(boundaryWheel.defaultPrevented).toBe(false);
 });
