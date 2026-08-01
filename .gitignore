@@ -20,6 +20,7 @@ src-tauri/gen/
 /.agents/
 /.claude/
 /.codex/
+/.codegraph/
 /.superpowers/
 /.wolf/
 /AGENTS.md
