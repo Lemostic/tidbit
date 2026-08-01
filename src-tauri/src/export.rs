@@ -462,14 +462,58 @@ fn load_pdf_font_family() -> Result<fonts::FontFamily<fonts::FontData>, AppError
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
         let dir = windows.join("Fonts");
-        let regular = fonts::FontData::load(dir.join("Deng.ttf"), None)
-            .map_err(|error| AppError::Migration(error.to_string()))?;
-        let bold = fonts::FontData::load(dir.join("Dengb.ttf"), None)
-            .map_err(|error| AppError::Migration(error.to_string()))?;
-        let italic = fonts::FontData::load(dir.join("Dengl.ttf"), None)
-            .map_err(|error| AppError::Migration(error.to_string()))?;
-        let bold_italic = fonts::FontData::load(dir.join("Dengb.ttf"), None)
-            .map_err(|error| AppError::Migration(error.to_string()))?;
+
+        fn load_font(path: &Path) -> Result<fonts::FontData, AppError> {
+            fonts::FontData::load(path, None)
+                .map_err(|error| AppError::Migration(error.to_string()))
+        }
+
+        fn load_any_font(dir: &Path, names: &[&str]) -> Result<fonts::FontData, AppError> {
+            let mut last_error = None;
+            for name in names {
+                let path = dir.join(name);
+                if !path.is_file() {
+                    continue;
+                }
+                match load_font(&path) {
+                    Ok(font) => return Ok(font),
+                    Err(error) => last_error = Some(error),
+                }
+            }
+            Err(last_error.unwrap_or_else(|| {
+                AppError::Migration(
+                    "No supported Chinese font was found in the Windows Fonts directory".into(),
+                )
+            }))
+        }
+
+        fn font_with_fallback(
+            dir: &Path,
+            names: &[&str],
+            fallback: fonts::FontData,
+        ) -> fonts::FontData {
+            load_any_font(dir, names).unwrap_or(fallback)
+        }
+
+        let regular = load_any_font(
+            &dir,
+            &["Deng.ttf", "simhei.ttf", "simfang.ttf", "simkai.ttf"],
+        )?;
+        let bold = font_with_fallback(
+            &dir,
+            &["Dengb.ttf", "simhei.ttf", "simfang.ttf"],
+            regular.clone(),
+        );
+        let italic = font_with_fallback(
+            &dir,
+            &["Dengl.ttf", "simhei.ttf", "simkai.ttf"],
+            regular.clone(),
+        );
+        let bold_italic = font_with_fallback(
+            &dir,
+            &["Dengb.ttf", "simhei.ttf", "simfang.ttf"],
+            regular.clone(),
+        );
         return Ok(fonts::FontFamily {
             regular,
             bold,
@@ -488,8 +532,8 @@ fn load_pdf_font_family() -> Result<fonts::FontFamily<fonts::FontData>, AppError
 #[cfg(test)]
 mod tests {
     use super::{
-        build_document, render_markdown, render_pdf, shift_markdown_headings, ExportFormat,
-        ExportRequest, ExportScope,
+        build_document, load_pdf_font_family, render_markdown, render_pdf, shift_markdown_headings,
+        ExportFormat, ExportRequest, ExportScope,
     };
     use crate::domain::{Group, Note};
     fn note(id: i64, group_id: Option<i64>, title: &str, archived: bool) -> Note {
@@ -584,6 +628,10 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[test]
     fn renders_a_chinese_pdf_with_the_system_font() {
+        if load_pdf_font_family().is_err() {
+            eprintln!("skipping Chinese PDF test: no supported Windows font is available");
+            return;
+        }
         let request = ExportRequest {
             scope: ExportScope::All,
             group_id: None,
