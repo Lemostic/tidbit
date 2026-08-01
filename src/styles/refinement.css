@@ -90,6 +90,64 @@
   --note-bg: #fffaf1;
 }
 
+:root[data-theme="tokyo-night"] {
+  color-scheme: dark;
+  --accent: #7aa2f7;
+  --accent-hover: #89b4fa;
+  --accent-fg: #16161e;
+  --accent-soft: rgba(122, 162, 247, 0.16);
+  --bg: #1a1b26;
+  --app-surface: #1f2335;
+  --surface: #24283b;
+  --surface-2: #292e42;
+  --surface-3: #3b4261;
+  --card-surface: #292e42;
+  --fg: #c0caf5;
+  --fg-muted: #a9b1d6;
+  --fg-subtle: #565f89;
+  --border: rgba(192, 202, 245, 0.12);
+  --border-strong: rgba(192, 202, 245, 0.24);
+  --rail-bg: #16161e;
+  --rail-fg: #a9b1d6;
+  --note-bg: #24283b;
+  --danger: #f7768e;
+  --danger-soft: rgba(247, 118, 142, 0.16);
+  --success: #9ece6a;
+  --warning: #e0af68;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24), 0 8px 20px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 3px 8px rgba(0, 0, 0, 0.26), 0 20px 46px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.34), 0 38px 92px rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme="wechat"] {
+  color-scheme: light;
+  --accent: #07c160;
+  --accent-hover: #06ad56;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(7, 193, 96, 0.12);
+  --bg: #ededed;
+  --app-surface: #f7f7f7;
+  --surface: #ffffff;
+  --surface-2: #f2f2f2;
+  --surface-3: #e8e8e8;
+  --card-surface: #ffffff;
+  --fg: #191919;
+  --fg-muted: #666666;
+  --fg-subtle: #999999;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --rail-bg: #ededed;
+  --rail-fg: #333333;
+  --note-bg: #ffffff;
+  --danger: #fa5151;
+  --danger-soft: rgba(250, 81, 81, 0.1);
+  --success: #07c160;
+  --warning: #ffc300;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 16px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.14), 0 5px 18px rgba(0, 0, 0, 0.06);
+}
+
 body {
   font-family: var(--font-body);
   letter-spacing: -0.004em;
@@ -375,14 +433,20 @@ select:disabled {
 :root[data-theme="light"] .groups-rail > .group-tab,
 :root[data-theme="dark"] .groups-rail > .group-tab,
 :root[data-theme="sepia"] .groups-rail > .group-tab,
+:root[data-theme="tokyo-night"] .groups-rail > .group-tab,
+:root[data-theme="wechat"] .groups-rail > .group-tab,
 :root:not([data-theme]) .groups-rail > .group-tab:hover:not(.is-active),
 :root[data-theme="light"] .groups-rail > .group-tab:hover:not(.is-active),
 :root[data-theme="dark"] .groups-rail > .group-tab:hover:not(.is-active),
 :root[data-theme="sepia"] .groups-rail > .group-tab:hover:not(.is-active),
+:root[data-theme="tokyo-night"] .groups-rail > .group-tab:hover:not(.is-active),
+:root[data-theme="wechat"] .groups-rail > .group-tab:hover:not(.is-active),
 :root:not([data-theme]) .groups-rail > .group-tab.is-active,
 :root[data-theme="light"] .groups-rail > .group-tab.is-active,
 :root[data-theme="dark"] .groups-rail > .group-tab.is-active,
-:root[data-theme="sepia"] .groups-rail > .group-tab.is-active {
+:root[data-theme="sepia"] .groups-rail > .group-tab.is-active,
+:root[data-theme="tokyo-night"] .groups-rail > .group-tab.is-active,
+:root[data-theme="wechat"] .groups-rail > .group-tab.is-active {
   background: var(--tab-surface) !important;
   color: var(--fg) !important;
   text-shadow: none;
@@ -2174,4 +2238,11 @@ input[type="range"] { accent-color: var(--accent); }
   .export-dialog { width: 100%; max-height: calc(100vh - 14px); max-height: calc(100dvh - 14px); }
   .export-dialog__body { gap: 15px; padding: 15px; }
   .export-dialog__format-grid { grid-template-columns: 1fr; }
+}
+
+/* Remove the transparent outer shell padding so every window fills to the edge. */
+.app-shell,
+.wander-shell,
+.wander-editor-shell {
+  padding: 0;
 }

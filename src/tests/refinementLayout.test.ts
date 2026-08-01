@@ -12,6 +12,15 @@ describe("refined navigation transparency", () => {
     expect(css).toMatch(/\.groups-rail\s*\{[\s\S]*?background:\s*none\s*!important;[\s\S]*?backdrop-filter:\s*none\s*!important;/);
   });
 
+  it("removes the transparent outer shell padding across window modes", () => {
+    expect(css).toMatch(/\.app-shell,\s*\.wander-shell,\s*\.wander-editor-shell\s*\{\s*padding:\s*0;/);
+  });
+
+  it("defines tokyo night and wechat theme palettes", () => {
+    expect(css).toMatch(/:root\[data-theme="tokyo-night"\]\s*\{[\s\S]*?--accent:\s*#7aa2f7;/);
+    expect(css).toMatch(/:root\[data-theme="wechat"\]\s*\{[\s\S]*?--accent:\s*#07c160;/);
+  });
+
   it("places the material only on the title and content panels", () => {
     expect(css).toMatch(/\.titlebar\s*\{[\s\S]*?background:\s*var\(--app-surface\);/);
     expect(css).toMatch(/\.app-main\s*\{[\s\S]*?background:\s*var\(--app-surface\);/);

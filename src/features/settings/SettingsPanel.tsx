@@ -257,7 +257,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <div className="settings-row__icon"><Eye size={17} /></div>
             <div className="settings-row__copy">
               <strong>界面主题</strong>
-              <span>浅色、深色与护眼模式</span>
+              <span>浅色、深色、护眼、Tokyo Night 与微信风格</span>
             </div>
             <ThemeSwitcher expanded />
           </div>

@@ -106,7 +106,7 @@ export function sanitizeNoteHtml(html: string): string {
 
     if (element.tagName === "IMG") {
       const src = element.getAttribute("src") ?? "";
-      const safe = /^data:image\/(?:png|jpeg|gif|webp|bmp);base64,[a-z0-9+/=]+$/i.test(src) || /^tidbit-img:\/\/\d+\/[a-z0-9_-]+\.[a-z0-9]+$/i.test(src);
+      const safe = /^data:image\/(?:png|jpeg|gif|webp|bmp);base64,[a-z0-9+/=]+$/i.test(src) || /^https?:\/\/tidbit-img\.localhost\/\d+\/[a-z0-9_-]+\.[a-z0-9]+$/i.test(src);
       const alt = (element.getAttribute("alt") ?? "图片").replace(/[\r\n]+/g, " ").slice(0, 160);
       for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
       if (!safe) { element.remove(); continue; }

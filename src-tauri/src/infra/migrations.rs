@@ -46,6 +46,8 @@ const MIGRATIONS: &[(&str, &str)] = &[
 /// keep rendering without carrying multi-megabyte base64 payloads in every
 /// save.
 pub fn migrate_attachment_protocol_urls(pool: &Pool) -> Result<(), AppError> {
+    ensure_attachment_url_column(pool)?;
+
     struct Legacy {
         note_id: i64,
         stored_name: String,
@@ -65,7 +67,8 @@ pub fn migrate_attachment_protocol_urls(pool: &Pool) -> Result<(), AppError> {
         })?
         .collect::<Result<Vec<Legacy>, _>>()?;
     for legacy in rows {
-        let protocol_url = format!("tidbit-img://{}/{}", legacy.note_id, legacy.stored_name);
+        let protocol_url =
+            crate::domain::attachment::attachment_protocol_url(legacy.note_id, &legacy.stored_name);
         let mut update = conn.prepare(
             "UPDATE note SET content_md = replace(content_md, ?1, ?2),
              content_html = replace(content_html, ?1, ?2) WHERE id = ?3",
@@ -74,6 +77,22 @@ pub fn migrate_attachment_protocol_urls(pool: &Pool) -> Result<(), AppError> {
         conn.execute(
             "UPDATE note_attachment SET url = ?1 WHERE note_id = ?2 AND stored_name = ?3",
             params![protocol_url, legacy.note_id, legacy.stored_name],
+        )?;
+    }
+    Ok(())
+}
+
+fn ensure_attachment_url_column(pool: &Pool) -> Result<(), AppError> {
+    let conn = pool.get()?;
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('note_attachment') WHERE name = 'url'",
+        [],
+        |row| row.get(0),
+    )?;
+    if count == 0 {
+        conn.execute(
+            "ALTER TABLE note_attachment ADD COLUMN url TEXT NOT NULL DEFAULT ''",
+            [],
         )?;
     }
     Ok(())

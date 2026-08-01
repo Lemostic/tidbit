@@ -22,6 +22,11 @@ describe("Tauri production build", () => {
     expect(config.build?.beforeBuildCommand).toBe("pnpm build");
   });
 
+  test("enables Tauri custom protocol for release builds", () => {
+    const cargoManifest = readFileSync(resolve(process.cwd(), "src-tauri/Cargo.toml"), "utf8");
+    expect(cargoManifest).toMatch(/^custom-protocol = \["tauri\/custom-protocol"\]$/m);
+  });
+
   test("uses the roomier default window size", () => {
     const configPath = resolve(process.cwd(), "src-tauri/tauri.conf.json");
     const config = JSON.parse(readFileSync(configPath, "utf8")) as {
@@ -43,10 +48,10 @@ describe("Tauri production build", () => {
     expect(config.app.security.csp).toContain("script-src 'self'");
   });
 
-  test("allows pasted and stored images through data and tidbit-img sources", () => {
+  test("allows pasted and stored images through data and Windows attachment protocol sources", () => {
     const configPath = resolve(process.cwd(), "src-tauri/tauri.conf.json");
     const config = JSON.parse(readFileSync(configPath, "utf8")) as { app: { security: { csp: string } } };
-    expect(config.app.security.csp).toContain("img-src 'self' asset: data: tidbit-img:");
+    expect(config.app.security.csp).toContain("img-src 'self' asset: data: http://tidbit-img.localhost");
     expect(config.app.security.csp).toContain("default-src 'self'");
   });
 

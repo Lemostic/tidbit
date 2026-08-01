@@ -11,3 +11,7 @@ pub struct Attachment {
     pub created_at: i64,
     pub url: String,
 }
+
+pub fn attachment_protocol_url(note_id: i64, stored_name: &str) -> String {
+    format!("http://tidbit-img.localhost/{note_id}/{stored_name}")
+}

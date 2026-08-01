@@ -1,4 +1,5 @@
 use crate::data_directory::DataDirectory;
+use crate::domain::attachment::attachment_protocol_url;
 use crate::domain::Attachment;
 use crate::error::AppError;
 use crate::state::AppState;
@@ -31,7 +32,7 @@ pub async fn attachments_save(
     let directory = data_dir.0.join("attachments").join(note_id.to_string());
     std::fs::create_dir_all(&directory)?;
     std::fs::write(directory.join(&stored_name), &data)?;
-    let url = format!("tidbit-img://{note_id}/{stored_name}");
+    let url = attachment_protocol_url(note_id, &stored_name);
     state.attachments.create(
         note_id,
         file_name.trim(),

@@ -6,7 +6,7 @@ use tidbit_lib::infra::migrations::migrate_attachment_protocol_urls;
 #[test]
 fn creates_attachment_metadata_for_note() {
     let pool = common::pool();
-    pool.get().unwrap().execute_batch("CREATE TABLE note_attachment(id INTEGER PRIMARY KEY,note_id INTEGER NOT NULL,file_name TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,stored_name TEXT NOT NULL UNIQUE,created_at INTEGER NOT NULL);").unwrap();
+    pool.get().unwrap().execute_batch("CREATE TABLE note_attachment(id INTEGER PRIMARY KEY,note_id INTEGER NOT NULL,file_name TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,stored_name TEXT NOT NULL UNIQUE,url TEXT NOT NULL DEFAULT '',created_at INTEGER NOT NULL);").unwrap();
     let note = NoteRepo::new(pool.clone())
         .create_in_group(None, "Image")
         .unwrap();
@@ -17,12 +17,15 @@ fn creates_attachment_metadata_for_note() {
             "image/png",
             128,
             "safe.png",
-            &format!("tidbit-img://{}/safe.png", note.id),
+            &format!("http://tidbit-img.localhost/{}/safe.png", note.id),
         )
         .unwrap();
     assert_eq!(attachment.note_id, note.id);
     assert_eq!(attachment.size, 128);
-    assert_eq!(attachment.url, format!("tidbit-img://{}/safe.png", note.id));
+    assert_eq!(
+        attachment.url,
+        format!("http://tidbit-img.localhost/{}/safe.png", note.id)
+    );
 }
 
 #[test]
@@ -70,7 +73,7 @@ fn migration_rewrites_legacy_data_urls_to_protocol_urls() {
     migrate_attachment_protocol_urls(&pool).unwrap();
 
     let updated = NoteRepo::new(pool.clone()).get(note.id).unwrap();
-    let expected = format!("tidbit-img://{}/abc-123.png", note.id);
+    let expected = format!("http://tidbit-img.localhost/{}/abc-123.png", note.id);
     assert_eq!(updated.content_md, format!("![截图]({expected})"));
     assert_eq!(
         updated.content_html,
@@ -86,4 +89,36 @@ fn migration_rewrites_legacy_data_urls_to_protocol_urls() {
         )
         .unwrap();
     assert_eq!(stored_url, expected);
+}
+
+#[test]
+fn migration_handles_attachment_tables_created_without_url_column() {
+    let pool = common::pool();
+    pool.get()
+        .unwrap()
+        .execute_batch(
+            "CREATE TABLE note_attachment(
+               id INTEGER PRIMARY KEY,
+               note_id INTEGER NOT NULL,
+               file_name TEXT NOT NULL,
+               mime TEXT NOT NULL,
+               size INTEGER NOT NULL,
+               stored_name TEXT NOT NULL UNIQUE,
+               created_at INTEGER NOT NULL
+             );",
+        )
+        .unwrap();
+
+    migrate_attachment_protocol_urls(&pool).unwrap();
+
+    let has_url: i64 = pool
+        .get()
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('note_attachment') WHERE name = 'url'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(has_url, 1);
 }

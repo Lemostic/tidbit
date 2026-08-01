@@ -20,7 +20,7 @@ impl AttachmentRepo {
     ) -> Result<Attachment, AppError> {
         let now = chrono::Utc::now().timestamp_millis();
         let conn = self.pool.get()?;
-        conn.execute("INSERT INTO note_attachment(note_id,file_name,mime,size,stored_name,created_at) VALUES(?1,?2,?3,?4,?5,?6)", rusqlite::params![note_id,file_name,mime,size,stored_name,now])?;
+        conn.execute("INSERT INTO note_attachment(note_id,file_name,mime,size,stored_name,url,created_at) VALUES(?1,?2,?3,?4,?5,?6,?7)", rusqlite::params![note_id,file_name,mime,size,stored_name,url,now])?;
         Ok(Attachment {
             id: conn.last_insert_rowid(),
             note_id,

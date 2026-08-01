@@ -30,7 +30,7 @@ import {
   type MainWindowSize,
 } from "./ui/windowSizePreferences";
 
-const themes: Theme[] = ["light", "dark", "sepia"];
+const themes: Theme[] = ["light", "dark", "sepia", "tokyo-night", "wechat"];
 
 interface DataDirectoryInfo {
   default_dir: string;
