@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use tauri::{Manager, State};
 
 #[tauri::command]
-pub fn note_detach_open(
+pub async fn note_detach_open(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     note_id: i64,
@@ -43,7 +43,7 @@ pub fn note_detach_open(
 }
 
 #[tauri::command]
-pub fn note_detach_close(app: tauri::AppHandle, note_id: i64) -> Result<(), AppError> {
+pub async fn note_detach_close(app: tauri::AppHandle, note_id: i64) -> Result<(), AppError> {
     if let Some(window) = app.get_webview_window(&format!("detach-{note_id}")) {
         window.destroy()?;
     }

@@ -12,7 +12,15 @@ import { resolveWindowMode } from "./app/windowMode";
 disableDefaultContextMenu();
 applyGlassEffect(loadGlassEffect());
 applyGlassOpacity(loadGlassOpacity());
-const mode = resolveWindowMode(getCurrentWindow().label);
+let mode: ReturnType<typeof resolveWindowMode> = { kind: "main" };
+try {
+  mode = resolveWindowMode(getCurrentWindow().label);
+} catch {
+  // Tauri window internals may not be ready on every webview (e.g. freshly
+  // created detached windows). Fall back to the main app instead of a blank
+  // screen when the label cannot be resolved.
+  mode = { kind: "main" };
+}
 const wanderOpacity = Number(localStorage.getItem("wander-opacity") ?? "88");
 if (mode.kind !== "main") document.documentElement.dataset.window = mode.kind;
 createRoot(document.getElementById("root")!).render(
