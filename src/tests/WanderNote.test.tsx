@@ -1,9 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { WanderNote } from "../features/notes/WanderNote";
-import { saveNoteCopyFormat } from "../ui/noteCopy";
 
-const { invoke, setSize, listeners, writeText } = vi.hoisted(() => ({ invoke: vi.fn(), setSize: vi.fn(), listeners: new Map<string, (event: { payload: unknown }) => void>(), writeText: vi.fn(async () => undefined) }));
+const { invoke, setSize, innerSize, scaleFactor, listeners } = vi.hoisted(() => ({
+  invoke: vi.fn(),
+  setSize: vi.fn(),
+  innerSize: vi.fn(),
+  scaleFactor: vi.fn(),
+  listeners: new Map<string, (event: { payload: unknown }) => void>(),
+}));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -15,15 +20,17 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 vi.mock("@tauri-apps/api/window", () => ({
   LogicalSize: class { constructor(public width: number, public height: number) {} },
-  getCurrentWindow: () => ({ setSize, outerPosition: vi.fn(async () => ({ x: 100, y: 100 })) }),
+  getCurrentWindow: () => ({ setSize, innerSize, scaleFactor, outerPosition: vi.fn(async () => ({ x: 100, y: 100 })) }),
 }));
 
 beforeEach(() => {
   invoke.mockReset();
   setSize.mockReset();
+  innerSize.mockReset();
+  scaleFactor.mockReset();
+  innerSize.mockResolvedValue({ width: 480, height: 540 });
+  scaleFactor.mockResolvedValue(1.25);
   listeners.clear();
-  writeText.mockClear();
-  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
   localStorage.clear();
   document.documentElement.removeAttribute("data-liquid-glass");
   invoke.mockImplementation(async (command: string) => {
@@ -56,10 +63,7 @@ it("follows the main window theme and liquid glass opacity", async () => {
 it("renders note content and working collapse and close controls", async () => {
   render(<WanderNote noteId={8} initialOpacity={88} />);
   expect(await screen.findByText("桌面计划")).toBeInTheDocument();
-  expect(screen.getByText("正文").closest(".wander-card__content")).toHaveClass("markdown-body");
-  fireEvent.click(screen.getByRole("button", { name: "复制便签内容" }));
-  await waitFor(() => expect(writeText).toHaveBeenCalledWith("正文"));
-  expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
+  expect(screen.getByText("正文")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "切换为编辑" }));
   expect(screen.getByRole("dialog", { name: "编辑便签" })).toHaveClass("note-editor--embedded");
   expect(screen.queryByRole("button", { name: "置顶" })).not.toBeInTheDocument();
@@ -67,40 +71,40 @@ it("renders note content and working collapse and close controls", async () => {
   expect(screen.getByRole("button", { name: "切换为只读" })).toBeInTheDocument();
   expect(invoke).not.toHaveBeenCalledWith("wander_editor_open", expect.anything());
   fireEvent.click(screen.getByRole("button", { name: "折叠云游便签" }));
-  expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ width: 340, height: 62 }));
+  await waitFor(() => expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ width: 384, height: 62 })));
+  fireEvent.click(screen.getByRole("button", { name: "展开云游便签" }));
+  await waitFor(() => expect(setSize).toHaveBeenLastCalledWith(expect.objectContaining({ width: 384, height: 360 })));
   fireEvent.click(screen.getByRole("button", { name: "关闭云游便签" }));
   expect(invoke).toHaveBeenCalledWith("wander_close", { noteId: 8 });
 });
 
-it("uses the shared formatted plain-text copy preference", async () => {
-  invoke.mockImplementation(async (command: string) => {
-    if (command === "notes_get") return {
-      id: 8, group_id: null, title: "桌面计划", content_md: "1. **第一步**", content_html: "<ol><li><strong>第一步</strong></li></ol>", word_count: 3,
-      is_pinned: false, is_content_hidden: false, is_archived: false, is_trashed: false, trashed_at: null,
-      geom_x: null, geom_y: null, geom_w: 280, geom_h: 360, edge_dock: "none", created_at: 0, updated_at: 0,
-      color: null, sort_order: 0,
+it("checks and persists a task directly in read-only mode", async () => {
+  const taskNote = {
+    id: 8, group_id: null, title: "桌面计划", content_md: "- [ ] 提交周报",
+    content_html: '<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p>提交周报</p></div></li></ul>',
+    word_count: 6, is_pinned: false, is_content_hidden: false, is_archived: false, is_trashed: false, trashed_at: null,
+    geom_x: null, geom_y: null, geom_w: 280, geom_h: 360, edge_dock: "none", created_at: 0, updated_at: 0,
+    color: null, sort_order: 0,
+  };
+  invoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+    if (command === "notes_get") return taskNote;
+    if (command === "groups_list") return [];
+    if (command === "notes_update_content") return {
+      ...taskNote,
+      content_md: args?.md,
+      content_html: args?.html,
+      word_count: args?.words,
     };
     return undefined;
   });
-  render(<WanderNote noteId={8} initialOpacity={88} />);
-  await screen.findByText("桌面计划");
-  saveNoteCopyFormat("plain");
-  fireEvent.click(screen.getByRole("button", { name: "复制便签内容" }));
-  await waitFor(() => expect(writeText).toHaveBeenCalledWith("1. 第一步"));
-});
 
-it("preserves a hidden note title while masking its content", async () => {
-  invoke.mockImplementation(async (command: string) => {
-    if (command === "notes_get") return {
-      id: 8, group_id: null, title: "机密计划", content_md: "不能显示", content_html: "<p>不能显示</p>", word_count: 4,
-      is_pinned: false, is_content_hidden: true, is_archived: false, is_trashed: false, trashed_at: null,
-      geom_x: null, geom_y: null, geom_w: 280, geom_h: 360, edge_dock: "none", created_at: 0, updated_at: 0,
-      color: null, sort_order: 0,
-    };
-    return undefined;
-  });
   render(<WanderNote noteId={8} initialOpacity={88} />);
-  expect(await screen.findByText("机密计划")).toBeInTheDocument();
-  expect(screen.getByText("该条便签内容已加密")).toBeInTheDocument();
-  expect(screen.queryByText("不能显示")).not.toBeInTheDocument();
+  const checkbox = await screen.findByRole("checkbox", { name: "标记待办为已完成" });
+  fireEvent.click(checkbox);
+
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("notes_update_content", expect.objectContaining({
+    id: 8,
+    md: "- [x] 提交周报",
+    html: expect.stringContaining('data-checked="true"'),
+  })));
 });

@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Note } from "../../ipc/types";
-import { useI18n } from "../../i18n";
 
 export function useNotes(groupId: number | null, includeArchived = false) {
-  const { t } = useI18n();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -15,11 +13,11 @@ export function useNotes(groupId: number | null, includeArchived = false) {
     try {
       setNotes(await client.notes.list(groupId, includeArchived));
     } catch {
-      setError(t("notes.readError"));
+      setError("无法读取便签，请稍后重试");
     } finally {
       setLoading(false);
     }
-  }, [groupId, includeArchived, t]);
+  }, [groupId, includeArchived]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 

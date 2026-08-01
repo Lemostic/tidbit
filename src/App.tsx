@@ -1,12 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { currentMonitor, getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { currentMonitor, getCurrentWindow, LogicalPosition, LogicalSize, primaryMonitor } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildCommands } from "./app/buildCommands";
 import { CommandPalette } from "./app/CommandPalette";
 import { EdgePresence } from "./app/EdgePresence";
 import { Titlebar } from "./app/Titlebar";
 import { RestoreWizard } from "./features/backup/RestoreWizard";
+import { ExportDialog } from "./features/export/ExportDialog";
 import { useBackupStatus } from "./features/backup/useBackupStatus";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
 import { NotesGrid } from "./features/notes/NotesGrid";
@@ -18,10 +19,18 @@ import { applyFontPreferences, loadFontPreferences, saveFontPreferences } from "
 import { client } from "./ipc/client";
 import { loadGlassEffect, loadGlassOpacity, saveGlassEffect, saveGlassOpacity } from "./ui/glassEffect";
 import { broadcastAppearance } from "./ui/appearance";
-import { loadNoteCopyFormat, saveNoteCopyFormat, type NoteCopyFormat } from "./ui/noteCopy";
-import { useI18n } from "./i18n";
+import { commonSystemFonts, loadSystemFonts } from "./ui/systemFonts";
+import {
+  defaultMainWindowSize,
+  fitMainWindowSizeToWorkArea,
+  loadMainWindowSize,
+  logicalSizeFromPhysical,
+  normalizeMainWindowSize,
+  saveMainWindowSize,
+  type MainWindowSize,
+} from "./ui/windowSizePreferences";
 
-const themes: Theme[] = ["light", "dark", "sepia"];
+const themes: Theme[] = ["light", "dark", "sepia", "tokyo-night", "wechat"];
 
 interface DataDirectoryInfo {
   default_dir: string;
@@ -29,12 +38,41 @@ interface DataDirectoryInfo {
   pending_dir: string | null;
 }
 
+async function fitCurrentWindowToWorkArea(requested: MainWindowSize) {
+  const normalized = normalizeMainWindowSize(requested);
+  const win = getCurrentWindow();
+  const monitor = await currentMonitor() ?? await primaryMonitor();
+  if (!monitor) {
+    await win.setSize(new LogicalSize(normalized.width, normalized.height));
+    return normalized;
+  }
+
+  const logicalWorkAreaSize = monitor.workArea.size.toLogical(monitor.scaleFactor);
+  const fitted = fitMainWindowSizeToWorkArea(normalized, logicalWorkAreaSize);
+  const [position, outerSize] = await Promise.all([win.outerPosition(), win.outerSize()]);
+  const workArea = monitor.workArea;
+  const clipped = position.x < workArea.position.x
+    || position.y < workArea.position.y
+    || position.x + outerSize.width > workArea.position.x + workArea.size.width
+    || position.y + outerSize.height > workArea.position.y + workArea.size.height;
+
+  await win.setSize(new LogicalSize(fitted.width, fitted.height));
+  if (clipped || fitted.width !== normalized.width || fitted.height !== normalized.height) {
+    const logicalWorkAreaPosition = workArea.position.toLogical(monitor.scaleFactor);
+    await win.setPosition(new LogicalPosition(
+      Math.round(logicalWorkAreaPosition.x + Math.max(0, (logicalWorkAreaSize.width - fitted.width) / 2)),
+      Math.round(logicalWorkAreaPosition.y + Math.max(0, (logicalWorkAreaSize.height - fitted.height) / 2)),
+    ));
+  }
+  return fitted;
+}
+
 export default function App() {
-  const { locale, t } = useI18n();
   const [groupId, setGroupId] = useState<number | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [locked, setLocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
@@ -43,30 +81,43 @@ export default function App() {
   const [openNoteId, setOpenNoteId] = useState<number | null>(null);
   const [notesRefreshRequest, setNotesRefreshRequest] = useState(0);
   const [dockingEnabled, setDockingEnabled] = useState(() => localStorage.getItem("docking-enabled") !== "false");
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [autostartBusy, setAutostartBusy] = useState(false);
   const [lockPin, setLockPin] = useState(() => localStorage.getItem("privacy-pin") ?? "");
   const [fonts, setFonts] = useState(loadFontPreferences);
-  const [wanderOpacity, setWanderOpacity] = useState(() => Number(localStorage.getItem("wander-opacity") ?? "94"));
+  const [availableFonts, setAvailableFonts] = useState<string[]>(() => [...commonSystemFonts]);
+  const [fontsLoading, setFontsLoading] = useState(false);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [wanderOpacity, setWanderOpacity] = useState(() => Number(localStorage.getItem("wander-opacity") ?? "88"));
   const [glassEnabled, setGlassEnabled] = useState(loadGlassEffect);
   const [glassOpacity, setGlassOpacity] = useState(loadGlassOpacity);
-  const [copyFormat, setCopyFormat] = useState(loadNoteCopyFormat);
-  const [backupIntervalHours, setBackupIntervalHours] = useState(1);
-  const [backupRetentionCount, setBackupRetentionCount] = useState(1);
   const [dataDirectory, setDataDirectory] = useState("");
   const [defaultDataDirectory, setDefaultDataDirectory] = useState("");
   const [dataDirectoryBusy, setDataDirectoryBusy] = useState(false);
+  const [mainWindowSize, setMainWindowSize] = useState(loadMainWindowSize);
+  const [windowSizeBusy, setWindowSizeBusy] = useState(false);
   const [hiddenEdge, setHiddenEdge] = useState<"left" | "right" | "top" | "bottom" | null>(null);
   const backup = useBackupStatus();
-  const interactionLocked = settingsOpen || paletteOpen || restoreOpen || locked;
+  const interactionLocked = settingsOpen || paletteOpen || restoreOpen || exportOpen || locked;
 
   const openSettings = useCallback(() => {
     setPaletteOpen(false);
     setRestoreOpen(false);
-    setSettingsOpen(true);
+    setExportOpen(false);
+    setHiddenEdge(null);
+    void invoke("window_undock").catch(() => undefined);
+    void fitCurrentWindowToWorkArea(loadMainWindowSize())
+      .then((fitted) => {
+        setMainWindowSize(saveMainWindowSize(fitted));
+        setSettingsOpen(true);
+      })
+      .catch(() => setSettingsOpen(true));
   }, []);
 
   const openPalette = useCallback(() => {
     setSettingsOpen(false);
     setRestoreOpen(false);
+    setExportOpen(false);
     setPaletteOpen(true);
   }, []);
 
@@ -78,15 +129,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void invoke("tray_set_language", { locale }).catch(() => undefined);
-  }, [locale]);
-
-  useEffect(() => {
-    void backup.getSettings().then((settings) => {
-      setBackupIntervalHours(settings.interval_hours);
-      setBackupRetentionCount(settings.retention_count);
-    }).catch(() => undefined);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    void invoke<boolean>("autostart_get")
+      .then(setAutostartEnabled)
+      .catch(() => setAutostartEnabled(false));
+  }, []);
 
   const notify = useCallback((next: ToastState) => setToast(next), []);
   const requestNote = useCallback(() => setCreateNoteRequest((value) => value + 1), []);
@@ -96,11 +142,11 @@ export default function App() {
     try {
       await client.notes.moveGroup(noteId, targetGroupId);
       setNotesRefreshRequest((value) => value + 1);
-      notify({ kind: "success", message: t("notice.noteMoved", { group: groupName }) });
+      notify({ kind: "success", message: `便签已移动到「${groupName}」` });
     } catch {
-      notify({ kind: "error", message: t("notice.noteMoveFailed") });
+      notify({ kind: "error", message: "移动便签失败" });
     }
-  }, [notify, t]);
+  }, [notify]);
 
   useEffect(() => {
     let stopHidden: (() => void) | undefined;
@@ -117,11 +163,52 @@ export default function App() {
   }, [fonts]);
 
   useEffect(() => {
-    const key = "window-default-size-v3";
-    if (localStorage.getItem(key)) return;
-    void getCurrentWindow().setSize(new LogicalSize(500, 780)).then(() => {
-      localStorage.setItem(key, "applied");
-    });
+    if (!settingsOpen || fontsLoaded) return;
+    let cancelled = false;
+    setFontsLoading(true);
+    void loadSystemFonts()
+      .then((families) => {
+        if (cancelled) return;
+        setAvailableFonts(families);
+        setFontsLoaded(true);
+      })
+      .finally(() => {
+        if (!cancelled) setFontsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [fontsLoaded, settingsOpen]);
+
+  useEffect(() => {
+    const preferred = loadMainWindowSize();
+    void fitCurrentWindowToWorkArea(preferred)
+      .then((fitted) => setMainWindowSize(saveMainWindowSize(fitted)))
+      .catch(() => setMainWindowSize(preferred));
+  }, []);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+    let dispose: (() => void) | undefined;
+    let timer: number | undefined;
+    let latest: { width: number; height: number } | undefined;
+    void win.onResized((event) => {
+      latest = event.payload;
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (!latest) return;
+        const physical = latest;
+        void Promise.all([win.scaleFactor(), win.isMaximized()])
+          .then(([scaleFactor, maximized]) => {
+            if (maximized) return;
+            const next = saveMainWindowSize(logicalSizeFromPhysical(physical, scaleFactor));
+            setMainWindowSize(next);
+          })
+          .catch(() => undefined);
+      }, 140);
+    }).then((unlisten) => { dispose = unlisten; }).catch(() => undefined);
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      dispose?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -133,8 +220,21 @@ export default function App() {
   const setDocking = useCallback((enabled: boolean) => {
     setDockingEnabled(enabled);
     localStorage.setItem("docking-enabled", String(enabled));
-    notify({ kind: "info", message: t(enabled ? "notice.dockOn" : "notice.dockOff") });
-  }, [notify, t]);
+    notify({ kind: "info", message: enabled ? "边缘吸附已开启" : "边缘吸附已关闭" });
+  }, [notify]);
+
+  const updateAutostart = useCallback(async (enabled: boolean) => {
+    setAutostartBusy(true);
+    try {
+      await invoke("autostart_set", { enabled });
+      setAutostartEnabled(enabled);
+      notify({ kind: "info", message: enabled ? "开机自动启动已开启" : "开机自动启动已关闭" });
+    } catch {
+      notify({ kind: "error", message: "无法更新开机自动启动设置" });
+    } finally {
+      setAutostartBusy(false);
+    }
+  }, [notify]);
 
   const saveLockPin = useCallback((pin: string) => {
     setLockPin(pin);
@@ -147,7 +247,7 @@ export default function App() {
   }, []);
 
   const updateWanderOpacity = useCallback((next: number) => {
-    const opacity = Math.min(100, Math.max(60, next));
+    const opacity = Math.min(100, Math.max(45, next));
     setWanderOpacity(opacity);
     localStorage.setItem("wander-opacity", String(opacity));
     void invoke("wander_set_opacity", { opacity });
@@ -157,33 +257,29 @@ export default function App() {
     setGlassEnabled(enabled);
     saveGlassEffect(enabled);
     void broadcastAppearance().catch(() => undefined);
-    notify({ kind: "info", message: t(enabled ? "notice.glassOn" : "notice.glassOff") });
-  }, [notify, t]);
+    notify({ kind: "info", message: enabled ? "液态玻璃已开启" : "液态玻璃已关闭" });
+  }, [notify]);
 
   const updateGlassOpacity = useCallback((next: number) => {
-    const opacity = Math.min(100, Math.max(65, next));
+    const opacity = Math.min(100, Math.max(55, next));
     setGlassOpacity(opacity);
     saveGlassOpacity(opacity);
     void broadcastAppearance().catch(() => undefined);
   }, []);
 
-  const updateCopyFormat = useCallback((format: NoteCopyFormat) => {
-    setCopyFormat(format);
-    saveNoteCopyFormat(format);
-    notify({ kind: "info", message: t(format === "markdown" ? "notice.copyMarkdown" : "notice.copyPlain") });
-  }, [notify, t]);
-
-  const updateBackupSettings = useCallback(async (intervalHours: number, retentionCount: number) => {
-    const nextInterval = Math.min(24, Math.max(0.5, Math.round(intervalHours * 2) / 2));
-    const nextRetention = Math.min(10, Math.max(1, Math.round(retentionCount)));
-    setBackupIntervalHours(nextInterval);
-    setBackupRetentionCount(nextRetention);
+  const applyMainWindowSize = useCallback(async (requested: MainWindowSize) => {
+    setWindowSizeBusy(true);
     try {
-      await backup.saveSettings({ interval_hours: nextInterval, retention_count: nextRetention });
+      const fitted = await fitCurrentWindowToWorkArea(requested);
+      const saved = saveMainWindowSize(fitted);
+      setMainWindowSize(saved);
+      notify({ kind: "success", message: `窗口尺寸已调整为 ${saved.width} × ${saved.height}` });
     } catch {
-      notify({ kind: "error", message: t("notice.backupSettingsFailed") });
+      notify({ kind: "error", message: "无法调整窗口尺寸" });
+    } finally {
+      setWindowSizeBusy(false);
     }
-  }, [backup, notify, t]);
+  }, [notify]);
 
   const pickDataDirectory = useCallback(async () => {
     setDataDirectoryBusy(true);
@@ -191,15 +287,15 @@ export default function App() {
       const selected = await invoke<string | null>("data_directory_pick");
       if (selected) setDataDirectory(selected);
     } catch {
-      notify({ kind: "error", message: t("notice.directoryPickerFailed") });
+      notify({ kind: "error", message: "无法打开目录选择器" });
     } finally {
       setDataDirectoryBusy(false);
     }
-  }, [notify, t]);
+  }, [notify]);
 
   const saveDataDirectory = useCallback(async () => {
     if (!dataDirectory.trim()) {
-      notify({ kind: "error", message: t("notice.directoryRequired") });
+      notify({ kind: "error", message: "数据目录不能为空" });
       return;
     }
     setDataDirectoryBusy(true);
@@ -207,9 +303,9 @@ export default function App() {
       await invoke("data_directory_set", { path: dataDirectory.trim() });
     } catch {
       setDataDirectoryBusy(false);
-      notify({ kind: "error", message: t("notice.directoryMigrationFailed") });
+      notify({ kind: "error", message: "数据目录不可写或迁移失败" });
     }
-  }, [dataDirectory, notify, t]);
+  }, [dataDirectory, notify]);
 
   const cycleTheme = useCallback(() => {
     const current = (localStorage.getItem("theme") as Theme) ?? "light";
@@ -223,23 +319,23 @@ export default function App() {
     setBusy(true);
     try {
       await backup.snapshotNow();
-      notify({ kind: "success", message: t("notice.backupCreated") });
+      notify({ kind: "success", message: "加密备份已创建" });
     } catch {
-      notify({ kind: "error", message: t("notice.backupFailed") });
+      notify({ kind: "error", message: "备份失败，请检查磁盘空间" });
     } finally { setBusy(false); }
-  }, [backup, notify, t]);
+  }, [backup, notify]);
 
   const openBackups = useCallback(async () => {
     try { await backup.openDirectory(); }
-    catch { notify({ kind: "error", message: t("notice.openBackupsFailed") }); }
-  }, [backup, notify, t]);
+    catch { notify({ kind: "error", message: "无法打开备份目录" }); }
+  }, [backup, notify]);
 
   const showHidden = useCallback(async () => {
     try {
       await invoke("window_show_all_hidden");
-      notify({ kind: "success", message: t("notice.windowsShown") });
-    } catch { notify({ kind: "error", message: t("notice.showWindowsFailed") }); }
-  }, [notify, t]);
+      notify({ kind: "success", message: "已显示隐藏窗口" });
+    } catch { notify({ kind: "error", message: "显示窗口失败" }); }
+  }, [notify]);
 
   const reportDocking = useCallback(async () => {
     if (!dockingEnabled || interactionLocked) return;
@@ -318,7 +414,7 @@ export default function App() {
     lockNow: () => setLocked(true),
     showHidden: () => void showHidden(),
     openSettings,
-  }), [cycleTheme, dockingEnabled, locale, openBackups, openSettings, requestGroup, requestNote, setDocking, showHidden, snapshotNow]);
+  }), [cycleTheme, dockingEnabled, openBackups, openSettings, requestGroup, requestNote, setDocking, showHidden, snapshotNow]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -342,42 +438,49 @@ export default function App() {
 
   return (
     <>
-      <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
-      <EdgePresence edge={hiddenEdge} />
-      <div className="app-body">
-        <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={setGroupId} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} />
-        <main className="app-main">
-          <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} />
-        </main>
+      <div className="app-shell">
+        <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
+        <EdgePresence edge={hiddenEdge} />
+        <div className="app-body">
+          <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={setGroupId} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} />
+          <main className="app-main">
+            <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} />
+          </main>
+        </div>
       </div>
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} onOpenNote={setOpenNoteId} />
       <SettingsPanel
         open={settingsOpen}
         dockingEnabled={dockingEnabled}
+        autostartEnabled={autostartEnabled}
+        autostartBusy={autostartBusy}
         lockPin={lockPin}
         busy={busy}
         fonts={fonts}
+        availableFonts={availableFonts}
+        fontsLoading={fontsLoading}
         wanderOpacity={wanderOpacity}
         glassEnabled={glassEnabled}
         glassOpacity={glassOpacity}
-        copyFormat={copyFormat}
-        backupIntervalHours={backupIntervalHours}
-        backupRetentionCount={backupRetentionCount}
+        windowWidth={mainWindowSize.width}
+        windowHeight={mainWindowSize.height}
+        windowSizeBusy={windowSizeBusy}
         onClose={() => setSettingsOpen(false)}
         onDockingChange={setDocking}
+        onAutostartChange={(enabled) => void updateAutostart(enabled)}
         onLockPinChange={saveLockPin}
         onFontsChange={updateFonts}
         onWanderOpacityChange={updateWanderOpacity}
         onGlassChange={updateGlassEffect}
         onGlassOpacityChange={updateGlassOpacity}
-        onCopyFormatChange={updateCopyFormat}
-        onBackupIntervalChange={(hours) => void updateBackupSettings(hours, backupRetentionCount)}
-        onBackupRetentionChange={(count) => void updateBackupSettings(backupIntervalHours, count)}
+        onApplyWindowSize={(width, height) => void applyMainWindowSize({ width, height })}
+        onResetWindowSize={() => void applyMainWindowSize(defaultMainWindowSize)}
         onBackup={() => void snapshotNow()}
         onRestore={() => { setSettingsOpen(false); setRestoreOpen(true); }}
         onOpenBackups={() => void openBackups()}
         onShowHidden={() => void showHidden()}
+        onExport={() => { setSettingsOpen(false); setExportOpen(true); }}
         dataDirectory={dataDirectory}
         defaultDataDirectory={defaultDataDirectory}
         dataDirectoryBusy={dataDirectoryBusy}
@@ -386,6 +489,7 @@ export default function App() {
         onSaveDataDirectory={() => void saveDataDirectory()}
         onResetDataDirectory={() => setDataDirectory(defaultDataDirectory)}
       />
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} onDone={(result) => { setExportOpen(false); notify({ kind: "success", message: `已导出 ${result.noteCount} 条便签：${result.path}` }); }} />
       {restoreOpen && <RestoreWizard onDone={() => setRestoreOpen(false)} onClose={() => setRestoreOpen(false)} />}
       {locked && <LockScreen pin={lockPin} onUnlock={() => setLocked(false)} />}
       <Toast toast={toast} onClose={() => setToast(null)} />

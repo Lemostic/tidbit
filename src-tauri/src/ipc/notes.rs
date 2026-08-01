@@ -3,6 +3,23 @@ use crate::error::AppError;
 use crate::state::AppState;
 use tauri::State;
 
+fn attach_tags(state: &AppState, mut note: Note) -> Result<Note, AppError> {
+    note.tags = state.tags.tags_for_note(note.id)?;
+    note.reminder = state.reminders.get(note.id)?;
+    Ok(note)
+}
+
+#[tauri::command]
+pub async fn reminders_set(
+    state: State<'_, AppState>,
+    id: i64,
+    remind_at: Option<i64>,
+) -> Result<Note, AppError> {
+    state.notes.get(id)?;
+    state.reminders.set(id, remind_at)?;
+    attach_tags(&state, state.notes.get(id)?)
+}
+
 #[tauri::command]
 pub async fn notes_list(
     state: State<'_, AppState>,
@@ -11,12 +28,15 @@ pub async fn notes_list(
 ) -> Result<Vec<Note>, AppError> {
     state
         .notes
-        .list_by_group(group_id, include_archived.unwrap_or(false))
+        .list_by_group(group_id, include_archived.unwrap_or(false))?
+        .into_iter()
+        .map(|note| attach_tags(&state, note))
+        .collect()
 }
 
 #[tauri::command]
 pub async fn notes_get(state: State<'_, AppState>, id: i64) -> Result<Note, AppError> {
-    state.notes.get(id)
+    attach_tags(&state, state.notes.get(id)?)
 }
 
 #[tauri::command]
@@ -25,7 +45,7 @@ pub async fn notes_create(
     group_id: Option<i64>,
     title: String,
 ) -> Result<Note, AppError> {
-    state.notes.create_in_group(group_id, &title)
+    attach_tags(&state, state.notes.create_in_group(group_id, &title)?)
 }
 
 #[tauri::command]
@@ -39,7 +59,7 @@ pub async fn notes_update_content(
     let n = state.notes.update_content(id, &md, &html, words)?;
     let _ = state.revisions.append(id, &md, n.title.as_deref());
     let _ = state.revisions.prune(id, 20);
-    Ok(n)
+    attach_tags(&state, n)
 }
 
 #[tauri::command]
@@ -48,7 +68,7 @@ pub async fn notes_update_title(
     id: i64,
     title: String,
 ) -> Result<Note, AppError> {
-    state.notes.update_title(id, title.trim())
+    attach_tags(&state, state.notes.update_title(id, title.trim())?)
 }
 
 #[tauri::command]
@@ -57,7 +77,7 @@ pub async fn notes_set_pinned(
     id: i64,
     pinned: bool,
 ) -> Result<Note, AppError> {
-    state.notes.set_pinned(id, pinned)
+    attach_tags(&state, state.notes.set_pinned(id, pinned)?)
 }
 
 #[tauri::command]
@@ -66,7 +86,7 @@ pub async fn notes_set_archived(
     id: i64,
     archived: bool,
 ) -> Result<Note, AppError> {
-    state.notes.set_archived(id, archived)
+    attach_tags(&state, state.notes.set_archived(id, archived)?)
 }
 
 #[tauri::command]
@@ -75,7 +95,7 @@ pub async fn notes_set_content_hidden(
     id: i64,
     hidden: bool,
 ) -> Result<Note, AppError> {
-    state.notes.set_content_hidden(id, hidden)
+    attach_tags(&state, state.notes.set_content_hidden(id, hidden)?)
 }
 
 #[tauri::command]
@@ -84,7 +104,7 @@ pub async fn notes_set_color(
     id: i64,
     color: Option<String>,
 ) -> Result<Note, AppError> {
-    state.notes.set_color(id, color.as_deref())
+    attach_tags(&state, state.notes.set_color(id, color.as_deref())?)
 }
 
 #[tauri::command]
@@ -93,7 +113,23 @@ pub async fn notes_move_group(
     id: i64,
     group_id: Option<i64>,
 ) -> Result<Note, AppError> {
-    state.notes.move_to_group(id, group_id)
+    attach_tags(&state, state.notes.move_to_group(id, group_id)?)
+}
+
+#[tauri::command]
+pub async fn tags_list(state: State<'_, AppState>) -> Result<Vec<String>, AppError> {
+    state.tags.list()
+}
+
+#[tauri::command]
+pub async fn notes_set_tags(
+    state: State<'_, AppState>,
+    id: i64,
+    tags: Vec<String>,
+) -> Result<Note, AppError> {
+    state.notes.get(id)?;
+    state.tags.set_for_note(id, &tags)?;
+    attach_tags(&state, state.notes.get(id)?)
 }
 
 #[tauri::command]

@@ -2,7 +2,6 @@ import { Command as CommandIcon, FileText, MagnifyingGlass, X } from "@phosphor-
 import { useEffect, useMemo, useState } from "react";
 import { SearchResults } from "../features/search/SearchResults";
 import { useSearch } from "../features/search/useSearch";
-import { useI18n } from "../i18n";
 
 export type Command = {
   id: string;
@@ -21,7 +20,6 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandPaletteProps) {
-  const { t } = useI18n();
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const [tab, setTab] = useState<"commands" | "search">("commands");
@@ -59,14 +57,14 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
   };
 
   return (
-    <div className="palette-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
-      <section role="dialog" aria-label={t("palette.label")} className="palette">
+    <div className="palette-scrim" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
+      <section role="dialog" aria-modal="true" aria-label="命令面板" className="palette" onClick={(event) => event.stopPropagation()}>
         <header className="palette__head">
           <MagnifyingGlass size={17} />
           <input
             autoFocus
-            aria-label={t("titlebar.search")}
-            placeholder={t("palette.placeholder")}
+            aria-label="搜索"
+            placeholder="搜索便签或执行命令"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
@@ -76,15 +74,15 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
               if (e.key === "Enter" && tab === "commands") void runActive();
             }}
           />
-          <button className="btn-icon" onClick={onClose} aria-label={t("common.close")} title={t("common.close")}><X size={15} /></button>
+          <button className="btn-icon" onClick={onClose} aria-label="关闭命令面板" title="关闭命令面板"><X size={15} /></button>
         </header>
 
-        <div className="palette__tabs">
-          <button className="palette__tab" onClick={() => setTab("commands")} data-active={tab === "commands"}>
-            <CommandIcon size={14} /> {t("palette.commands")} <span>{filtered.length}</span>
+        <div className="palette__tabs" role="tablist" aria-label="搜索范围">
+          <button className="palette__tab" role="tab" aria-selected={tab === "commands"} onClick={() => setTab("commands")} data-active={tab === "commands"}>
+            <CommandIcon size={14} /> 命令 <span>{filtered.length}</span>
           </button>
-          <button className="palette__tab" onClick={() => setTab("search")} data-active={tab === "search"}>
-            <FileText size={14} /> {t("palette.notes")} <span>{hits.length}</span>
+          <button className="palette__tab" role="tab" aria-selected={tab === "search"} onClick={() => setTab("search")} data-active={tab === "search"}>
+            <FileText size={14} /> 便签 <span>{hits.length}</span>
           </button>
         </div>
 
@@ -100,14 +98,14 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
             if (e.key === "Escape") onClose();
           }}>
             {filtered.map((command, index) => (
-              <li key={command.id} className="palette__item" aria-selected={index === active}>
+              <li key={command.id} role="option" className="palette__item" aria-selected={index === active}>
                 <button onMouseEnter={() => setActive(index)} onClick={() => { void command.run(); onClose(); }}>
                   <span><strong>{command.title}</strong>{command.hint && <small>{command.hint}</small>}</span>
                   {command.shortcut && <kbd>{command.shortcut}</kbd>}
                 </button>
               </li>
             ))}
-            {filtered.length === 0 && <li className="palette__empty">{t("palette.empty")}</li>}
+            {filtered.length === 0 && <li className="palette__empty">没有匹配命令</li>}
           </ul>
         )}
       </section>

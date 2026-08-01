@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Group } from "../../ipc/types";
-import { useI18n } from "../../i18n";
 
 export function useGroups() {
-  const { t } = useI18n();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -12,9 +10,9 @@ export function useGroups() {
     setLoading(true);
     setError("");
     try { setGroups(await client.groups.list()); }
-    catch { setError(t("groups.loadError")); }
+    catch { setError("分组加载失败"); }
     finally { setLoading(false); }
-  }, [t]);
+  }, []);
   useEffect(() => { void refresh(); }, [refresh]);
   return {
     groups,

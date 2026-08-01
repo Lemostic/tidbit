@@ -1,6 +1,6 @@
 import type { Note } from "../../ipc/types";
 
-export type NoteSortField = "updated_at" | "created_at" | "title" | "manual";
+export type NoteSortField = "updated_at" | "created_at" | "title";
 export type NoteSortDirection = "asc" | "desc";
 
 export interface NoteSortPreference {
@@ -46,17 +46,20 @@ export function sortNotes(notes: Note[], preference: NoteSortPreference): Note[]
     const layer = compareLayer(a, b);
     if (layer !== 0) return layer;
 
-    if (preference.field === "manual") {
-      return a.sort_order - b.sort_order || b.updated_at - a.updated_at || a.id - b.id;
-    }
-
     let value = 0;
     if (preference.field === "title") {
-      value = titleCollator.compare(a.title?.trim() || "无标题", b.title?.trim() || "无标题");
+      const aTitle = a.title?.trim() || "";
+      const bTitle = b.title?.trim() || "";
+      // Untitled notes remain useful at the end in either title direction.
+      if (!aTitle || !bTitle) {
+        if (!aTitle && !bTitle) return a.id - b.id;
+        return aTitle ? -1 : 1;
+      }
+      value = titleCollator.compare(aTitle, bTitle);
     } else {
       value = a[preference.field] - b[preference.field];
     }
-    if (value === 0) value = a.id - b.id;
+    if (value === 0) return a.id - b.id;
     return preference.direction === "asc" ? value : -value;
   });
 }

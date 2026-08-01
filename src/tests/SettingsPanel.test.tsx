@@ -9,25 +9,29 @@ function renderSettings(overrides: Partial<Parameters<typeof SettingsPanel>[0]> 
   const props: Parameters<typeof SettingsPanel>[0] = {
     open: true,
     dockingEnabled: true,
+    autostartEnabled: false,
+    autostartBusy: false,
     lockPin: "",
     busy: false,
     fonts: { group: "Segoe UI", noteTitle: "Segoe UI", noteBody: "Segoe UI" },
+    availableFonts: ["Arial", "Microsoft YaHei UI", "Segoe UI"],
+    fontsLoading: false,
     wanderOpacity: 88,
     glassEnabled: false,
-    glassOpacity: 92,
-    copyFormat: "markdown",
-    backupIntervalHours: 1,
-    backupRetentionCount: 1,
+    glassOpacity: 80,
+    windowWidth: 780,
+    windowHeight: 1100,
+    windowSizeBusy: false,
     onClose: vi.fn(),
     onDockingChange: vi.fn(),
+    onAutostartChange: vi.fn(),
     onLockPinChange: vi.fn(),
     onFontsChange: vi.fn(),
     onWanderOpacityChange: vi.fn(),
     onGlassChange: vi.fn(),
     onGlassOpacityChange: vi.fn(),
-    onCopyFormatChange: vi.fn(),
-    onBackupIntervalChange: vi.fn(),
-    onBackupRetentionChange: vi.fn(),
+    onApplyWindowSize: vi.fn(),
+    onResetWindowSize: vi.fn(),
     onBackup: vi.fn(),
     onRestore: vi.fn(),
     onOpenBackups: vi.fn(),
@@ -49,7 +53,8 @@ it("changes each switch exactly once and only from its control", () => {
   const onGlassChange = vi.fn();
   const onGlassOpacityChange = vi.fn();
   const onDockingChange = vi.fn();
-  renderSettings({ onGlassChange, onGlassOpacityChange, onDockingChange });
+  const onAutostartChange = vi.fn();
+  renderSettings({ onGlassChange, onGlassOpacityChange, onDockingChange, onAutostartChange });
 
   fireEvent.click(screen.getByText("液态玻璃"));
   expect(onGlassChange).not.toHaveBeenCalled();
@@ -59,45 +64,96 @@ it("changes each switch exactly once and only from its control", () => {
   fireEvent.click(screen.getByRole("checkbox", { name: "边缘吸附" }));
   expect(onDockingChange).toHaveBeenCalledTimes(1);
 
+  fireEvent.click(screen.getByText("开机自动启动"));
+  expect(onAutostartChange).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox", { name: "开机自动启动" }));
+  expect(onAutostartChange).toHaveBeenCalledTimes(1);
+  expect(onAutostartChange).toHaveBeenCalledWith(true);
+
   fireEvent.change(screen.getByLabelText("液态玻璃不透明度"), { target: { value: "76" } });
   expect(onGlassOpacityChange).toHaveBeenCalledOnce();
   expect(onGlassOpacityChange).toHaveBeenCalledWith(76);
 });
 
-it("offers a fully opaque glass endpoint with legacy-browser guidance", () => {
-  renderSettings({ glassOpacity: 100 });
-  const slider = screen.getByLabelText("液态玻璃不透明度");
-  expect(slider).toHaveAttribute("min", "65");
-  expect(slider).toHaveAttribute("max", "100");
-  expect(screen.getByText("100% · 实色")).toBeInTheDocument();
-  expect(screen.getByText("旧版浏览器自动降级为清晰实色")).toBeInTheDocument();
+it("keeps autostart off by default and disables the switch while updating", () => {
+  const { rerender, props } = renderSettings();
+  expect(screen.getByRole("checkbox", { name: "开机自动启动" })).not.toBeChecked();
+
+  rerender(<SettingsPanel {...props} autostartBusy />);
+  expect(screen.getByRole("checkbox", { name: "开机自动启动" })).toBeDisabled();
 });
 
-it("allows choosing the one-click copy format", () => {
-  const onCopyFormatChange = vi.fn();
-  renderSettings({ copyFormat: "markdown", onCopyFormatChange });
-  const select = screen.getByRole("combobox", { name: "一键复制格式" });
-  expect(select).toHaveValue("markdown");
-  fireEvent.change(select, { target: { value: "plain" } });
-  expect(onCopyFormatChange).toHaveBeenCalledWith("plain");
-  expect(screen.getByText("保留列表编号与层级，不含 Markdown 标记")).toBeInTheDocument();
+it("applies, tracks, and resets the main window dimensions", () => {
+  const onApplyWindowSize = vi.fn();
+  const onResetWindowSize = vi.fn();
+  const { rerender, props } = renderSettings({ onApplyWindowSize, onResetWindowSize });
+
+  fireEvent.change(screen.getByLabelText("软件主体宽度"), { target: { value: "920" } });
+  fireEvent.change(screen.getByLabelText("软件主体高度"), { target: { value: "1280" } });
+  fireEvent.click(screen.getByRole("button", { name: "应用尺寸" }));
+  expect(onApplyWindowSize).toHaveBeenCalledWith(920, 1280);
+
+  rerender(<SettingsPanel {...props} windowWidth={860} windowHeight={1240} />);
+  expect(screen.getByLabelText("软件主体宽度")).toHaveValue(860);
+  expect(screen.getByLabelText("软件主体高度")).toHaveValue(1240);
+
+  fireEvent.click(screen.getByRole("button", { name: "恢复默认窗口尺寸" }));
+  expect(onResetWindowSize).toHaveBeenCalledOnce();
+  expect(screen.getByLabelText("软件主体宽度")).toHaveValue(780);
+  expect(screen.getByLabelText("软件主体高度")).toHaveValue(820);
 });
 
-it("configures automatic backup interval and retention limits", () => {
-  const onBackupIntervalChange = vi.fn();
-  const onBackupRetentionChange = vi.fn();
-  renderSettings({ backupIntervalHours: 1, backupRetentionCount: 1, onBackupIntervalChange, onBackupRetentionChange });
-  const interval = screen.getByLabelText("自动备份间隔");
-  expect(interval).toHaveAttribute("min", "0.5");
-  expect(interval).toHaveAttribute("max", "24");
-  expect(interval).toHaveAttribute("step", "0.5");
-  fireEvent.change(interval, { target: { value: "3.5" } });
-  expect(onBackupIntervalChange).toHaveBeenCalledWith(3.5);
-  const retention = screen.getByLabelText("自动备份保留数量");
-  expect(retention).toHaveAttribute("min", "1");
-  expect(retention).toHaveAttribute("max", "10");
-  fireEvent.change(retention, { target: { value: "7" } });
-  expect(onBackupRetentionChange).toHaveBeenCalledWith(7);
+it("blocks invalid window dimensions and explains the accepted range", () => {
+  const onApplyWindowSize = vi.fn();
+  renderSettings({ onApplyWindowSize });
+
+  fireEvent.change(screen.getByLabelText("软件主体宽度"), { target: { value: "400" } });
+  expect(screen.getByLabelText("软件主体宽度")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByText("宽度需在 520-3840 之间。")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "应用尺寸" })).toBeDisabled();
+  expect(onApplyWindowSize).not.toHaveBeenCalled();
+});
+
+it("shows the loaded Windows font list in every font selector", () => {
+  const onFontsChange = vi.fn();
+  renderSettings({ availableFonts: ["Arial", "Consolas", "Microsoft YaHei UI"], onFontsChange });
+
+  const groupFont = screen.getByRole("combobox", { name: "左侧分组字体" });
+  expect(groupFont).toContainElement(screen.getAllByRole("option", { name: "Consolas" })[0]!);
+  fireEvent.change(groupFont, { target: { value: "Consolas" } });
+  expect(onFontsChange).toHaveBeenCalledWith({ group: "Consolas", noteTitle: "Segoe UI", noteBody: "Segoe UI" });
+  expect(screen.getByText(/已加载 \d+ 种可用字体/)).toBeInTheDocument();
+});
+
+it("reports while the Windows font list is loading", () => {
+  renderSettings({ fontsLoading: true });
+  expect(screen.getByText("正在读取 Windows 系统字体…")).toBeInTheDocument();
+});
+
+it("provides a compact category navigator for the settings scroll region", () => {
+  renderSettings();
+  expect(screen.getByRole("navigation", { name: "设置分类" })).toBeInTheDocument();
+  const windowSectionButton = screen.getByRole("button", { name: "窗口" });
+  fireEvent.click(windowSectionButton);
+  expect(windowSectionButton).toHaveClass("is-active");
+  expect(windowSectionButton).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("button", { name: "外观" })).not.toHaveClass("is-active");
+});
+
+it("moves focus into the dialog and wraps keyboard focus within it", () => {
+  const onClose = vi.fn();
+  renderSettings({ onClose });
+  const close = screen.getByRole("button", { name: "关闭设置" });
+  const last = screen.getByRole("button", { name: /显示窗口/ });
+
+  expect(close).toHaveFocus();
+  last.focus();
+  fireEvent.keyDown(last, { key: "Tab" });
+  expect(close).toHaveFocus();
+  fireEvent.keyDown(close, { key: "Tab", shiftKey: true });
+  expect(last).toHaveFocus();
+  fireEvent.keyDown(close, { key: "Escape" });
+  expect(onClose).toHaveBeenCalledOnce();
 });
 
 it("closes only when the empty scrim is clicked", () => {
@@ -118,4 +174,42 @@ it("keeps the lower settings reachable through an internal scroll region", () =>
   expect(styles).toContain(".settings-panel__body { flex: 1; min-height: 0; overflow-y: auto;");
   expect(styles).toContain(".modal-scrim, .confirm-scrim { inset: 0; overflow: hidden; border-radius: var(--app-radius); }");
   expect(screen.getByLabelText("隐私锁定密码")).toBeInTheDocument();
+});
+
+it("routes wheel input from the settings panel to its scroll region", () => {
+  renderSettings();
+  const panel = screen.getByRole("dialog", { name: "设置" });
+  const body = screen.getByLabelText("设置内容");
+  Object.defineProperties(body, {
+    clientHeight: { configurable: true, value: 400 },
+    scrollHeight: { configurable: true, value: 1200 },
+  });
+
+  const wheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 240 });
+  fireEvent(panel, wheel);
+
+  expect(body.scrollTop).toBe(240);
+  expect(wheel.defaultPrevented).toBe(true);
+});
+
+it("supports keyboard paging without trapping wheel input at a scroll boundary", () => {
+  renderSettings();
+  const panel = screen.getByRole("dialog", { name: "设置" });
+  const body = screen.getByLabelText("设置内容");
+  Object.defineProperties(body, {
+    clientHeight: { configurable: true, value: 400 },
+    scrollHeight: { configurable: true, value: 1200 },
+  });
+
+  fireEvent.keyDown(body, { key: "PageDown" });
+  expect(body.scrollTop).toBe(352);
+  fireEvent.keyDown(body, { key: "End" });
+  expect(body.scrollTop).toBe(1200);
+  expect(screen.getByRole("button", { name: "维护" })).toHaveAttribute("aria-current", "page");
+
+  body.scrollTop = 800;
+  const boundaryWheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 120 });
+  fireEvent(panel, boundaryWheel);
+  expect(body.scrollTop).toBe(800);
+  expect(boundaryWheel.defaultPrevented).toBe(false);
 });

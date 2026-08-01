@@ -8,10 +8,9 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "isolatedModules": true,
-    "resolveJsonModule": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "types": ["vitest/globals"]
   },
-  "include": ["src", "resources/locales/**/*.json"]
+  "include": ["src"]
 }

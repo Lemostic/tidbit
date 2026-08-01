@@ -44,6 +44,8 @@ fn round_trip_note_serializes() {
         updated_at: Utc::now().timestamp_millis(),
         color: Some("#ff0000".into()),
         sort_order: 0,
+        tags: Vec::new(),
+        reminder: None,
     };
     let s = serde_json::to_string(&n).unwrap();
     let n2: Note = serde_json::from_str(&s).unwrap();

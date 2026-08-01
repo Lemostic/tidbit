@@ -2,20 +2,6 @@ use crate::domain::Group;
 use crate::error::AppError;
 use crate::infra::db::Pool;
 use chrono::Utc;
-use rusqlite::OptionalExtension;
-
-pub const GROUP_COLOR_PALETTE: [&str; 8] = [
-    "#EA4D64", "#F47A2A", "#E6AE16", "#18A66A", "#0E9FA0", "#3478D4", "#6C63D9", "#D94C8A",
-];
-
-fn random_group_color(previous: Option<&str>) -> &'static str {
-    let candidates = GROUP_COLOR_PALETTE
-        .iter()
-        .copied()
-        .filter(|color| Some(*color) != previous)
-        .collect::<Vec<_>>();
-    candidates[rand::random::<u64>() as usize % candidates.len()]
-}
 
 pub struct GroupRepo {
     pool: Pool,
@@ -53,15 +39,7 @@ impl GroupRepo {
     pub fn create(&self, name: &str) -> Result<Group, AppError> {
         let now = Utc::now().timestamp_millis();
         let conn = self.pool.get()?;
-        let previous_color = conn
-            .query_row(
-                "SELECT COALESCE(background_color, color) FROM `group` ORDER BY id DESC LIMIT 1",
-                [],
-                |row| row.get::<_, Option<String>>(0),
-            )
-            .optional()?
-            .flatten();
-        let default_color = random_group_color(previous_color.as_deref());
+        let default_color = "#3d86d8";
         conn.execute(
             "INSERT INTO `group`(name, color, background_color, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params![name, default_color, default_color, now, now],

@@ -1,8 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { NoteCard } from "../features/notes/NoteCard";
 import type { Note } from "../ipc/types";
-import { saveNoteCopyFormat } from "../ui/noteCopy";
 
 class ResizeObserverMock {
   observe() {}
@@ -11,12 +10,6 @@ class ResizeObserverMock {
 }
 
 beforeAll(() => { vi.stubGlobal("ResizeObserver", ResizeObserverMock); });
-const writeText = vi.fn(async () => undefined);
-beforeEach(() => {
-  writeText.mockClear();
-  localStorage.clear();
-  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
-});
 
 const hiddenNote: Note = {
   id: 7,
@@ -42,35 +35,26 @@ const hiddenNote: Note = {
 };
 
 describe("NoteCard privacy", () => {
-  it("uses the shared Markdown typography for rendered content", () => {
-    const { container } = render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_html: "<ol><li><p>第一步</p></li></ol>" }} onOpen={() => {}} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
-    expect(container.querySelector(".note-card__content")).toHaveClass("markdown-body");
-    expect(screen.getByText("第一步")).toBeInTheDocument();
-  });
-
-  it("copies the Markdown source without opening the note", async () => {
+  it("opens from the card surface and keyboard without bubbling from nested controls", () => {
     const onOpen = vi.fn();
-    render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_md: "1. 第一步" }} onOpen={onOpen} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "复制便签内容" }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("1. 第一步"));
-    expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
-    expect(onOpen).not.toHaveBeenCalled();
+    render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false }} onOpen={onOpen} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
+
+    const card = screen.getByRole("article", { name: "打开便签：机密计划" });
+    fireEvent.click(screen.getByText("机密计划"));
+    fireEvent.keyDown(card, { key: "Enter" });
+    expect(onOpen).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "置顶" }));
+    expect(onOpen).toHaveBeenCalledTimes(2);
   });
 
-  it("copies formatted plain text when that preference is selected", async () => {
-    saveNoteCopyFormat("plain");
-    render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_md: "1. **第一步**", content_html: "<ol><li><strong>第一步</strong></li></ol>" }} onOpen={() => {}} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "复制便签内容" }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("1. 第一步"));
-  });
-
-  it("masks hidden note content while preserving its title", () => {
+  it("masks hidden note content until the eye action is used", () => {
     const onToggleVisibility = vi.fn();
     render(<NoteCard note={hiddenNote} onOpen={() => {}} onTogglePin={() => {}} onToggleVisibility={onToggleVisibility} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
-    expect(screen.getByText("机密计划")).toBeInTheDocument();
+    expect(screen.getByText("隐私便签")).toBeInTheDocument();
     expect(screen.getByText("该条便签内容已加密")).toBeInTheDocument();
+    expect(screen.queryByText("机密计划")).not.toBeInTheDocument();
     expect(screen.queryByText("不能显示")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "复制便签内容" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "显示内容" }));
     expect(onToggleVisibility).toHaveBeenCalledOnce();
   });
@@ -106,5 +90,38 @@ describe("NoteCard privacy", () => {
     expect(onOpen).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "置顶" }));
     expect(onTogglePin).toHaveBeenCalledOnce();
+  });
+
+  it("plays an embedded voice memo without opening the editor", () => {
+    const onOpen = vi.fn();
+    const content_html = '<div data-audio-recording="true" data-name="晨会" data-duration-ms="1000"><span data-audio-name="true">晨会</span><audio controls src="data:audio/webm;base64,dm9pY2U="></audio></div>';
+    const { container } = render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_html }} onOpen={onOpen} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
+    const audio = container.querySelector("audio");
+    expect(audio).not.toBeNull();
+    fireEvent.click(audio!);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("checks a task directly without opening the editor", () => {
+    const onOpen = vi.fn();
+    const onToggleTask = vi.fn(async () => undefined);
+    const taskHtml = '<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p>提交周报</p></div></li></ul>';
+    render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_md: "- [ ] 提交周报", content_html: taskHtml }} onOpen={onOpen} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} onToggleTask={onToggleTask} />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "标记待办为已完成" }));
+    expect(onToggleTask).toHaveBeenCalledWith(0, true);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("renders a timeline card as part of the note preview", () => {
+    const timelineHtml = '<div data-timeline-card="true"><ol data-timeline-items="true"><li data-timeline-item="true" data-datetime="2026-08-01T09:30"><time data-timeline-date="true" datetime="2026-08-01T09:30">2026-08-01 09:30</time><div data-timeline-content="true"><strong data-timeline-item-title="true">开始内测</strong><p data-timeline-item-description="true">邀请首批用户</p></div></li><li data-timeline-item="true" data-datetime="2026-08-15T14:00"><time data-timeline-date="true" datetime="2026-08-15T14:00">2026-08-15 14:00</time><div data-timeline-content="true"><strong data-timeline-item-title="true">正式发布</strong></div></li></ol></div>';
+    const { container } = render(<NoteCard note={{ ...hiddenNote, is_content_hidden: false, content_html: timelineHtml }} onOpen={() => {}} onTogglePin={() => {}} onToggleVisibility={() => {}} onToggleArchive={() => {}} onWander={() => {}} onTrash={() => {}} />);
+
+    expect(container.querySelector("[data-timeline-header]")).not.toBeInTheDocument();
+    expect(container.querySelectorAll('[data-timeline-item="true"]')).toHaveLength(2);
+    expect(screen.getByText("2026-08-01 09:30")).toBeInTheDocument();
+    expect(screen.getByText("开始内测")).toBeInTheDocument();
+    expect(screen.getByText("邀请首批用户")).toBeInTheDocument();
+    expect(screen.getByText("正式发布")).toBeInTheDocument();
   });
 });

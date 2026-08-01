@@ -1,18 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { CaretDown, CaretUp, Check, Cloud, Copy, LockKey, ToggleLeft, ToggleRight, X } from "@phosphor-icons/react";
+import { CaretDown, CaretUp, Cloud, LockKey, ToggleLeft, ToggleRight, X } from "@phosphor-icons/react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Note } from "../../ipc/types";
 import type { Group } from "../../ipc/types";
 import { applyFontPreferences, loadFontPreferences } from "../../ui/fontPreferences";
 import { appearanceChangedEvent, applyAppearance, loadAppearance, type AppearancePreferences } from "../../ui/appearance";
-import { copyText } from "../../ui/clipboard";
-import { formatNoteForCopy, loadNoteCopyFormat } from "../../ui/noteCopy";
 import { sanitizeNoteHtml } from "./sanitizeNoteHtml";
 import { NoteEditor } from "./NoteEditor";
-import { useI18n } from "../../i18n";
+import { toggleTaskContent } from "./taskList";
 
 interface WanderNoteProps {
   noteId: number;
@@ -20,7 +18,6 @@ interface WanderNoteProps {
 }
 
 export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
-  const { t } = useI18n();
   const [note, setNote] = useState<Note | null>(null);
   const [error, setError] = useState(false);
   const [opacity, setOpacity] = useState(initialOpacity);
@@ -28,10 +25,8 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
   const [editing, setEditing] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [titleDraft, setTitleDraft] = useState("");
-  const [copied, setCopied] = useState(false);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const renderedHtml = useMemo(() => sanitizeNoteHtml(note?.content_html ?? ""), [note?.content_html]);
-  const copyFormat = loadNoteCopyFormat();
 
   useEffect(() => {
     applyAppearance(loadAppearance());
@@ -56,29 +51,32 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
     return () => { disposeOpacity?.(); disposeAppearance?.(); disposeUpdated?.(); };
   }, [noteId]);
 
-  useEffect(() => () => {
-    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-  }, []);
+  const resizeKeepingWidth = async (height: number) => {
+    const win = getCurrentWindow();
+    const [size, scaleFactor] = await Promise.all([win.innerSize(), win.scaleFactor()]);
+    const width = scaleFactor > 0 ? size.width / scaleFactor : size.width;
+    await win.setSize(new LogicalSize(width, height));
+  };
 
   const toggleCollapsed = async () => {
     const next = !collapsed;
     if (next) setEditing(false);
     setCollapsed(next);
-    await getCurrentWindow().setSize(new LogicalSize(340, next ? 62 : 360));
+    await resizeKeepingWidth(next ? 62 : 360);
   };
 
   const toggleEditing = async () => {
     const next = !editing;
     if (next && collapsed) {
       setCollapsed(false);
-      await getCurrentWindow().setSize(new LogicalSize(340, 360));
+      await resizeKeepingWidth(360);
     }
     setEditing(next);
   };
 
   const updateTitle = async () => {
     if (!note) return;
-    const next = titleDraft.trim() || t("notes.untitled");
+    const next = titleDraft.trim() || "无标题";
     if (next === (note.title ?? "")) return;
     try {
       const updated = await client.notes.updateTitle(note.id, next);
@@ -93,39 +91,48 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
     await emit("tidbit://note-updated", { id: noteId });
   };
 
-  const copyContent = async () => {
-    if (!note || note.is_content_hidden) return;
+  const toggleTask = async (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.dataset.taskCheckbox !== "true" || !note) return;
+    event.stopPropagation();
+    const inputs = Array.from(contentRef.current?.querySelectorAll<HTMLInputElement>('input[data-task-checkbox="true"]') ?? []);
+    const taskIndex = inputs.indexOf(target);
+    if (taskIndex < 0) return;
+    const checked = target.checked;
+    const update = toggleTaskContent(note.content_md, note.content_html, taskIndex, checked);
+    if (!update) return;
+    const previous = note;
+    setNote({ ...note, content_md: update.markdown, content_html: update.html, word_count: update.words });
     try {
-      await copyText(formatNoteForCopy(note.content_md, renderedHtml, loadNoteCopyFormat()));
-      setCopied(true);
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopied(false), 1400);
+      const updated = await client.notes.updateContent(note.id, update.markdown, update.html, update.words);
+      setNote(updated);
+      await emit("tidbit://note-updated", { id: noteId });
     } catch {
-      setCopied(false);
+      setNote(previous);
+      target.checked = !checked;
     }
   };
 
   return (
     <main className="wander-shell" style={{ "--wander-opacity": opacity / 100 } as React.CSSProperties}>
-      <article className={`wander-card${collapsed ? " is-collapsed" : ""}${opacity >= 100 ? " is-opaque" : ""}`}>
+      <article className={`wander-card${collapsed ? " is-collapsed" : ""}`}>
         <header className="wander-card__head">
           <span data-tauri-drag-region className="wander-card__mark"><Cloud size={15} weight="duotone" /></span>
-          {editing && note ? <input className="wander-card__title-input" aria-label={t("wander.titleInput")} value={titleDraft} onMouseDown={(event) => event.stopPropagation()} onChange={(event) => setTitleDraft(event.target.value)} onBlur={() => void updateTitle()} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /> : <strong data-tauri-drag-region>{note?.title?.trim() || t("wander.title")}</strong>}
-          {note && !editing && <button className={`wander-card__copy${copied ? " is-success" : ""}`} aria-label={copied ? t("notes.copied") : t("notes.copy")} title={note.is_content_hidden ? t("notes.encrypted") : t("notes.copy")} disabled={note.is_content_hidden} onMouseDown={(event) => event.stopPropagation()} onClick={() => void copyContent()}>{copied ? <Check size={14} weight="bold" /> : <Copy size={14} />}</button>}
-          {note && <button className={`wander-card__mode${editing ? " is-active" : ""}`} aria-label={editing ? t("wander.read") : t("wander.edit")} aria-pressed={editing} title={editing ? t("wander.read") : t("wander.edit")} onMouseDown={(event) => event.stopPropagation()} onClick={() => void toggleEditing()}>{editing ? <ToggleRight size={18} weight="fill" /> : <ToggleLeft size={18} />}</button>}
-          <button aria-label={collapsed ? t("wander.expand") : t("wander.collapse")} title={collapsed ? t("wander.expand") : t("wander.collapse")} onMouseDown={(event) => event.stopPropagation()} onClick={() => void toggleCollapsed()}>{collapsed ? <CaretDown size={14} /> : <CaretUp size={14} />}</button>
-          <button aria-label={t("wander.close")} title={t("common.close")} onMouseDown={(event) => event.stopPropagation()} onClick={() => void invoke("wander_close", { noteId })}><X size={14} weight="bold" /></button>
+          {editing && note ? <input className="wander-card__title-input" aria-label="云游便签标题" value={titleDraft} onMouseDown={(event) => event.stopPropagation()} onChange={(event) => setTitleDraft(event.target.value)} onBlur={() => void updateTitle()} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /> : <strong data-tauri-drag-region>{note?.is_content_hidden ? "隐私便签" : note?.title?.trim() || "云游便签"}</strong>}
+          {note && <button className={`wander-card__mode${editing ? " is-active" : ""}`} aria-label={editing ? "切换为只读" : "切换为编辑"} aria-pressed={editing} title={editing ? "只读模式" : "编辑模式"} onMouseDown={(event) => event.stopPropagation()} onClick={() => void toggleEditing()}>{editing ? <ToggleRight size={18} weight="fill" /> : <ToggleLeft size={18} />}</button>}
+          <button aria-label={collapsed ? "展开云游便签" : "折叠云游便签"} title={collapsed ? "展开" : "只显示标题"} onMouseDown={(event) => event.stopPropagation()} onClick={() => void toggleCollapsed()}>{collapsed ? <CaretDown size={14} /> : <CaretUp size={14} />}</button>
+          <button aria-label="关闭云游便签" title="关闭" onMouseDown={(event) => event.stopPropagation()} onClick={() => void invoke("wander_close", { noteId })}><X size={14} weight="bold" /></button>
         </header>
         {!collapsed && <section className={`wander-card__body${editing ? " is-editing" : ""}`}>
           {editing && note ? <NoteEditor note={note} groups={groups} onClose={() => setEditing(false)} onChanged={() => void refreshAfterEdit()} onTrash={async () => undefined} allowTrash={false} embedded /> : <>
-          {error ? <p className="wander-card__state">{t("wander.loadingError")}</p> : !note ? <div className="wander-card__skeleton"><span /><span /><span /></div> : note.is_content_hidden ? (
-            <div className="wander-card__private"><LockKey size={18} /><span>{t("notes.encrypted")}</span></div>
+          {error ? <p className="wander-card__state">便签加载失败</p> : !note ? <div className="wander-card__skeleton"><span /><span /><span /></div> : note.is_content_hidden ? (
+            <div className="wander-card__private"><LockKey size={18} /><span>该条便签内容已加密</span></div>
           ) : renderedHtml ? (
-            <div className="wander-card__content markdown-body" dangerouslySetInnerHTML={{ __html: renderedHtml }} />
-          ) : <p className="wander-card__state">{t("wander.empty")}</p>}
+            <div ref={contentRef} className="wander-card__content" onClick={(event) => void toggleTask(event)} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+          ) : <p className="wander-card__state">暂无正文</p>}
           </>}
         </section>}
-        {!collapsed && !editing && note && <footer className="wander-card__foot"><span>{t("notes.words", { count: note.word_count })}</span><span>#{note.id}</span></footer>}
+        {!collapsed && !editing && note && <footer className="wander-card__foot"><span>{note.word_count} 字</span><span>#{note.id}</span></footer>}
       </article>
     </main>
   );

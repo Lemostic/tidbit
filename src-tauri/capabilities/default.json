@@ -2,15 +2,18 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window-controls",
   "description": "Allow the custom titlebar to move and control the main window.",
-  "windows": ["main", "wander-*", "wander-editor-*"],
+  "windows": ["main", "wander-*", "wander-editor-*", "detach-*"],
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "core:event:allow-emit",
+    "notification:default",
     "core:window:allow-start-dragging",
     "core:window:allow-current-monitor",
+    "core:window:allow-inner-size",
     "core:window:allow-outer-position",
     "core:window:allow-outer-size",
+    "core:window:allow-scale-factor",
     "core:window:allow-set-size",
     "core:window:allow-toggle-maximize"
   ]

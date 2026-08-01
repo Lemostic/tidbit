@@ -1,6 +1,5 @@
 import { ArrowsDownUp, SortAscending, SortDescending } from "@phosphor-icons/react";
 import type { NoteSortField, NoteSortPreference } from "./noteSort";
-import { useI18n } from "../../i18n";
 
 interface NoteSortControlProps {
   preference: NoteSortPreference;
@@ -12,30 +11,33 @@ function naturalDirection(field: NoteSortField): NoteSortPreference["direction"]
 }
 
 export function NoteSortControl({ preference, onChange }: NoteSortControlProps) {
-  const { t } = useI18n();
-  const label = preference.field === "manual" ? t("sort.drag") : preference.field === "title" ? t(preference.direction === "asc" ? "sort.titleAsc" : "sort.titleDesc") : t(preference.direction === "desc" ? "sort.newest" : "sort.oldest");
+  const label = preference.field === "updated_at"
+    ? (preference.direction === "desc" ? "更新时间（新到旧）" : "更新时间（旧到新）")
+    : preference.field === "created_at"
+      ? (preference.direction === "desc" ? "创建时间（新到旧）" : "创建时间（旧到新）")
+      : (preference.direction === "asc" ? "标题（A 到 Z）" : "标题（Z 到 A）");
+
   return (
-    <div className="notes__sortbar" aria-label={t("sort.label")}>
-      <span className="notes__sort-label"><ArrowsDownUp size={13} />{t("sort.label")}</span>
+    <div className="notes__sortbar" aria-label="便签排序">
+      <span className="notes__sort-label"><ArrowsDownUp size={13} />排序</span>
       <select
         className="notes__sort-select"
-        aria-label={t("sort.field")}
+        aria-label="排序字段"
         value={preference.field}
         onChange={(event) => {
           const field = event.target.value as NoteSortField;
           onChange({ field, direction: naturalDirection(field) });
         }}
       >
-        <option value="updated_at">{t("sort.updated")}</option>
-        <option value="created_at">{t("sort.created")}</option>
-        <option value="title">{t("sort.title")}</option>
+        <option value="updated_at">更新时间</option>
+        <option value="created_at">创建时间</option>
+        <option value="title">标题名称</option>
       </select>
       <button
         type="button"
         className="notes__sort-direction"
-        disabled={preference.field === "manual"}
-        aria-label={t("sort.direction", { label })}
-        title={t(preference.field === "manual" ? "sort.dragHint" : "sort.toggleHint")}
+        aria-label={`当前排序：${label}，点击切换方向`}
+        title={`当前排序：${label}，点击切换方向`}
         onClick={() => onChange({ ...preference, direction: preference.direction === "asc" ? "desc" : "asc" })}
       >
         {preference.direction === "asc" ? <SortAscending size={14} /> : <SortDescending size={14} />}

@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
-const WANDER_WIDTH: i32 = 340;
+const WANDER_WIDTH: i32 = 380;
 const WANDER_HEIGHT: i32 = 360;
 const WANDER_MARGIN: i32 = 100;
 const WANDER_GAP: i32 = 16;
@@ -180,7 +180,7 @@ fn wander_ids<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<i64> {
 }
 
 #[tauri::command]
-pub async fn wander_open(app: tauri::AppHandle, note_id: i64, opacity: u8, locale: Option<String>) -> Result<(), AppError> {
+pub async fn wander_open(app: tauri::AppHandle, note_id: i64, opacity: u8) -> Result<(), AppError> {
     let label = format!("wander-{note_id}");
     if let Some(window) = app.get_webview_window(&label) {
         window.show()?;
@@ -195,7 +195,7 @@ pub async fn wander_open(app: tauri::AppHandle, note_id: i64, opacity: u8, local
         &label,
         tauri::WebviewUrl::App(PathBuf::from("index.html")),
     )
-    .title(if locale.as_deref().is_some_and(|value| value.starts_with("en")) { "Floating note" } else { "云游便签" })
+    .title("云游便签")
     .inner_size(WANDER_WIDTH as f64, WANDER_HEIGHT as f64)
     .min_inner_size(260.0, 54.0)
     .decorations(false)

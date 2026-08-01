@@ -1,9 +1,12 @@
 export type WindowMode =
   | { kind: "main" }
   | { kind: "wander"; noteId: number }
-  | { kind: "wander-editor"; noteId: number };
+  | { kind: "wander-editor"; noteId: number }
+  | { kind: "detach"; noteId: number };
 
 export function resolveWindowMode(label: string): WindowMode {
+  const detached = /^detach-(\d+)$/.exec(label);
+  if (detached) return { kind: "detach", noteId: Number(detached[1]) };
   const editor = /^wander-editor-(\d+)$/.exec(label);
   if (editor) return { kind: "wander-editor", noteId: Number(editor[1]) };
   const wander = /^wander-(\d+)$/.exec(label);

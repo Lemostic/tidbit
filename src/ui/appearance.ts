@@ -12,7 +12,8 @@ export interface AppearancePreferences {
 
 function loadTheme(): Theme {
   const stored = localStorage.getItem("theme");
-  return stored === "dark" || stored === "sepia" ? stored : "light";
+  const themes: Theme[] = ["light", "dark", "sepia", "tokyo-night", "wechat"];
+  return themes.includes(stored as Theme) ? stored as Theme : "light";
 }
 
 export function loadAppearance(): AppearancePreferences {

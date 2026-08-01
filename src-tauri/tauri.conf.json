@@ -1,14 +1,33 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "tidbit",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "identifier": "tidbit",
   "build": { "beforeDevCommand": "pnpm dev", "beforeBuildCommand": "pnpm build", "frontendDist": "../dist", "devUrl": "http://localhost:1420" },
   "app": {
     "windows": [
-      { "label": "main", "title": "tidbit", "url": "index.html", "width": 500, "height": 780, "minWidth": 380, "minHeight": 520, "center": true, "decorations": false, "resizable": true, "transparent": true, "shadow": false }
+      { "label": "main", "title": "tidbit", "url": "index.html", "width": 780, "height": 820, "minWidth": 520, "minHeight": 620, "center": true, "decorations": false, "resizable": true, "transparent": true, "shadow": false }
     ],
-    "security": { "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'" }
+    "security": { "csp": "default-src 'self'; img-src 'self' asset: data: http://tidbit-img.localhost http://asset.localhost; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'" }
   },
-  "bundle": { "active": true, "targets": ["nsis", "msi"], "icon": ["icons/icon.ico", "icons/icon.png"] }
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "windows": {
+      "nsis": {
+        "languages": ["SimpChinese", "English"],
+        "customLanguageFiles": {
+          "SimpChinese": "./windows/nsis/SimpChinese.nsh"
+        }
+      },
+      "wix": {
+        "language": {
+          "zh-CN": {
+            "localePath": "./windows/wix/zh-CN.wxl"
+          }
+        }
+      }
+    }
+  }
 }

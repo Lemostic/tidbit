@@ -1,14 +1,19 @@
 import { Check, PushPin, Trash, X } from "@phosphor-icons/react";
+import ImageExtension from "@tiptap/extension-image";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import TaskItem from "@tiptap/extension-task-item";
+import TaskList from "@tiptap/extension-task-list";
 import { Markdown } from "tiptap-markdown";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Group, Note } from "../../ipc/types";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
-import { configurableColors, readableTextColor } from "../../ui/colorPalette";
+import { AudioRecording } from "./AudioRecording";
+import { codeLowlight } from "./codeHighlighting";
 import { EditorToolbar } from "./EditorToolbar";
-import { useI18n } from "../../i18n";
+import { TimelineCard } from "./TimelineCard";
 
 interface NoteEditorProps {
   note: Note;
@@ -21,13 +26,28 @@ interface NoteEditorProps {
   embedded?: boolean;
 }
 
+const colors = [null, "#d75b57", "#d5a23f", "#4e9b75", "#4c86b8"] as const;
+function datetimeValue(timestamp?: number) { if (!timestamp) return ""; const date = new Date(timestamp); return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
+
+function getStandaloneWebUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || /\s/.test(trimmed)) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
 export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false }: NoteEditorProps) {
-  const { t } = useI18n();
   const [current, setCurrent] = useState(note);
   const [title, setTitle] = useState(note.title ?? "");
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
 
@@ -50,9 +70,44 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   }, [note.id, onChanged]);
 
   const editor = useEditor({
-    extensions: [StarterKit, Markdown.configure({ html: true, transformPastedText: true })],
-    content: note.content_md,
-    editorProps: { attributes: { "aria-label": t("editor.content"), class: "markdown-body" } },
+    extensions: [
+      StarterKit.configure({ codeBlock: false }),
+      CodeBlockLowlight.configure({ lowlight: codeLowlight }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      ImageExtension.configure({ inline: false, allowBase64: true }),
+      AudioRecording,
+      TimelineCard,
+      Markdown.configure({ html: true, transformPastedText: true }),
+    ],
+    content: note.content_html || note.content_md,
+    editorProps: {
+      attributes: { "aria-label": "便签内容" },
+      handlePaste(view, event) {
+        if (view.state.selection.$from.parent.type.spec.code) return false;
+        const image = Array.from(event.clipboardData?.items ?? []).find((item) => item.type.startsWith("image/"));
+        if (image) {
+          const file = image.getAsFile();
+          if (file) {
+            void file.arrayBuffer().then((buffer) => client.attachments.save(note.id, file.name || "pasted-image", file.type, Array.from(new Uint8Array(buffer))))
+              .then((attachment) => { const node = view.state.schema.nodes.image?.create({ src: attachment.url, alt: file.name }); if (node) view.dispatch(view.state.tr.replaceSelectionWith(node).scrollIntoView()); })
+              .catch(() => setStatus("error"));
+            return true;
+          }
+        }
+        const rawText = event.clipboardData?.getData("text/plain") ?? "";
+        const url = getStandaloneWebUrl(rawText);
+        const link = view.state.schema.marks.link;
+        if (!url || !link || rawText === url) return false;
+
+        const transaction = view.state.tr.replaceSelectionWith(
+          view.state.schema.text(url, [link.create({ href: url })]),
+          false,
+        );
+        view.dispatch(transaction.scrollIntoView());
+        return true;
+      },
+    },
     onUpdate({ editor: instance }) {
       dirtyRef.current = true;
       setStatus("saving");
@@ -67,7 +122,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   }, [editor, flush]);
 
   const updateTitle = async () => {
-    const next = title.trim() || t("notes.untitled");
+    const next = title.trim() || "无标题";
     if (next === (current.title ?? "")) return;
     setTitle(next);
     setStatus("saving");
@@ -87,71 +142,89 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
     } catch { setStatus("error"); }
   };
 
+  const saveTags = async (value: string) => {
+    const tags = value.split(/[\\s,，]+/).map((tag) => tag.trim()).filter(Boolean);
+    try { setCurrent(await client.notes.setTags(current.id, tags)); onChanged(); } catch { setStatus("error"); }
+  };
+
+  const insertImage = async (file: File) => {
+    if (!editor || !file.type.startsWith("image/")) return;
+    try {
+      const attachment = await client.attachments.save(current.id, file.name || "image", file.type, Array.from(new Uint8Array(await file.arrayBuffer())));
+      editor.chain().focus().setImage({ src: attachment.url, alt: file.name }).run();
+    } catch { setStatus("error"); }
+  };
+
   const panel = (
-      <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-label={t("editor.label")}>
+      <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-modal={embedded ? undefined : true} aria-label="编辑便签" onClick={(event) => event.stopPropagation()}>
         {!embedded && <header className="note-editor__head">
           <span data-tauri-drag-region={desktopWindow ? true : undefined} className="note-editor__accent" style={{ background: current.color ?? "var(--accent)" }} />
           <input
             className="note-editor__title"
             value={title}
-            aria-label={t("editor.title")}
-            placeholder={t("notes.untitled")}
+            aria-label="便签标题"
+            placeholder="无标题"
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => void updateTitle()}
             onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
           />
           <button
             className={`btn-icon${current.is_pinned ? " is-selected" : ""}`}
-            aria-label={current.is_pinned ? t("notes.unpin") : t("notes.pin")}
-            title={current.is_pinned ? t("notes.unpin") : t("notes.pin")}
+            aria-label={current.is_pinned ? "取消置顶" : "置顶"}
+            title={current.is_pinned ? "取消置顶" : "置顶"}
             onClick={() => void mutate(client.notes.setPinned(current.id, !current.is_pinned))}
           ><PushPin size={16} weight={current.is_pinned ? "fill" : "regular"} /></button>
-          <button className="btn-icon" aria-label={t("common.close")} title={t("common.close")} onClick={onClose}><X size={16} weight="bold" /></button>
+          <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>
         </header>}
 
         <div className="note-editor__options">
           <select
             className="select note-editor__group"
-            aria-label={t("editor.moveGroup")}
+            aria-label="移动到分组"
             value={current.group_id ?? ""}
             onChange={(e) => void mutate(client.notes.moveGroup(current.id, e.target.value ? Number(e.target.value) : null))}
           >
-            <option value="">{t("groups.allNotes")}</option>
+            <option value="">全部便签</option>
             {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
-          <div className="color-swatches" aria-label={t("editor.color")}>
-            {configurableColors.map((color) => (
+          <div className="color-swatches" aria-label="便签颜色">
+            {colors.map((color) => (
               <button
-                key={color.name}
-                className={`color-swatch${current.color === color.value ? " is-active" : ""}`}
-                style={{ background: color.value ?? "var(--surface-2)", color: color.value ? readableTextColor(color.value) : "var(--fg)" }}
-                onClick={() => void mutate(client.notes.setColor(current.id, color.value))}
-                aria-label={color.value ? t("editor.colorChoice", { name: color.name, value: color.value }) : t("editor.defaultColor")}
-                title={color.name}
-              >{current.color === color.value && <Check size={11} weight="bold" />}</button>
+                key={color ?? "default"}
+                className={`color-swatch${current.color === color ? " is-active" : ""}`}
+                style={{ background: color ?? "var(--surface-2)" }}
+                onClick={() => void mutate(client.notes.setColor(current.id, color))}
+                aria-label={color ? `设置颜色 ${color}` : "使用默认颜色"}
+                title={color ? "设置便签颜色" : "默认颜色"}
+              >{current.color === color && <Check size={11} weight="bold" />}</button>
             ))}
+          </div>
+          <div className="note-editor__tags" aria-label="便签标签">
+            {(current.tags ?? []).map((tag) => <button type="button" className="note-tag" key={tag} onClick={() => void saveTags((current.tags ?? []).filter((item) => item !== tag).join(","))}>{tag} <X size={10} /></button>)}
+            <input aria-label="添加标签" value={tagDraft} placeholder="添加标签" onChange={(event) => setTagDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); void saveTags([...(current.tags ?? []), tagDraft].join(",")); setTagDraft(""); } }} onBlur={() => { if (tagDraft.trim()) { void saveTags([...(current.tags ?? []), tagDraft].join(",")); setTagDraft(""); } }} />
           </div>
         </div>
 
-        {editor && <EditorToolbar editor={editor} />}
+        {editor && <><EditorToolbar editor={editor} onInsertImage={() => fileInputRef.current?.click()} /><input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void insertImage(file); event.currentTarget.value = ""; }} /></>}
         <EditorContent editor={editor} className="editor-content" />
 
         <footer className="note-editor__status mono">
-          <span className={`save-status save-status--${status}`}>{t(status === "saving" ? "editor.saving" : status === "error" ? "editor.saveError" : "editor.saved")}</span>
-          <span>{t("notes.words", { count: current.word_count })}</span>
-          {allowTrash && <button className="editor-trash" onClick={() => setConfirmingDelete(true)}><Trash size={14} /> {t("common.delete")}</button>}
+          <label className="note-editor__reminder"><span>提醒</span><input aria-label="提醒时间" type="datetime-local" value={datetimeValue(current.reminder?.remind_at)} onChange={(event) => void mutate(client.notes.setReminder(current.id, event.target.value ? new Date(event.target.value).getTime() : null))} />{current.reminder && <button type="button" aria-label="清除提醒" title="清除提醒" onClick={() => void mutate(client.notes.setReminder(current.id, null))}><X size={11} /></button>}</label>
+          <span className={`save-status save-status--${status}`}>{status === "saving" ? "正在保存" : status === "error" ? "保存失败" : "已保存"}</span>
+          <span>{current.word_count} 字</span>
+          {allowTrash && <button className="editor-trash" onClick={() => setConfirmingDelete(true)}><Trash size={14} /> 删除</button>}
         </footer>
       </section>
   );
 
   return (
     <>
-    {embedded ? panel : <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
+    {embedded ? panel : <div className="modal-scrim" onKeyDown={(event) => { if (event.key === "Escape" && !confirmingDelete) { event.stopPropagation(); onClose(); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
     {allowTrash && <ConfirmDialog
       open={confirmingDelete}
-      title={t("notes.deleteTitle")}
-      description={t("notes.deleteDescription", { title: current.title?.trim() || t("notes.untitled") })}
-      confirmAriaLabel={t("notes.confirmDelete")}
+      title="删除这条便签？"
+      description={`「${current.title?.trim() || "无标题"}」将被移到回收站，可以稍后恢复。`}
+      confirmAriaLabel="确认删除便签"
       busy={deleting}
       onCancel={() => setConfirmingDelete(false)}
       onConfirm={async () => {
