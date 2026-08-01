@@ -1,5 +1,60 @@
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, UriSchemeContext};
 use tauri_plugin_notification::NotificationExt;
+
+fn attachment_mime(ext: &str) -> &'static str {
+    match ext {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "bmp" => "image/bmp",
+        _ => "application/octet-stream",
+    }
+}
+
+fn serve_attachment<R: tauri::Runtime>(
+    ctx: UriSchemeContext<'_, R>,
+    request: tauri::http::Request<Vec<u8>>,
+) -> tauri::http::Response<Vec<u8>> {
+    let not_found = || -> tauri::http::Response<Vec<u8>> {
+        tauri::http::Response::builder()
+            .status(404)
+            .body(Vec::new())
+            .expect("static response")
+    };
+    let Some(data_dir) = ctx.app_handle().try_state::<data_directory::DataDirectory>() else {
+        return not_found();
+    };
+    let path = request.uri().path().trim_start_matches('/');
+    let Some((note_id, stored_name)) = path.split_once('/') else {
+        return not_found();
+    };
+    if note_id.is_empty()
+        || note_id.bytes().any(|byte| !byte.is_ascii_digit())
+        || !stored_name.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte))
+    {
+        return not_found();
+    }
+    let file = data_dir
+        .0
+        .join("attachments")
+        .join(note_id)
+        .join(stored_name);
+    let bytes = match std::fs::read(&file) {
+        Ok(bytes) => bytes,
+        Err(_) => return not_found(),
+    };
+    let ext = file
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("");
+    tauri::http::Response::builder()
+        .status(200)
+        .header("Content-Type", attachment_mime(ext))
+        .header("Cache-Control", "private, max-age=31536000, immutable")
+        .body(bytes)
+        .expect("static response")
+}
 
 pub mod autostart;
 pub mod data_directory;
@@ -32,6 +87,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        .register_uri_scheme_protocol("tidbit-img", serve_attachment)
         .setup(|app| {
             let default_dir = app.path().app_data_dir().expect("appdata");
             let dir = data_directory::resolve(&default_dir)?;
@@ -49,6 +105,7 @@ pub fn run() {
             }
             let pool = infra::db::open(&db_path, "devkey")?;
             infra::migrations::run(&pool)?;
+            infra::migrations::migrate_attachment_protocol_urls(&pool)?;
             let state = state::AppState::new(pool.clone());
             app.manage(state);
             app.manage(data_directory::DataDirectory(dir.clone()));

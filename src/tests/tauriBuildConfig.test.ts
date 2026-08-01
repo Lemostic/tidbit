@@ -43,6 +43,13 @@ describe("Tauri production build", () => {
     expect(config.app.security.csp).toContain("script-src 'self'");
   });
 
+  test("allows pasted and stored images through data and tidbit-img sources", () => {
+    const configPath = resolve(process.cwd(), "src-tauri/tauri.conf.json");
+    const config = JSON.parse(readFileSync(configPath, "utf8")) as { app: { security: { csp: string } } };
+    expect(config.app.security.csp).toContain("img-src 'self' asset: data: tidbit-img:");
+    expect(config.app.security.csp).toContain("default-src 'self'");
+  });
+
   test("allows detached notes to read and update their window size when collapsing", () => {
     const capabilityPath = resolve(process.cwd(), "src-tauri/capabilities/default.json");
     const capability = JSON.parse(readFileSync(capabilityPath, "utf8")) as { permissions: string[] };

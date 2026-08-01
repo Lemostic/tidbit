@@ -2,7 +2,6 @@ use crate::data_directory::DataDirectory;
 use crate::domain::Attachment;
 use crate::error::AppError;
 use crate::state::AppState;
-use base64::Engine;
 use tauri::State;
 
 const MAX_IMAGE_BYTES: usize = 20 * 1024 * 1024;
@@ -32,11 +31,7 @@ pub async fn attachments_save(
     let directory = data_dir.0.join("attachments").join(note_id.to_string());
     std::fs::create_dir_all(&directory)?;
     std::fs::write(directory.join(&stored_name), &data)?;
-    let url = format!(
-        "data:{};base64,{}",
-        mime,
-        base64::engine::general_purpose::STANDARD.encode(&data)
-    );
+    let url = format!("tidbit-img://{note_id}/{stored_name}");
     state.attachments.create(
         note_id,
         file_name.trim(),

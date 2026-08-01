@@ -54,4 +54,10 @@ describe("sanitizeNoteHtml", () => {
     expect(html).not.toContain("onerror");
     expect(html).not.toContain("style");
   });
+
+  it("keeps tidbit-img attachment URLs and rejects traversal paths", () => {
+    const html = sanitizeNoteHtml('<img src="tidbit-img://12/abc-123.png" alt="截图"><img src="tidbit-img://12/../secret.png" alt="越权">');
+    expect(html).toContain('src="tidbit-img://12/abc-123.png"');
+    expect(html).not.toContain("../secret");
+  });
 });
