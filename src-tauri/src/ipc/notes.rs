@@ -14,9 +14,10 @@ pub async fn reminders_set(
     state: State<'_, AppState>,
     id: i64,
     remind_at: Option<i64>,
+    repeat_rule: Option<String>,
 ) -> Result<Note, AppError> {
     state.notes.get(id)?;
-    state.reminders.set(id, remind_at)?;
+    state.reminders.set(id, remind_at, repeat_rule.as_deref())?;
     attach_tags(&state, state.notes.get(id)?)
 }
 

@@ -826,6 +826,41 @@ select:disabled {
 .note-editor__reminder { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; }
 .note-editor__reminder input { width: 142px; border: 0; background: transparent; color: var(--fg-muted); font: inherit; }
 .note-editor__reminder button { display: inline-grid; place-items: center; color: var(--fg-muted); }
+.note-editor__repeat {
+  max-width: 58px;
+  padding: 1px 2px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 10px;
+}
+.note-editor__snooze { position: relative; }
+.note-editor__snooze-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 12;
+  display: grid;
+  gap: 2px;
+  min-width: 118px;
+  padding: 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+.note-editor__snooze-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 5px;
+  text-align: left;
+  color: var(--fg);
+  font-size: 11px;
+}
+.note-editor__snooze-menu button:hover { background: var(--accent-soft); color: var(--accent); }
 
 .notes__empty {
   margin: 12px 14px 18px;
@@ -2387,3 +2422,29 @@ input[type="range"] { accent-color: var(--accent); }
   line-height: 1.45;
 }
 .history-panel__footer .btn { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---- Search highlight & scope filters ---- */
+.search-result__mark {
+  padding: 0 1px;
+  border-radius: 2px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.palette__filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 42%, transparent);
+}
+.palette__filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--fg-muted);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.palette__filter-check input { accent-color: var(--accent); }
+.palette__filters .select { min-width: 96px; height: 24px; font-size: 10.5px; }

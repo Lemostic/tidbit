@@ -58,7 +58,7 @@ export const client = {
     restoreRevision: (id: number, revisionId: number) =>
       invoke<Note>("notes_restore_revision", { id, revisionId }).then(n => noteSchema.parse(n)),
     setTags: (id: number, tags: string[]) => invoke<Note>("notes_set_tags", { id, tags }).then(n => noteSchema.parse(n)),
-    setReminder: (id: number, remindAt: number | null) => invoke<Note>("reminders_set", { id, remindAt }).then(n => noteSchema.parse(n)),
+    setReminder: (id: number, remindAt: number | null, repeatRule?: string | null) => invoke<Note>("reminders_set", { id, remindAt, repeatRule: repeatRule ?? null }).then(n => noteSchema.parse(n)),
   },
   tags: {
     list: () => invoke<string[]>("tags_list"),

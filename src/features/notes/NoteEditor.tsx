@@ -1,4 +1,4 @@
-import { Check, ClockCounterClockwise, PushPin, Trash, X } from "@phosphor-icons/react";
+import { Check, ClockClockwise, ClockCounterClockwise, PushPin, Trash, X } from "@phosphor-icons/react";
 import ImageExtension from "@tiptap/extension-image";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -49,6 +49,8 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   const [deleting, setDeleting] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
+  const [repeatRule, setRepeatRule] = useState<string | null>(() => current.reminder?.repeat_rule ?? null);
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
@@ -149,6 +151,50 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
     try { setCurrent(await client.notes.setTags(current.id, tags)); onChanged(); } catch { setStatus("error"); }
   };
 
+  const applyReminder = async (remindAt: number | null, rule: string | null) => {
+    try {
+      const updated = await client.notes.setReminder(current.id, remindAt, rule);
+      setCurrent(updated);
+      setRepeatRule(updated.reminder?.repeat_rule ?? null);
+      onChanged();
+    } catch { setStatus("error"); }
+  };
+
+  const snoozeOptions: { label: string; minutes: number }[] = [
+    { label: "5 分钟后", minutes: 5 },
+    { label: "15 分钟后", minutes: 15 },
+    { label: "1 小时后", minutes: 60 },
+    { label: "明天上午 9 点", minutes: 0 },
+  ];
+
+  const snooze = (option: { label: string; minutes: number }) => {
+    setSnoozeOpen(false);
+    let next: number;
+    if (option.minutes > 0) {
+      next = Date.now() + option.minutes * 60_000;
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(9, 0, 0, 0);
+      next = tomorrow.getTime();
+    }
+    void applyReminder(next, repeatRule);
+  };
+
+  const repeatRuleOptions: { value: string; label: string }[] = [
+    { value: "", label: "不重复" },
+    { value: "daily", label: "每天" },
+    { value: "weekly", label: "每周" },
+    { value: "monthly", label: "每月" },
+    { value: "yearly", label: "每年" },
+  ];
+
+  const onRepeatChange = (freq: string) => {
+    const rule = freq ? JSON.stringify({ freq, interval: 1 }) : null;
+    const at = current.reminder?.remind_at;
+    void applyReminder(at ?? null, rule);
+  };
+
   const insertImage = async (file: File) => {
     if (!editor || !file.type.startsWith("image/")) return;
     try {
@@ -235,7 +281,29 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
         <EditorContent editor={editor} className="editor-content" />
 
         <footer className="note-editor__status mono">
-          <label className="note-editor__reminder"><span>提醒</span><input aria-label="提醒时间" type="datetime-local" value={datetimeValue(current.reminder?.remind_at)} onChange={(event) => void mutate(client.notes.setReminder(current.id, event.target.value ? new Date(event.target.value).getTime() : null))} />{current.reminder && <button type="button" aria-label="清除提醒" title="清除提醒" onClick={() => void mutate(client.notes.setReminder(current.id, null))}><X size={11} /></button>}</label>
+          <label className="note-editor__reminder">
+            <span>提醒</span>
+            <input aria-label="提醒时间" type="datetime-local" value={datetimeValue(current.reminder?.remind_at)} onChange={(event) => void applyReminder(event.target.value ? new Date(event.target.value).getTime() : null, repeatRule)} />
+            <select
+              className="note-editor__repeat"
+              aria-label="重复规则"
+              value={repeatRule ? (JSON.parse(repeatRule).freq as string) : ""}
+              onChange={(e) => onRepeatChange(e.target.value)}
+            >
+              {repeatRuleOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+            {current.reminder && (
+              <>
+                <button type="button" className="note-editor__snooze" aria-label="稍后提醒" title="稍后提醒" onClick={() => setSnoozeOpen((v) => !v)}><ClockClockwise size={13} /></button>
+                <button type="button" aria-label="清除提醒" title="清除提醒" onClick={() => { setSnoozeOpen(false); void applyReminder(null, null); }}><X size={11} /></button>
+              </>
+            )}
+            {snoozeOpen && (
+              <div className="note-editor__snooze-menu" role="menu" aria-label="稍后提醒">
+                {snoozeOptions.map((opt) => <button key={opt.label} role="menuitem" onClick={() => snooze(opt)}>{opt.label}</button>)}
+              </div>
+            )}
+          </label>
           <span className={`save-status save-status--${status}`}>{status === "saving" ? "正在保存" : status === "error" ? "保存失败" : "已保存"}</span>
           <span>{current.word_count} 字</span>
           {allowTrash && <button className="editor-trash" onClick={() => setConfirmingDelete(true)}><Trash size={14} /> 删除</button>}

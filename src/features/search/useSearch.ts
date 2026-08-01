@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { SearchProvider } from "./SearchProvider";
+import { SearchProvider, type SearchOptions } from "./SearchProvider";
 
 export type { SearchHit as Hit } from "./SearchProvider";
 
@@ -8,11 +8,11 @@ export function useSearch() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    const query = useCallback(async (q: string) => {
+    const query = useCallback(async (q: string, options?: SearchOptions) => {
         setLoading(true);
         setError("");
         try {
-            setHits(await SearchProvider.query(q));
+            setHits(await SearchProvider.query(q, options));
         } catch {
             setHits([]);
             setError("搜索失败，请稍后重试");

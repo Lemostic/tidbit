@@ -9,5 +9,5 @@ beforeEach(() => { invoke.mockReset(); invoke.mockResolvedValue(note); });
 it("sets a reminder from the editor", async () => {
   render(<NoteEditor note={note} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />);
   fireEvent.change(screen.getByLabelText("提醒时间"), { target: { value: "2030-01-02T10:30" } });
-  await waitFor(() => expect(invoke).toHaveBeenCalledWith("reminders_set", { id: 3, remindAt: new Date("2030-01-02T10:30").getTime() }));
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("reminders_set", { id: 3, remindAt: new Date("2030-01-02T10:30").getTime(), repeatRule: null }));
 });

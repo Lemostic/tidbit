@@ -2,6 +2,7 @@ import { Command as CommandIcon, FileText, MagnifyingGlass, X } from "@phosphor-
 import { useEffect, useMemo, useState } from "react";
 import { SearchResults } from "../features/search/SearchResults";
 import { useSearch } from "../features/search/useSearch";
+import { client } from "../ipc/client";
 
 export type Command = {
   id: string;
@@ -23,6 +24,9 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const [tab, setTab] = useState<"commands" | "search">("commands");
+  const [searchTag, setSearchTag] = useState<string | null>(null);
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const { hits, loading, error, query, clear } = useSearch();
   const filtered = useMemo(
     () => commands.filter((command) => command.title.toLowerCase().includes(q.toLowerCase())),
@@ -34,17 +38,26 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
     setQ("");
     setActive(0);
     setTab("commands");
+    setSearchTag(null);
+    setIncludeArchived(false);
     clear();
   }, [open, clear]);
+
+  useEffect(() => {
+    void client.tags.list().then(setAvailableTags).catch(() => setAvailableTags([]));
+  }, []);
 
   useEffect(() => {
     if (!open || !q.trim()) {
       clear();
       return;
     }
-    const timer = window.setTimeout(() => void query(q.trim()), 180);
+    const timer = window.setTimeout(
+      () => void query(q.trim(), { tag: searchTag ?? undefined, includeArchived }),
+      180,
+    );
     return () => window.clearTimeout(timer);
-  }, [open, q, query, clear]);
+  }, [open, q, query, clear, searchTag, includeArchived]);
 
   useEffect(() => { setActive(0); }, [q, tab]);
   if (!open) return null;
@@ -88,6 +101,23 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
 
         {tab === "search" ? (
           <div className="palette__content">
+            <div className="palette__filters" aria-label="搜索范围">
+              <label className="palette__filter-check">
+                <input type="checkbox" checked={includeArchived} onChange={(e) => setIncludeArchived(e.target.checked)} />
+                <span>包含归档</span>
+              </label>
+              {availableTags.length > 0 && (
+                <select
+                  className="select"
+                  aria-label="按标签筛选"
+                  value={searchTag ?? ""}
+                  onChange={(e) => setSearchTag(e.target.value || null)}
+                >
+                  <option value="">全部标签</option>
+                  {availableTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+                </select>
+              )}
+            </div>
             {loading ? <div className="skeleton-list"><span /><span /><span /></div> : error ? <div className="inline-error">{error}</div> : (
               <SearchResults hits={hits} onOpen={(id) => { onOpenNote?.(id); onClose(); }} />
             )}

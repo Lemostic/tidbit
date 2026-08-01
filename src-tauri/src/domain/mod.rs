@@ -8,6 +8,6 @@ pub mod tag;
 pub use attachment::Attachment;
 pub use group::Group;
 pub use note::{EdgeDock, Note};
-pub use reminder::{DueReminder, ReminderLite};
+pub use reminder::{DueReminder, Frequency, RepeatRule, ReminderLite};
 pub use revision::Revision;
 pub use tag::Tag;

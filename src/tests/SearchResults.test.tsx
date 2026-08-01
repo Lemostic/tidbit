@@ -1,11 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import { SearchResults } from "../features/search/SearchResults";
+import type { SearchHit } from "../features/search/SearchProvider";
+
+function hit(partial: Partial<SearchHit> & { id: number }): SearchHit {
+  return { group_id: null, title: "x", snippet: "abc", terms: [], score: 0, ...partial };
+}
 
 describe("SearchResults", () => {
   it("renders hits", () => {
     render(
       <SearchResults
-        hits={[{ id: 1, group_id: null, title: "x", snippet: "abc" }]}
+        hits={[hit({ id: 1 })]}
         onOpen={() => {}}
       />
     );
@@ -16,8 +21,8 @@ describe("SearchResults", () => {
     render(
       <SearchResults
         hits={[
-          { id: 1, group_id: null, title: "First Note", snippet: "content a" },
-          { id: 2, group_id: null, title: "Second Note", snippet: "content b" },
+          hit({ id: 1, title: "First Note", snippet: "content a" }),
+          hit({ id: 2, title: "Second Note", snippet: "content b" }),
         ]}
         onOpen={() => {}}
       />
@@ -30,11 +35,23 @@ describe("SearchResults", () => {
     const onOpen = vi.fn();
     render(
       <SearchResults
-        hits={[{ id: 42, group_id: null, title: "Test", snippet: "test" }]}
+        hits={[hit({ id: 42, title: "Test", snippet: "test" })]}
         onOpen={onOpen}
       />
     );
     screen.getByText(/Test/).click();
     expect(onOpen).toHaveBeenCalledWith(42);
+  });
+
+  it("wraps matching terms in mark elements", () => {
+    render(
+      <SearchResults
+        hits={[hit({ id: 1, snippet: "寻找便签内容", terms: ["便签"] })]}
+        onOpen={() => {}}
+      />
+    );
+    const mark = document.querySelector(".search-result__mark");
+    expect(mark).not.toBeNull();
+    expect(mark?.textContent).toBe("便签");
   });
 });
