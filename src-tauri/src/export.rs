@@ -532,8 +532,8 @@ fn load_pdf_font_family() -> Result<fonts::FontFamily<fonts::FontData>, AppError
 #[cfg(test)]
 mod tests {
     use super::{
-        build_document, render_markdown, render_pdf, shift_markdown_headings, ExportFormat,
-        ExportRequest, ExportScope,
+        build_document, load_pdf_font_family, render_markdown, render_pdf, shift_markdown_headings,
+        ExportFormat, ExportRequest, ExportScope,
     };
     use crate::domain::{Group, Note};
     fn note(id: i64, group_id: Option<i64>, title: &str, archived: bool) -> Note {
