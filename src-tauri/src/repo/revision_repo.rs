@@ -38,6 +38,31 @@ impl RevisionRepo {
         Ok(())
     }
 
+
+    /// Restore a note's content (markdown and derived fields) from a revision.
+    /// The stored HTML is regenerated client-side, so we set it to the same
+    /// markdown string as a safe placeholder and let the editor re-render it.
+    pub fn restore(&self, note_id: i64, revision_id: i64) -> Result<(), AppError> {
+        let conn = self.pool.get()?;
+        let row = conn.query_row(
+            "SELECT content_md, title FROM note_revision WHERE id=?1 AND note_id=?2",
+            rusqlite::params![revision_id, note_id],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)),
+        );
+        let (md, title) = match row {
+            Ok(v) => v,
+            Err(rusqlite::Error::QueryReturnedNoRows) => return Err(AppError::NotFound),
+            Err(e) => return Err(e.into()),
+        };
+        let now = chrono::Utc::now().timestamp_millis();
+        let words = md.chars().filter(|c| !c.is_whitespace()).count() as i64;
+        let updated_title = title.as_deref().filter(|t| !t.trim().is_empty());
+        conn.execute(
+            "UPDATE note SET content_md=?1, content_html=?2, word_count=?3, updated_at=?4, title=COALESCE(?5, title) WHERE id=?6",
+            rusqlite::params![md, md, words, now, updated_title, note_id],
+        )?;
+        Ok(())
+    }
     /// List all revisions for a note, newest first.
     pub fn list(&self, note_id: i64) -> Result<Vec<Revision>, AppError> {
         let conn = self.pool.get()?;

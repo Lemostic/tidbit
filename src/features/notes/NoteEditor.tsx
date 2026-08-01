@@ -1,4 +1,4 @@
-import { Check, PushPin, Trash, X } from "@phosphor-icons/react";
+import { Check, ClockCounterClockwise, PushPin, Trash, X } from "@phosphor-icons/react";
 import ImageExtension from "@tiptap/extension-image";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -13,6 +13,7 @@ import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { AudioRecording } from "./AudioRecording";
 import { codeLowlight } from "./codeHighlighting";
 import { EditorToolbar } from "./EditorToolbar";
+import { HistoryPanel } from "./HistoryPanel";
 import { TimelineCard } from "./TimelineCard";
 
 interface NoteEditorProps {
@@ -46,6 +47,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -155,6 +157,29 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
     } catch { setStatus("error"); }
   };
 
+  const applyRestore = async (restored: Note) => {
+    const before = current;
+    if (editor) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+      dirtyRef.current = false;
+      editor.commands.setContent(restored.content_md);
+    }
+    setTitle(restored.title ?? "");
+    setCurrent(restored);
+    setStatus("saved");
+    setHistoryOpen(false);
+    onChanged();
+    if (editor) {
+      try {
+        await client.notes.updateContent(restored.id, before.content_md, before.content_html, before.word_count);
+        onChanged();
+      } catch {
+        /* snapshot failure is non-fatal; user can redo if needed */
+      }
+    }
+  };
+
   const panel = (
       <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-modal={embedded ? undefined : true} aria-label="编辑便签" onClick={(event) => event.stopPropagation()}>
         {!embedded && <header className="note-editor__head">
@@ -174,6 +199,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
             title={current.is_pinned ? "取消置顶" : "置顶"}
             onClick={() => void mutate(client.notes.setPinned(current.id, !current.is_pinned))}
           ><PushPin size={16} weight={current.is_pinned ? "fill" : "regular"} /></button>
+          <button className="btn-icon" aria-label="历史版本" title="历史版本" onClick={() => setHistoryOpen(true)}><ClockCounterClockwise size={16} /></button>
           <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>
         </header>}
 
@@ -220,6 +246,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   return (
     <>
     {embedded ? panel : <div className="modal-scrim" onKeyDown={(event) => { if (event.key === "Escape" && !confirmingDelete) { event.stopPropagation(); onClose(); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
+    {historyOpen && <HistoryPanel note={current} onClose={() => setHistoryOpen(false)} onRestore={applyRestore} onNotice={(toast) => setStatus(toast && toast.kind === "error" ? "error" : "saved")} />}
     {allowTrash && <ConfirmDialog
       open={confirmingDelete}
       title="删除这条便签？"

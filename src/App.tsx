@@ -11,6 +11,7 @@ import { ExportDialog } from "./features/export/ExportDialog";
 import { useBackupStatus } from "./features/backup/useBackupStatus";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
 import { NotesGrid } from "./features/notes/NotesGrid";
+import { TrashView } from "./features/notes/TrashView";
 import { LockScreen } from "./features/settings/LockScreen";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { applyTheme, type Theme } from "./ui/theme";
@@ -69,6 +70,7 @@ async function fitCurrentWindowToWorkArea(requested: MainWindowSize) {
 
 export default function App() {
   const [groupId, setGroupId] = useState<number | null>(null);
+  const [view, setView] = useState<"notes" | "trash">("notes");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
@@ -137,6 +139,7 @@ export default function App() {
   const notify = useCallback((next: ToastState) => setToast(next), []);
   const requestNote = useCallback(() => setCreateNoteRequest((value) => value + 1), []);
   const requestGroup = useCallback(() => setCreateGroupRequest((value) => value + 1), []);
+  const showTrash = useCallback(() => setView("trash"), []);
   const clearOpenNote = useCallback(() => setOpenNoteId(null), []);
   const moveNoteToGroup = useCallback(async (noteId: number, targetGroupId: number | null, groupName: string) => {
     try {
@@ -442,9 +445,13 @@ export default function App() {
         <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
         <EdgePresence edge={hiddenEdge} />
         <div className="app-body">
-          <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={setGroupId} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} />
+          <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={(id) => { setGroupId(id); setView("notes"); }} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} trashActive={view === "trash"} onShowTrash={showTrash} />
           <main className="app-main">
-            <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} />
+            {view === "trash" ? (
+              <TrashView onNotice={notify} onRestored={() => setNotesRefreshRequest((value) => value + 1)} />
+            ) : (
+              <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} />
+            )}
           </main>
         </div>
       </div>

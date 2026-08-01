@@ -1,4 +1,4 @@
-import { Check, Plus, Trash, X } from "@phosphor-icons/react";
+import { Archive, Check, Plus, Trash, X } from "@phosphor-icons/react";
 import { type CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
 import type { Group } from "../../ipc/types";
 import type { ToastState } from "../../ui/Toast";
@@ -12,13 +12,15 @@ interface GroupsSidebarProps {
   onSelect: (id: number | null) => void;
   onNotice: (toast: ToastState) => void;
   onNoteDrop?: (noteId: number, groupId: number | null, groupName: string) => void;
+  trashActive?: boolean;
+  onShowTrash?: () => void;
 }
 
 const colors = [null, "#e34f5b", "#e0a52e", "#35a66f", "#3d86d8"] as const;
 
 const noteDragType = "application/x-tidbit-note-id";
 
-export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNoteDrop }: GroupsSidebarProps) {
+export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNoteDrop, trashActive = false, onShowTrash }: GroupsSidebarProps) {
   const { groups, create, update, remove } = useGroups();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
@@ -116,6 +118,15 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
         ) : (
           <button className="groups-rail__add" aria-label="新增分组" title="新增分组" onClick={() => setAdding(true)}><Plus size={16} /></button>
         )}
+        <button
+          className={`group-tab group-tab--trash${trashActive ? " is-active" : ""}`}
+          aria-selected={trashActive ?? false}
+          title="回收站"
+          onClick={() => onShowTrash?.()}
+        >
+          <Archive size={15} />
+          <span className="group-tab__label">回收站</span>
+        </button>
       </nav>
 
       {editing && (

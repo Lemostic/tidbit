@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { noteSchema, groupSchema } from "./schema";
-import type { Note, Group } from "./types";
+import type { Note, Group, Revision } from "./types";
 
 export type ExportScope = "all" | "group" | "ungrouped";
 export type ExportFormat = "markdown" | "pdf";
@@ -50,6 +50,13 @@ export const client = {
       invoke<void>("notes_set_edge_dock", { id, edge }),
     trash: (id: number) => invoke<void>("notes_trash", { id }),
     restore: (id: number) => invoke<void>("notes_restore", { id }),
+    listTrashed: () =>
+      invoke<Note[]>("notes_list_trashed").then(arr => arr.map(n => noteSchema.parse(n))),
+    delete: (id: number) => invoke<void>("notes_delete", { id }),
+    purgeTrash: () => invoke<number>("notes_purge_trash"),
+    revisions: (id: number) => invoke<Revision[]>("notes_revisions", { id }),
+    restoreRevision: (id: number, revisionId: number) =>
+      invoke<Note>("notes_restore_revision", { id, revisionId }).then(n => noteSchema.parse(n)),
     setTags: (id: number, tags: string[]) => invoke<Note>("notes_set_tags", { id, tags }).then(n => noteSchema.parse(n)),
     setReminder: (id: number, remindAt: number | null) => invoke<Note>("reminders_set", { id, remindAt }).then(n => noteSchema.parse(n)),
   },

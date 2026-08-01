@@ -109,6 +109,10 @@ pub fn run() {
             let state = state::AppState::new(pool.clone());
             app.manage(state);
             app.manage(data_directory::DataDirectory(dir.clone()));
+            // Startup housekeeping: permanently remove notes trashed more than
+            // 30 days ago so the trash cannot grow without bound.
+            let purge_ts = chrono::Utc::now().timestamp_millis() - 30 * 24 * 60 * 60 * 1000;
+            let _ = app.state::<state::AppState>().notes.purge_older_than(purge_ts);
             app.manage(window::edge_dock::DockRuntimeState::default());
             // BackupKey: v1 uses a zeroed key (M5 will wire from UI PIN)
             app.manage(state::BackupKey([0u8; 32]));
@@ -171,6 +175,11 @@ pub fn run() {
             ipc::notes::notes_set_edge_dock,
             ipc::notes::notes_trash,
             ipc::notes::notes_restore,
+            ipc::notes::notes_list_trashed,
+            ipc::notes::notes_delete,
+            ipc::notes::notes_purge_trash,
+            ipc::notes::notes_revisions,
+            ipc::notes::notes_restore_revision,
             ipc::notes::tags_list,
             ipc::notes::notes_set_tags,
             ipc::notes::reminders_set,

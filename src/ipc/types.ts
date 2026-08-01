@@ -40,3 +40,10 @@ export interface Group {
   created_at: number;
   updated_at: number;
 }
+export interface Revision {
+  id: number;
+  note_id: number;
+  content_md: string;
+  title: string | null;
+  created_at: number;
+}

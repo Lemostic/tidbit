@@ -1,4 +1,4 @@
-use crate::domain::{EdgeDock, Note};
+use crate::domain::{EdgeDock, Note, Revision};
 use crate::error::AppError;
 use crate::state::AppState;
 use tauri::State;
@@ -173,4 +173,38 @@ pub async fn notes_trash(state: State<'_, AppState>, id: i64) -> Result<(), AppE
 #[tauri::command]
 pub async fn notes_restore(state: State<'_, AppState>, id: i64) -> Result<(), AppError> {
     state.notes.restore(id)
+}
+#[tauri::command]
+pub async fn notes_list_trashed(state: State<'_, AppState>) -> Result<Vec<Note>, AppError> {
+    state
+        .notes
+        .list_trashed()?
+        .into_iter()
+        .map(|note| attach_tags(&state, note))
+        .collect()
+}
+
+#[tauri::command]
+pub async fn notes_delete(state: State<'_, AppState>, id: i64) -> Result<(), AppError> {
+    state.notes.delete(id)
+}
+
+#[tauri::command]
+pub async fn notes_purge_trash(state: State<'_, AppState>) -> Result<u64, AppError> {
+    state.notes.purge_all_trashed()
+}
+
+#[tauri::command]
+pub async fn notes_revisions(state: State<'_, AppState>, id: i64) -> Result<Vec<Revision>, AppError> {
+    state.revisions.list(id)
+}
+
+#[tauri::command]
+pub async fn notes_restore_revision(
+    state: State<'_, AppState>,
+    id: i64,
+    revision_id: i64,
+) -> Result<Note, AppError> {
+    state.revisions.restore(id, revision_id)?;
+    attach_tags(&state, state.notes.get(id)?)
 }

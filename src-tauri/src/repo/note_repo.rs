@@ -265,6 +265,35 @@ impl NoteRepo {
         Ok(())
     }
 
+    
+    /// List all trashed notes, newest first.
+    pub fn list_trashed(&self) -> Result<Vec<Note>, AppError> {
+        let conn = self.pool.get()?;
+        let sql = format!(
+            "{s} WHERE is_trashed = 1 ORDER BY trashed_at DESC, updated_at DESC, id ASC",
+            s = Self::SELECT,
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map([], Self::row_to_note)?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    /// Permanently delete one note and its cascaded rows (revisions, tags,
+    /// reminders). Attachment files on disk are removed with the note
+    /// directory during a full-trash purge; single-note deletion leaves the
+    /// files in place so they can be recovered from the OS if needed.
+    pub fn delete(&self, id: i64) -> Result<(), AppError> {
+        let conn = self.pool.get()?;
+        conn.execute("DELETE FROM note WHERE id = ?1", rusqlite::params![id])?;
+        Ok(())
+    }
+
+    /// Permanently delete all trashed notes (and their cascaded rows).
+    pub fn purge_all_trashed(&self) -> Result<u64, AppError> {
+        let conn = self.pool.get()?;
+        let n = conn.execute("DELETE FROM note WHERE is_trashed = 1", [])?;
+        Ok(n as u64)
+    }
     /// Delete all trashed notes with `trashed_at` older than `ts` (milliseconds).
     pub fn purge_older_than(&self, ts: i64) -> Result<u64, AppError> {
         let conn = self.pool.get()?;
