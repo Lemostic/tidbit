@@ -181,6 +181,8 @@ pub fn run() {
             ipc::notes::notes_revisions,
             ipc::notes::notes_restore_revision,
             ipc::notes::tags_list,
+            ipc::notes::tag_rename,
+            ipc::notes::tag_delete,
             ipc::notes::notes_set_tags,
             ipc::notes::reminders_set,
             ipc::attachments::attachments_save,

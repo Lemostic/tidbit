@@ -1,4 +1,4 @@
-import { Archive, ArrowClockwise, NotePencil, Plus, WarningCircle } from "@phosphor-icons/react";
+import { Archive, ArrowClockwise, NotePencil, Plus, Tag as TagIcon, WarningCircle } from "@phosphor-icons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +11,7 @@ import { NoteCard } from "./NoteCard";
 import { NoteEditor } from "./NoteEditor";
 import { NoteSortControl } from "./NoteSortControl";
 import { loadNoteSortPreference, saveNoteSortPreference, sortNotes, type NoteSortPreference } from "./noteSort";
+import { TagManager } from "./TagManager";
 import { toggleTaskContent } from "./taskList";
 import { useNotes } from "./useNotes";
 
@@ -38,6 +39,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [timeFilter, setTimeFilter] = useState<"all" | "today" | "week" | "overdue">("all");
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const lastCreateRequest = useRef(createRequest);
   const lastRefreshRequest = useRef(refreshRequest);
 
@@ -57,7 +59,30 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     return () => { disposeWander?.(); disposeUpdated?.(); disposeReminder?.(); };
   }, [refresh]);
 
-  useEffect(() => { void client.tags.list().then(setAvailableTags).catch(() => setAvailableTags([])); }, [notes]);
+  useEffect(() => {
+    const counts = new Map<string, number>();
+    for (const note of notes) {
+      for (const tag of note.tags ?? []) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    void client.tags.list()
+      .then((remote) => {
+        // Merge remote tag names with local counts. A tag that has zero
+        // matches in the current notes list (e.g. all its notes were
+        // trashed) still surfaces so the user can manage it.
+        for (const tag of remote) if (!counts.has(tag)) counts.set(tag, 0);
+        setAvailableTags(
+          Array.from(counts.entries())
+            .map(([tag]) => tag)
+            .sort((a, b) => a.localeCompare(b))
+        );
+      })
+      .catch(() => {
+        const sorted = Array.from(counts.keys()).sort((a, b) => a.localeCompare(b));
+        setAvailableTags(sorted);
+      });
+  }, [notes]);
 
   const visibleNotes = useMemo(() => {
     const now = Date.now(); const today = new Date(); today.setHours(23, 59, 59, 999); const week = now + 7 * 86400000;
@@ -152,6 +177,17 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     }
   };
 
+  const tagCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tag of availableTags) map.set(tag, 0);
+    for (const note of notes) {
+      for (const tag of note.tags ?? []) {
+        if (map.has(tag)) map.set(tag, (map.get(tag) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [availableTags, notes]);
+
   return (
     <>
       {editingNote && (
@@ -163,6 +199,13 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
           onTrash={trashNote}
         />
       )}
+      <TagManager
+        open={tagManagerOpen}
+        tagCounts={tagCounts}
+        onClose={() => setTagManagerOpen(false)}
+        onChanged={refresh}
+        onNotice={(message, kind) => onNotice({ kind: kind ?? "success", message })}
+      />
       <ConfirmDialog
         open={Boolean(confirmingNote)}
         title="删除这条便签？"
@@ -203,6 +246,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
         {availableTags.length > 0 && <div className="notes__tag-filter" aria-label="按标签筛选">
           <button className={`note-tag${activeTag === null ? " is-active" : ""}`} onClick={() => setActiveTag(null)}>全部</button>
           {availableTags.map((tag) => <button key={tag} className={`note-tag${activeTag === tag ? " is-active" : ""}`} onClick={() => setActiveTag(tag)}>{tag}</button>)}
+          <button className="note-tag note-tag--manage" onClick={() => setTagManagerOpen(true)} title="管理标签"><TagIcon size={11} weight="bold" />管理</button>
         </div>}
 
         {loading ? (

@@ -1,7 +1,10 @@
 import { Archive, Check, Plus, Trash, X } from "@phosphor-icons/react";
 import { type CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import type { Group } from "../../ipc/types";
 import type { ToastState } from "../../ui/Toast";
+import { motionDur, motionEase, prefersReducedMotion } from "../../ui/motion";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { GroupItem } from "./GroupItem";
 import { useGroups } from "./useGroups";
@@ -31,7 +34,25 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [allDropActive, setAllDropActive] = useState(false);
+  const railRef = useRef<HTMLElement>(null);
   const lastAddRequest = useRef(addRequest);
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion()) return;
+      const items = railRef.current?.querySelectorAll<HTMLElement>(".group-tab-wrap");
+      if (!items || items.length === 0) return;
+      const reduced = prefersReducedMotion();
+      gsap.from(items, {
+        opacity: 0,
+        y: 4,
+        duration: reduced ? 0 : motionDur,
+        ease: motionEase,
+        stagger: { each: 0.028, from: "start" },
+      });
+    },
+    { scope: railRef, dependencies: [groups.length] },
+  );
 
   useEffect(() => {
     if (addRequest === lastAddRequest.current) return;
@@ -82,10 +103,10 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
 
   return (
     <>
-      <nav className="groups-rail" aria-label="便签分组">
+      <nav ref={railRef} className="groups-rail" aria-label="便签分组">
         <button
           className={`group-tab${selectedId === null ? " is-active" : ""}${allDropActive ? " is-drop-target" : ""}`}
-          style={{ "--group-tab-bg": "var(--accent)" } as CSSProperties}
+          style={{ "--group-tab-bg": "var(--accent)", "--tab-index": 0 } as CSSProperties}
           aria-selected={selectedId === null}
           title="全部便签"
           onClick={() => onSelect(null)}
@@ -101,11 +122,12 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
         >
           <span className="group-tab__label">全部</span>
         </button>
-        {groups.map((group) => (
+        {groups.map((group, index) => (
           <GroupItem
             key={group.id}
             group={group}
             selected={selectedId === group.id}
+            index={index + 1}
             onClick={() => onSelect(group.id)}
             onEdit={() => openEditor(group)}
             onNoteDrop={(noteId, groupId) => onNoteDrop?.(noteId, groupId, group.name)}
@@ -122,6 +144,7 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
           className={`group-tab group-tab--trash${trashActive ? " is-active" : ""}`}
           aria-selected={trashActive ?? false}
           title="回收站"
+          style={{ "--tab-index": groups.length + 1 } as CSSProperties}
           onClick={() => onShowTrash?.()}
         >
           <Archive size={15} />

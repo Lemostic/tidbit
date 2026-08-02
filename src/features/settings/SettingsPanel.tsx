@@ -278,7 +278,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           </div>
 
           <div className="settings-field settings-opacity">
-            <label htmlFor="glass-opacity"><Drop size={16} weight="duotone" /> 液态玻璃不透明度 <span>{props.glassOpacity}%</span></label>
+            <label htmlFor="glass-opacity"><Drop size={16} weight="duotone" /> 液态玻璃模糊强度 <span>{props.glassOpacity}%</span></label>
             <input id="glass-opacity" type="range" min="55" max="100" step="1" value={props.glassOpacity} onChange={(event) => props.onGlassOpacityChange(Number(event.target.value))} aria-label="液态玻璃不透明度" />
             <div className="settings-opacity__scale"><span>更通透</span><span>更清晰</span></div>
           </div>

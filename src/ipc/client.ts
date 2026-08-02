@@ -62,6 +62,8 @@ export const client = {
   },
   tags: {
     list: () => invoke<string[]>("tags_list"),
+    rename: (oldName: string, newName: string) => invoke<number>("tag_rename", { old: oldName, new: newName }),
+    delete: (name: string) => invoke<number>("tag_delete", { name }),
   },
   attachments: {
     save: (noteId: number, fileName: string, mime: string, data: number[]) => invoke<{ url: string }>("attachments_save", { noteId, fileName, mime, data }),

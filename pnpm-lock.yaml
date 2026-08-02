@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@gsap/react':
+        specifier: ^2.1.2
+        version: 2.1.2(gsap@3.15.0)(react@18.3.0)
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@18.3.0(react@18.3.0))(react@18.3.0)
@@ -41,6 +44,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.27.3
         version: 3.27.3
+      gsap:
+        specifier: ^3.15.0
+        version: 3.15.0
       lowlight:
         specifier: 3.3.0
         version: 3.3.0
@@ -449,6 +455,12 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@gsap/react@2.1.2':
+    resolution: {integrity: sha512-JqliybO1837UcgH2hVOM4VO+38APk3ECNrsuSM4MuXp+rbf+/2IG2K1YJiqfTcXQHH7XlA0m3ykniFYstfq0Iw==}
+    peerDependencies:
+      gsap: ^3.12.5
+      react: '>=17'
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -1449,6 +1461,9 @@ packages:
   globals@17.7.0:
     resolution: {integrity: sha512-Czmyns5dUsq4seFBR/Kdydhmo8y9kC79hiSkPn0YcGtNnYWnrgt0vjrSjx9tspoDGWm2CMarffRuLjM4xUz8xg==}
     engines: {node: '>=18'}
+
+  gsap@3.15.0:
+    resolution: {integrity: sha512-dMW4CWBTUK1AEEDeZc1g4xpPGIrSf9fJF960qbTZmN/QwZIWY5wgliS6JWl9/25fpTGJrMRtSjGtOmPnfjZB+A==}
 
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
@@ -2459,6 +2474,11 @@ snapshots:
   '@floating-ui/utils@0.2.11':
     optional: true
 
+  '@gsap/react@2.1.2(gsap@3.15.0)(react@18.3.0)':
+    dependencies:
+      gsap: 3.15.0
+      react: 18.3.0
+
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -3461,6 +3481,8 @@ snapshots:
   globals@14.0.0: {}
 
   globals@17.7.0: {}
+
+  gsap@3.15.0: {}
 
   has-flag@4.0.0: {}
 

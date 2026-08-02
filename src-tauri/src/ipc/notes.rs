@@ -123,6 +123,16 @@ pub async fn tags_list(state: State<'_, AppState>) -> Result<Vec<String>, AppErr
 }
 
 #[tauri::command]
+pub async fn tag_rename(state: State<'_, AppState>, old: String, new: String) -> Result<u64, AppError> {
+    state.tags.rename(&old, &new)
+}
+
+#[tauri::command]
+pub async fn tag_delete(state: State<'_, AppState>, name: String) -> Result<u64, AppError> {
+    state.tags.delete(&name)
+}
+
+#[tauri::command]
 pub async fn notes_set_tags(
     state: State<'_, AppState>,
     id: i64,

@@ -1,10 +1,14 @@
 import { PencilSimple } from "@phosphor-icons/react";
-import { useState, type CSSProperties } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, type CSSProperties } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import type { Group } from "../../ipc/types";
+import { motionDurFast, motionEase, motionEaseSpring, motionDurSpring, prefersReducedMotion } from "../../ui/motion";
 
 interface GroupItemProps {
   group: Group;
   selected: boolean;
+  index: number;
   onClick: () => void;
   onEdit: () => void;
   onNoteDrop: (noteId: number, groupId: number) => void;
@@ -21,17 +25,51 @@ function readableTextColor(color: string | null) {
   return luminance > 0.62 ? "#20242a" : "#ffffff";
 }
 
-export function GroupItem({ group, selected, onClick, onEdit, onNoteDrop }: GroupItemProps) {
+export const GroupItem = forwardRef<HTMLButtonElement, GroupItemProps>(function GroupItem({ group, selected, index, onClick, onEdit, onNoteDrop }, ref) {
   const [dropActive, setDropActive] = useState(false);
+  const tabRef = useRef<HTMLButtonElement>(null);
+  useImperativeHandle(ref, () => tabRef.current as HTMLButtonElement);
   const backgroundColor = group.background_color ?? group.color ?? "var(--rail-bg)";
   const foregroundColor = readableTextColor(group.background_color ?? group.color);
+
+  useGSAP(() => {
+    const tab = tabRef.current;
+    if (!tab) return;
+    const reduced = prefersReducedMotion();
+    if (reduced) {
+      gsap.set(tab, { clearProps: "transform" });
+      return;
+    }
+    // Drop target state — spring scale + slide.
+    if (dropActive) {
+      gsap.to(tab, { x: -3, scaleX: 1.045, duration: motionDurSpring, ease: motionEaseSpring, overwrite: "auto" });
+      return;
+    }
+    if (selected) {
+      gsap.to(tab, { x: -3, scaleX: 1.045, duration: motionDurFast, ease: motionEase, overwrite: "auto" });
+      return;
+    }
+    gsap.to(tab, { x: 0, scaleX: 1, duration: motionDurFast, ease: motionEase, overwrite: "auto" });
+  }, [selected, dropActive]);
+
   return (
     <div className={`group-tab-wrap${selected ? " is-active" : ""}`}>
       <button
+        ref={tabRef}
         className={`group-tab${selected ? " is-active" : ""}${dropActive ? " is-drop-target" : ""}`}
-        style={{ "--group-tab-bg": backgroundColor, "--group-tab-fg": foregroundColor } as CSSProperties}
+        style={{ "--group-tab-bg": backgroundColor, "--group-tab-fg": foregroundColor, "--tab-index": index } as CSSProperties}
         aria-selected={selected}
         title={group.name}
+        onMouseEnter={(event) => {
+          if (selected || dropActive) return;
+          if (prefersReducedMotion()) return;
+          gsap.to(event.currentTarget, { x: 2, scaleX: 0.985, duration: motionDurFast, ease: motionEase, overwrite: "auto" });
+        }}
+        onMouseLeave={(event) => {
+          if (selected || dropActive) return;
+          if (prefersReducedMotion()) return;
+          gsap.to(event.currentTarget, { x: 0, scaleX: 1, duration: motionDurFast, ease: motionEase, overwrite: "auto" });
+        }}
         onClick={onClick}
         onDragEnter={(event) => { event.preventDefault(); setDropActive(true); }}
         onDragOver={(event) => {
@@ -59,4 +97,4 @@ export function GroupItem({ group, selected, onClick, onEdit, onNoteDrop }: Grou
       </button>
     </div>
   );
-}
+});

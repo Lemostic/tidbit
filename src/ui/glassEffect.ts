@@ -20,7 +20,17 @@ export function loadGlassOpacity() {
 }
 
 export function applyGlassOpacity(opacity: number) {
-  document.documentElement.style.setProperty("--liquid-glass-opacity", `${clampGlassOpacity(opacity)}%`);
+  // The stored 55-100 value now drives backdrop-filter strength rather
+  // than a literal alpha: 55% → ~18px blur / 1.20 saturation, 100% →
+  // ~42px / 1.60. Panel surfaces stay opaque under glass mode.
+  const clamped = clampGlassOpacity(opacity);
+  const t = (clamped - 55) / 45; // 0..1
+  const blur = 18 + t * 24; // px
+  const saturation = 1.2 + t * 0.4;
+  const root = document.documentElement;
+  root.style.setProperty("--liquid-glass-blur", `${blur.toFixed(2)}px`);
+  root.style.setProperty("--liquid-glass-saturation", saturation.toFixed(2));
+  root.style.setProperty("--liquid-glass-strength", `${clamped}%`);
 }
 
 export function saveGlassOpacity(opacity: number) {

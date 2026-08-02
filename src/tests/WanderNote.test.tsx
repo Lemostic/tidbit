@@ -52,12 +52,12 @@ it("follows the main window theme and liquid glass opacity", async () => {
   await screen.findByText("桌面计划");
   expect(document.documentElement.dataset.theme).toBe("dark");
   expect(document.documentElement).toHaveAttribute("data-liquid-glass");
-  expect(document.documentElement.style.getPropertyValue("--liquid-glass-opacity")).toBe("78%");
+  expect(document.documentElement.style.getPropertyValue("--liquid-glass-strength")).toBe("78%");
 
   await waitFor(() => expect(listeners.has("tidbit://appearance-changed")).toBe(true));
   act(() => listeners.get("tidbit://appearance-changed")?.({ payload: { theme: "sepia", glassEnabled: true, glassOpacity: 86 } }));
   expect(document.documentElement.dataset.theme).toBe("sepia");
-  expect(document.documentElement.style.getPropertyValue("--liquid-glass-opacity")).toBe("86%");
+  expect(document.documentElement.style.getPropertyValue("--liquid-glass-strength")).toBe("86%");
 });
 
 it("renders note content and working collapse and close controls", async () => {
