@@ -398,7 +398,8 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .note-card__content h2 { font-size: 14px; }
 .note-card__content h3, .note-card__content h4 { font-size: 13px; }
 .note-card__content ul { margin: 0.45em 0; padding-inline-start: 1.85em; list-style-position: outside; }
-.note-card__content ol { margin: 0.45em 0; padding-inline-start: max(3em, 4ch); list-style-position: outside; }
+.note-card__content ol { margin: 0.45em 0; padding-inline-start: max(1.5em, 3ch); list-style-position: outside; }
+.note-card__content ol > li { padding-inline-start: 0; }
 .note-card__content li { min-width: 0; margin: 0.18em 0; overflow-wrap: anywhere; }
 .note-card__content ul[data-type="taskList"],
 .wander-card__content ul[data-type="taskList"],

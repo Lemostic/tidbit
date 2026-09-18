@@ -1,0 +1,114 @@
+.modal-scrim.changelog-scrim { padding: clamp(14px, 3vw, 28px); }
+
+.modal-scrim.changelog-scrim .changelog-dialog {
+  width: min(560px, calc(100vw - 40px));
+  height: min(72vh, 640px);
+}
+
+.changelog-dialog__head { border-bottom: 1px solid var(--border); }
+
+.changelog-dialog__heading {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 0 0 0 34px;
+}
+
+.changelog-dialog__eyebrow {
+  color: var(--fg-subtle);
+  font-size: 9px;
+  font-weight: 680;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.changelog-dialog__heading h2 {
+  margin: 0;
+  color: var(--fg);
+  font-size: 18px;
+  font-weight: 710;
+  letter-spacing: 0;
+}
+
+.changelog-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 22px 18px;
+}
+
+.changelog-dialog__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--fg-subtle);
+  font-size: 11px;
+}
+
+.changelog-dialog__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 680;
+}
+
+.changelog-dialog__body h3 {
+  margin: 16px 0 8px;
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.changelog-dialog__body h3:first-child { margin-top: 0; }
+
+.changelog-dialog__body p {
+  margin: 0 0 8px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.changelog-dialog__body ul {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 14px;
+  padding-left: 18px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.changelog-dialog__body li {
+  min-width: 0;
+  padding-left: 2px;
+  overflow-wrap: anywhere;
+}
+
+.changelog-dialog__body li::marker { color: var(--accent); }
+
+.changelog-dialog__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 50px;
+  padding: 8px 14px 10px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 700px) {
+  .modal-scrim.changelog-scrim { padding: 10px; }
+  .modal-scrim.changelog-scrim .changelog-dialog {
+    width: 100%;
+    height: min(620px, calc(100dvh - 20px));
+    max-height: calc(100dvh - 20px);
+  }
+  .changelog-dialog__body { padding: 14px 16px 16px; }
+}

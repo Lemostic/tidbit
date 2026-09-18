@@ -7,6 +7,8 @@ import { CommandPalette } from "./app/CommandPalette";
 import { EdgePresence } from "./app/EdgePresence";
 import { Titlebar } from "./app/Titlebar";
 import { RestoreWizard } from "./features/backup/RestoreWizard";
+import { ChangelogDialog } from "./features/changelog/ChangelogDialog";
+import { useChangelogOnUpdate } from "./features/changelog/useChangelogOnUpdate";
 import { ExportDialog } from "./features/export/ExportDialog";
 import { useBackupStatus } from "./features/backup/useBackupStatus";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
@@ -100,9 +102,11 @@ export default function App() {
   const [windowSizeBusy, setWindowSizeBusy] = useState(false);
   const [hiddenEdge, setHiddenEdge] = useState<"left" | "right" | "top" | "bottom" | null>(null);
   const backup = useBackupStatus();
-  const interactionLocked = settingsOpen || paletteOpen || restoreOpen || exportOpen || locked;
+  const { entry: changelogEntry, dismiss: dismissChangelog } = useChangelogOnUpdate();
+  const interactionLocked = settingsOpen || paletteOpen || restoreOpen || exportOpen || locked || changelogEntry !== null;
 
   const openSettings = useCallback(() => {
+    dismissChangelog();
     setPaletteOpen(false);
     setRestoreOpen(false);
     setExportOpen(false);
@@ -114,14 +118,15 @@ export default function App() {
         setSettingsOpen(true);
       })
       .catch(() => setSettingsOpen(true));
-  }, []);
+  }, [dismissChangelog]);
 
   const openPalette = useCallback(() => {
+    dismissChangelog();
     setSettingsOpen(false);
     setRestoreOpen(false);
     setExportOpen(false);
     setPaletteOpen(true);
-  }, []);
+  }, [dismissChangelog]);
 
   useEffect(() => {
     void invoke<DataDirectoryInfo>("data_directory_get").then((info) => {
@@ -137,8 +142,14 @@ export default function App() {
   }, []);
 
   const notify = useCallback((next: ToastState) => setToast(next), []);
-  const requestNote = useCallback(() => setCreateNoteRequest((value) => value + 1), []);
-  const requestGroup = useCallback(() => setCreateGroupRequest((value) => value + 1), []);
+  const requestNote = useCallback(() => {
+    dismissChangelog();
+    setCreateNoteRequest((value) => value + 1);
+  }, [dismissChangelog]);
+  const requestGroup = useCallback(() => {
+    dismissChangelog();
+    setCreateGroupRequest((value) => value + 1);
+  }, [dismissChangelog]);
   const showTrash = useCallback(() => setView("trash"), []);
   const clearOpenNote = useCallback(() => setOpenNoteId(null), []);
   const moveNoteToGroup = useCallback(async (noteId: number, targetGroupId: number | null, groupName: string) => {
@@ -499,6 +510,7 @@ export default function App() {
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} onDone={(result) => { setExportOpen(false); notify({ kind: "success", message: `已导出 ${result.noteCount} 条便签：${result.path}` }); }} />
       {restoreOpen && <RestoreWizard onDone={() => setRestoreOpen(false)} onClose={() => setRestoreOpen(false)} />}
       {locked && <LockScreen pin={lockPin} onUnlock={() => setLocked(false)} />}
+      <ChangelogDialog entry={changelogEntry} onClose={dismissChangelog} />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );

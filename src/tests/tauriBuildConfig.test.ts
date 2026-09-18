@@ -3,14 +3,26 @@ import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
 describe("Tauri production build", () => {
-  test("uses v0.2.0 consistently", () => {
+  test("uses v0.2.2 consistently", () => {
     const packageConfig = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as { version: string };
     const tauriConfig = JSON.parse(readFileSync(resolve(process.cwd(), "src-tauri/tauri.conf.json"), "utf8")) as { version: string };
     const cargoManifest = readFileSync(resolve(process.cwd(), "src-tauri/Cargo.toml"), "utf8");
 
-    expect(packageConfig.version).toBe("0.2.0");
+    expect(packageConfig.version).toBe("0.2.2");
     expect(tauriConfig.version).toBe(packageConfig.version);
-    expect(cargoManifest).toMatch(/^version = "0\.2\.0"$/m);
+    expect(cargoManifest).toMatch(/^version = "0\.2\.2"$/m);
+  });
+
+  test("keeps the taskbar icon frame large enough for Windows", () => {
+    const iconPath = resolve(process.cwd(), "src-tauri/icons/icon.ico");
+    const icon = readFileSync(iconPath);
+    const frameCount = icon.readUInt16LE(4);
+
+    expect(frameCount).toBeGreaterThan(0);
+    const width = icon[6] === 0 ? 256 : icon[6];
+    const height = icon[7] === 0 ? 256 : icon[7];
+    expect(width).toBeGreaterThanOrEqual(32);
+    expect(height).toBeGreaterThanOrEqual(32);
   });
 
   test("rebuilds the frontend before packaging", () => {

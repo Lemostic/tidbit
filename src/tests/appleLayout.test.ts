@@ -45,7 +45,8 @@ describe("Apple layout compatibility", () => {
 
   it("keeps Markdown list markers visible with wide custom fonts", () => {
     expect(css).toMatch(/\.note-card__content,[\s\S]*?\.wander-card__content,[\s\S]*?\.editor-content \.ProseMirror[\s\S]*?min-width:\s*0;[\s\S]*?overflow-wrap:\s*anywhere;/);
-    expect(css).toMatch(/\.note-card__content ol,[\s\S]*?\.wander-card__content ol,[\s\S]*?\.editor-content \.ProseMirror ol[\s\S]*?padding-inline-start:\s*max\(3em, 4ch\);/);
+    expect(css).toMatch(/\.note-card__content ol,[\s\S]*?\.wander-card__content ol,[\s\S]*?\.editor-content \.ProseMirror ol[\s\S]*?padding-inline-start:\s*max\(1\.5em, 3ch\);[\s\S]*?list-style-position:\s*outside;/);
+    expect(css).toMatch(/\.note-card__content ol > li,[\s\S]*?\.wander-card__content ol > li,[\s\S]*?\.editor-content \.ProseMirror ol > li[\s\S]*?padding-inline-start:\s*0;/);
   });
 
   it("uses one interactive task-list treatment across all note surfaces", () => {

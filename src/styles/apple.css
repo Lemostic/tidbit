@@ -3032,8 +3032,13 @@ button:active,
 .note-card__content ol,
 .wander-card__content ol,
 .editor-content .ProseMirror ol {
-  padding-inline-start: max(3em, 4ch);
+  padding-inline-start: max(1.5em, 3ch);
   list-style-position: outside;
+}
+.note-card__content ol > li,
+.wander-card__content ol > li,
+.editor-content .ProseMirror ol > li {
+  padding-inline-start: 0;
 }
 
 .note-card__content li,

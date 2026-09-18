@@ -22,6 +22,8 @@ src-tauri/gen/
 /.codex/
 /.superpowers/
 /.wolf/
+/.playwright-mcp/
+/.reasonix/
 /AGENTS.md
 /CLAUDE.md
 
@@ -32,6 +34,7 @@ src-tauri/gen/
 # local runtime captures and compiler state
 /*-check.png
 /wander-inline-edit-release.png
+/ol-*.png
 *.tsbuildinfo
 
 # tauri
@@ -39,3 +42,4 @@ src-tauri/Cargo.lock
 
 # lockfiles - keep pnpm-lock.yaml; track Cargo.lock at project root only if needed later
 # (currently only pnpm-lock.yaml is committed)
+.gstack/

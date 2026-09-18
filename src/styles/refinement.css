@@ -1066,15 +1066,17 @@ input[type="range"] { accent-color: var(--accent); }
 
 /* Markdown typography is intentionally scoped to note content. It keeps the
    existing editor shell intact while tightening lists and code blocks. */
-.editor-content .ProseMirror ul:not([data-type="taskList"]),
 .editor-content .ProseMirror ol,
-.note-card__content ul:not([data-type="taskList"]),
 .note-card__content ol,
-.wander-card__content ul:not([data-type="taskList"]),
 .wander-card__content ol {
   margin: 0.38em 0 0.62em;
-  padding-inline-start: 1.72em;
+  padding-inline-start: max(1.5em, 3ch);
   list-style-position: outside;
+}
+.editor-content .ProseMirror ol > li,
+.note-card__content ol > li,
+.wander-card__content ol > li {
+  padding-inline-start: 0;
 }
 
 .editor-content .ProseMirror li,
