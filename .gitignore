@@ -24,6 +24,7 @@ src-tauri/gen/
 /.wolf/
 /.playwright-mcp/
 /.reasonix/
+/.workbuddy/
 /AGENTS.md
 /CLAUDE.md
 
