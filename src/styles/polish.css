@@ -913,3 +913,91 @@ button:disabled:hover { transform: none; filter: none; }
   .note-card:hover, .note-card:active, .group-tab:hover, .group-tab:active,
   .btn:active, .btn-icon:active, .kanban-card:hover { transform: none !important; }
 }
+
+
+/* ---------- 18. Commercial-polish pass (2026-09) --------------------------
+   Calmer command-palette scrim, icon slot + key-hint footer, editor empty
+   state centering fix, themed text selection. Pure presentation layer. */
+
+/* Text selection follows the active accent instead of browser blue. */
+::selection { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+
+/* The shared 0.38-black + blur(8px) scrim reads murky behind the palette;
+   launchers stay readable with a lighter veil. */
+.palette-scrim {
+  background: rgba(15, 23, 29, 0.26);
+  -webkit-backdrop-filter: blur(5px) saturate(1.06);
+  backdrop-filter: blur(5px) saturate(1.06);
+}
+
+/* Command rows: quiet group icon + stronger title hierarchy. */
+.palette__item button { justify-content: flex-start; }
+.palette__item button > .palette__item-icon {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+  color: var(--fg-subtle);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.palette__item button:hover > .palette__item-icon,
+.palette__item.is-active button > .palette__item-icon {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.palette__item button > .palette__item-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.palette__item button strong { font-weight: 560; color: var(--fg); }
+.palette__item.is-active button strong { color: var(--fg); }
+.palette__head input { caret-color: var(--accent); }
+
+/* Key-hint footer: stable-height bar, mirrors commercial launchers. */
+.palette__foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  color: var(--fg-subtle);
+  font-size: 10.5px;
+  user-select: none;
+}
+.palette__foot > span { display: inline-flex; align-items: center; gap: 5px; }
+.palette__foot kbd {
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--fg-subtle);
+  font-family: var(--font-utility);
+  font-size: 9px;
+  line-height: 1;
+}
+
+/* Note mode empty pane: the maximized flex !important rule above defeats
+   .note-pane--empty's grid, pinning the placeholder to the top. Re-assert. */
+.app-shell[data-is-maximized="true"] .note-pane--empty {
+  display: grid !important;
+  place-items: center;
+}
+
+/* Empty-state paper glyph: keep it readable on dark surfaces. */
+.note-pane__placeholder-glyph {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-strong));
+  background: repeating-linear-gradient(transparent 0 9px, color-mix(in srgb, var(--fg-muted) 55%, transparent) 9px 10px) center / 26px 31px no-repeat var(--surface);
+  box-shadow: 0 8px 22px -14px color-mix(in srgb, var(--fg) 45%, transparent);
+}

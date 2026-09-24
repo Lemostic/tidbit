@@ -1,4 +1,5 @@
-import { Command as CommandIcon, FileText, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { Command as CommandIcon, FileText, Folders, GearSix, MagnifyingGlass, NotePencil, X } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { SearchResults } from "../features/search/SearchResults";
 import { useSearch } from "../features/search/useSearch";
@@ -11,6 +12,13 @@ export type Command = {
   group: "note" | "group" | "app" | "search";
   shortcut?: string;
   run: () => void | Promise<void>;
+};
+
+const GROUP_ICONS: Record<Command["group"], Icon> = {
+  note: NotePencil,
+  group: Folders,
+  app: GearSix,
+  search: MagnifyingGlass,
 };
 
 interface CommandPaletteProps {
@@ -135,17 +143,31 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
             if (e.key === "Enter") void runActive();
             if (e.key === "Escape") onClose();
           }}>
-            {filtered.map((command, index) => (
-              <li key={command.id} id={`palette-opt-${index}`} role="option" className={`palette__item${index === active ? " is-active" : ""}`} aria-selected={index === active}>
-                <button onMouseEnter={() => setActive(index)} onClick={() => { void command.run(); onClose(); }}>
-                  <span><strong>{command.title}</strong>{command.hint && <small>{command.hint}</small>}</span>
-                  {command.shortcut && <kbd>{command.shortcut}</kbd>}
-                </button>
-              </li>
-            ))}
+            {filtered.map((command, index) => {
+              const GroupIcon = GROUP_ICONS[command.group];
+              return (
+                <li key={command.id} id={`palette-opt-${index}`} role="option" className={`palette__item${index === active ? " is-active" : ""}`} aria-selected={index === active}>
+                  <button onMouseEnter={() => setActive(index)} onClick={() => { void command.run(); onClose(); }}>
+                    <span className="palette__item-icon" aria-hidden="true"><GroupIcon size={15} /></span>
+                    <span className="palette__item-copy"><strong>{command.title}</strong>{command.hint && <small>{command.hint}</small>}</span>
+                    {command.shortcut && <kbd>{command.shortcut}</kbd>}
+                  </button>
+                </li>
+              );
+            })}
             {filtered.length === 0 && <li className="palette__empty">没有匹配命令</li>}
           </ul>
         )}
+
+        <footer className="palette__foot" aria-hidden="true">
+          {tab === "commands" && (
+            <>
+              <span><kbd>↑</kbd><kbd>↓</kbd> 选择</span>
+              <span><kbd>↵</kbd> 执行</span>
+            </>
+          )}
+          <span><kbd>Esc</kbd> 关闭</span>
+        </footer>
       </section>
     </div>
   );
