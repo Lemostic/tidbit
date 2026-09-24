@@ -1,0 +1,326 @@
+/* Maximized "Note mode" — true OneNote-style 3-pane layout
+ * col 1: NavColumn (200px)  — groups + trash, INSIDE the main content
+ * col 2: NotesGrid  (260-320px) — page list for the selected group
+ * col 3: EditorPane (1fr) — multi-tab editor; never a modal popup.
+ */
+
+.app-main:has(.maximized-layout) {
+  display: grid;
+  grid-template-columns: 200px minmax(260px, 320px) minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  background: var(--app-surface);
+  overflow: hidden;
+}
+
+.maximized-layout {
+  display: contents; /* let .app-main own the grid */
+}
+
+/* ── Col 1: Nav ───────────────────────────────────────────────────── */
+.maximized-layout__nav {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 80%, var(--surface-2));
+  overflow: hidden;
+}
+
+/* ── Col 2: List ──────────────────────────────────────────────────── */
+.maximized-layout__list {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, var(--surface-2));
+  overflow: hidden;
+}
+.maximized-layout__list .notes { height: 100%; }
+.maximized-layout__list .notes__head { padding: 10px 14px 6px; border-bottom: 1px solid var(--border); }
+.maximized-layout__list .notes__body { padding: 6px 10px 14px; }
+.maximized-layout__list .notes__title { font-size: 17px; }
+
+/* ── Col 3: Editor with tabs ─────────────────────────────────────── */
+.maximized-layout__pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
+}
+.maximized-layout__pane-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  transition: opacity var(--dur) var(--ease);
+}
+.maximized-layout__pane-body[data-loading="true"] { opacity: 0.65; }
+.maximized-layout__pane-body > .note-pane {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Trash banner inside the nav column */
+.maximized-layout__trash-banner {
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+.maximized-layout__trash-title { font-weight: 700; font-size: 14px; color: var(--fg); }
+
+/* ── NavColumn styles ────────────────────────────────────────────── */
+.nav-column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 8px 0;
+  gap: 6px;
+}
+.nav-column__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px 6px;
+  color: var(--fg-subtle);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 700;
+}
+.nav-column__add { padding: 4px 8px; }
+.nav-column__add .field { padding: 6px 10px; font-size: 12px; }
+
+.nav-column__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0 6px;
+  list-style: none;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nav-item {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px 0 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.nav-item:hover { background: var(--surface-2); color: var(--fg); }
+.nav-item.is-active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.nav-item.is-active .nav-item__count { background: color-mix(in srgb, var(--accent) 28%, transparent); color: var(--accent); }
+
+.nav-item__color {
+  position: absolute;
+  left: 4px; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 16px;
+  border-radius: 0 3px 3px 0;
+  background: var(--nav-color, var(--border-strong));
+  opacity: 0.8;
+}
+.nav-item.is-active .nav-item__color { opacity: 1; }
+
+.nav-item__icon {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  color: var(--fg-subtle);
+}
+.nav-item.is-active .nav-item__icon { color: var(--accent); }
+.nav-item__dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--nav-color, var(--fg-subtle));
+}
+
+.nav-item__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.nav-item__count {
+  flex: 0 0 auto;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--fg-subtle);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.nav-column__foot {
+  flex: 0 0 auto;
+  padding: 8px 6px 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+}
+.nav-item--trash { color: var(--fg-muted); }
+
+/* Note pane tweaks when inside the maximized pane column */
+.maximized-layout__pane-body .note-pane__rail { padding-top: 10px; padding-bottom: 4px; }
+.maximized-layout__pane-body .note-pane::before { display: none; }
+
+/* ── List header (compact) ───────────────────────────────────────── */
+.maximized-list-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.maximized-list-head__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.maximized-list-head__eyebrow {
+  color: var(--fg-subtle);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.maximized-list-head__name {
+  margin: 0;
+  padding-left: 8px;
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.maximized-list-head__name::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--hdr-color, var(--accent));
+  opacity: 0.85;
+}
+.maximized-list-head__count {
+  flex: 0 0 auto;
+  min-width: 22px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--fg-subtle);
+  font-size: 10px;
+  font-weight: 600;
+}
+.maximized-list-head__new {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
+}
+.maximized-list-head__new:hover { filter: brightness(1.06); }
+.maximized-list-head__new:active { transform: translateY(1px) scale(0.98); }
+
+/* Slide-in animation per pane on first mount */
+.maximized-layout__nav,
+.maximized-layout__list,
+.maximized-layout__pane {
+  animation: pane-in var(--dur) var(--ease) both;
+}
+.maximized-layout__list { animation-delay: 40ms; }
+.maximized-layout__pane { animation-delay: 80ms; }
+@keyframes pane-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Narrow fallback: collapse to vertical stack (still no modal) */
+@media (max-width: 1180px) {
+  .app-main:has(.maximized-layout) {
+    grid-template-columns: 180px minmax(220px, 280px) minmax(0, 1fr);
+  }
+  .nav-item__label { font-size: 12px; }
+}
+@media (max-width: 980px) {
+  .app-main:has(.maximized-layout) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(180px, 38%) 1fr;
+  }
+  .maximized-layout__nav { border-right: 0; border-bottom: 1px solid var(--border); }
+  .maximized-layout__list { border-right: 0; border-bottom: 1px solid var(--border); }
+  .maximized-layout__nav, .maximized-layout__list { max-height: 36vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maximized-layout__nav, .maximized-layout__list, .maximized-layout__pane { animation: none; }
+}
+
+
+/* ── NoteEditorPane: make the editor wrapper fill the pane ─────── */
+.note-pane__editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.note-pane__editor .note-editor {
+  flex: 1;
+  min-height: 0;
+}

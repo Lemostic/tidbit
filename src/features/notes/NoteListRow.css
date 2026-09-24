@@ -1,0 +1,143 @@
+/* NoteListRow — compact one-row-per-note for maximized middle column */
+.note-list-row {
+  display: grid;
+  grid-template-columns: 4px 1fr auto auto auto;
+  align-items: center;
+  gap: 12px;
+  height: 38px;
+  padding: 0 12px 0 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
+}
+.note-list-row + .note-list-row { margin-top: 1px; }
+
+/* Left 4px color stripe — color stripe always visible, gets brighter on hover. */
+.note-list-row__color {
+  width: 4px;
+  height: 22px;
+  border-radius: 0 3px 3px 0;
+  background: var(--row-color, var(--accent));
+  opacity: 0.78;
+  transition: opacity var(--dur-fast) var(--ease),
+              height var(--dur-fast) var(--ease);
+}
+
+.note-list-row__main {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* Title with ellipsis */
+.note-list-row__title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 540;
+  color: var(--fg);
+  line-height: 1.2;
+}
+
+/* Tag chips inline */
+.note-list-row__tags {
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.note-list-row__tag {
+  flex: 0 0 auto;
+  max-width: 80px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  font-size: 9.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.note-list-row__tag--more {
+  background: transparent;
+  color: var(--fg-subtle);
+}
+
+/* Status flags (pinned / archived / hidden / reminder) */
+.note-list-row__flags {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-subtle);
+}
+.note-list-row__flag {
+  color: var(--fg-subtle);
+}
+.note-list-row__flags:empty { display: none; }
+
+/* Word count + timestamp */
+.note-list-row__meta,
+.note-list-row__time {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.note-list-row__meta { min-width: 38px; text-align: right; }
+.note-list-row__time { min-width: 32px; text-align: right; }
+
+/* Hover */
+.note-list-row:hover {
+  background: var(--surface-2);
+}
+.note-list-row:hover .note-list-row__color { opacity: 1; height: 26px; }
+
+/* Active (matches a tab in editor pane) */
+.note-list-row.is-active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 2px 0 0 var(--row-color, var(--accent));
+}
+.note-list-row.is-active .note-list-row__title { color: var(--fg); font-weight: 640; }
+.note-list-row.is-active .note-list-row__color { opacity: 1; height: 26px; }
+
+/* Focus ring */
+.note-list-row:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: -2px;
+}
+
+/* List container */
+.note-list {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px 12px;
+  margin: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+/* Empty list */
+.note-list__empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--fg-subtle);
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-list-row { transition: none; }
+}

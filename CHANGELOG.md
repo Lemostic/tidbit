@@ -2,6 +2,143 @@
 
 本文件记录 tidbit 的用户可见变更。版本格式遵循语义化版本，尚未发布的功能统一归入 `Unreleased`。
 
+## [0.2.10] - 2026-09-19
+
+### 新增
+
+- Markdown 工具栏支持正文与三级标题、代码块、分隔线、链接编辑和清除格式；窄窗口通过“更多格式”展开常用操作。
+- 支持插入表格、增删行列、删除表格和键盘单元格导航，表格可保存、重新打开及转换为 Markdown；预览保留安全的表格结构。
+- 语音备忘录新增录音面板、输入音量、手动暂停与继续、试听后插入及放弃操作。
+- 录音提供精简、均衡与高质量三档压缩目标，支持设备降噪、回声消除和可选自动增益，并显示设备确认状态。
+- 可选跳过静音，提供阈值选择和语音前后缓冲；窗口进入后台或检测延迟时回退为连续录音。最长录制 30 分钟或约 25 MiB 后自动进入试听。
+
+### 优化与修复
+
+- 修复便签颜色圆点中的选中对勾偏移，改善默认色对勾对比度与辅助功能状态。
+- 新增印象笔记主题，优化卡片与列表选中反馈、设置间距、空编辑区和减少动态效果支持。
+- 完善录音权限请求取消、设备断开、资源释放及插入位置保持，兼容已有录音笔记。
+
+### 说明
+
+- 降噪和编码格式取决于设备支持；录音 Markdown 导出仍保留名称占位，不包含音频文件。PDF 表格排版保持原有导出行为。
+
+
+## [0.2.9] - 2026-09-19
+
+### 新增
+
+- **看板视图（Kanban）**：在便签列表头右上新增三档视图切换（卡片 / 列表 / 看板）。
+- 三栏拖拽看板：待办 / 进行中 / 已完成，便签卡可跨栏拖拽即时切换状态。
+- `note.status` 字段（"todo" | "doing" | "done"），新 SQL 迁移 `0011_note_status.sql`。
+- 新 IPC 命令 `notes_set_status(id, status)` 与 `notes_list(groupId, includeArchived, status)`。
+- 视图模式持久化到 localStorage `tidbit:note-view-mode`。
+- `KanbanCard` 组件：4px 色条 + 标题 + 标签 chip + 状态图标 + 字数。
+
+### 修复
+
+- 期间误删 note_repo 6 个方法（update_content/update_title/set_pinned/set_archived/set_content_hidden/set_color），已从 HEAD 恢复。
+
+### 工程
+
+- 新增 `src/features/notes/KanbanBoard.{tsx,css}`、`KanbanCard.{tsx,css}`、`0011_note_status.sql`。
+- `Note` TS 类型加 `status?: "todo" | "doing" | "done"`，zod schema 同名默认 "todo"。
+- `NotesGrid` mode 扩展为 `"cards" | "list" | "kanban"`，新增 `onViewModeChange` / `onCreateInStatus` props。
+- `App.tsx` 新增 viewMode state + cycleViewMode 回调。
+## [0.2.8] - 2026-09-19
+
+### 修复
+
+- Note 模式下整条元数据 rail（分组名 / 更新时间 / 自动保存提示 / 状态 chip）彻底移除 — 顶部只剩标题 + 必要按钮，编辑区不再被无意义的横条占空间。
+- NoteEditor 原本在 embedded 模式下整段 header 被隐藏（`{!embedded && <header>}`），导致标题输入框、置顶、历史按钮全部丢失 — 改为始终渲染，单独隐藏 X 关闭按钮。
+- 编辑器正文 `max-width: 760px; margin: 0 auto` 居中导致宽屏下大片左侧空白 — 改为 `max-width: 920px; margin: 0` 左对齐，配合 `padding: 22px 36px` 排版更紧凑。
+- 状态栏（提醒时间 / 已保存 / 字数 / 删除按钮）按之前需求隐藏 — Note 模式下 `display: none !important`。
+- 提醒输入控件（datetime / snooze menu）在 Note 模式下隐藏，避免与编辑器争夺空间。
+
+### 优化
+
+- 工具栏加宽到 30×30 按钮，hover/active 状态高亮更明显；`scrollbar-width: none` 隐藏滚动条。
+- 编辑器正文 `padding: 22px 36px 80px`，H1 标题自动加底部分割线。
+- 浮动保存提示（右上角圆角 chip）取代永远显示的状态栏，仅在保存触发时短暂出现。
+- 标题输入字号提升到 26px / weight 680，placeholder 颜色更柔和。
+- NoteEditorPane 简化到 16 行（删掉所有中间层），只做最薄的 embedded 包装。
+## [0.2.7] - 2026-09-19
+
+### 修复
+
+- 标题栏左侧留空：Note 模式下 `data-is-maximized` 属性原本来自 `isMaximized`（仅 maximize 时为 true），改成来自 `isNoteMode`（含宽度阈值）。
+- 标题栏 `margin-left: var(--rail-w)` 与 `width: calc(100% - var(--rail-w))`：Note 模式下重置为 `0` / `100%`，整条 titlebar 拉通到左边缘。
+- 右栏编辑器是"带滚动条的小窗口"：`.note-editor` 与 `.note-editor--embedded` 的 `min(620px, 100%)` / `min(82vh, 660px)` 在 Note 模式下被 `!important` 覆盖为 `100%`，撑满右栏。
+- 底部状态栏（提醒时间 / 已保存 / 字数 / 删除按钮）按需求彻底移除 — Note 模式下 `display: none !important`。
+
+### 优化
+
+- 标题栏品牌区在 Note 模式下使用 accent 浅色 chip 背景 + drag region，视觉更醒目。
+- 编辑器内容区在 Note 模式下 `padding: 20px 32px`，正文 `max-width: 760px` 居中，留白更舒服。
+- `.note-pane__editor` 补齐 `flex: 1` 让编辑器 wrapper 撑满 pane。
+## [0.2.6] - 2026-09-19
+
+### 修复
+
+- **关键**：真实 Tauri 环境下 `isMaximized` 事件不触发，窗口最大化后未切换到 Note 模式。现引入 `isNoteMode = isMaximized || innerWidth >= 1100`，**宽度阈值兜底**，并加入 400ms 轮询保险。
+- Note 模式下外部 68px 窄 rail 仍显示（渲染条件错用 `isMaximized` 而非 `isNoteMode`）。
+
+### 新增
+
+- **NoteListRow**：中间栏改为单行列表（色条 + 标题 + 标签 + 字数 + 时间戳），替换原本的卡片视图。
+- 列表头紧凑化：`SECTION` eyebrow + 分组名 + 计数 chip + `+ 新建` 主按钮。
+- MaximizedNotesLayout 自带便签列表加载逻辑（`client.notes.list`），不再复用 NotesGrid。
+
+### 优化
+
+- 多信号窗口模式检测：① Tauri `onResized` ② `resize` 事件 ③ 宽度阈值 ④ 400ms 轮询——任一触发即生效。
+## [0.2.5] - 2026-09-19
+
+### 新增
+
+- **Note 模式重做**：窗口最大化时切换为 OneNote 风格三栏布局——左列 NavColumn（分组 + 回收站）、中列便签列表、右列持久多 tab 编辑器。完全无 modal 弹窗。
+- 多 tab 编辑器：同一会话可同时打开多个便签，标签栏支持 X 关闭、中键关闭、横向滚动。
+- 便签创建（Ctrl+N / 新建按钮）在 Note 模式下直接以新 tab 形式出现在右栏，不再走 modal。
+
+### 优化
+
+- Note 模式下外部 68px 窄 rail 隐藏，分组导航完全内置到主内容区作为左列。
+- 编辑器列的 NoteEditorPane 隐藏顶部 accent line 与外框阴影，让它自然融入主列。
+- 切换分组不关闭已打开的便签 tab（OneNote 行为）。
+- < 980 px 自动堆叠为上下三段（仍无 modal）。
+
+### 工程
+
+- 新增 `NavColumn` / `NoteTabs` / `NoteEditorPane` 组件，提取分组导航和编辑器面板为可复用部件。
+- `NotesGrid` 新增 `onSelectNote` prop 接管便签创建/打开路径，避免 modal。
+- `MaximizedNotesLayout` 完全重写：tab 状态机 + 跨分组保留 + 关闭切换 + trash 视图兼容。
+## [0.2.4] - 2026-09-19
+
+### 新增
+
+- 窗口最大化时切换为 Note 模式：左侧便签列表 + 右侧持久编辑器，仿 OneNote 双栏体验；空状态自动渲染提示。
+- 全局 ARIA Live 区域（#tidbit-live）：便签更新、提醒触发会自动推送给屏幕阅读器。
+- NoteEditor 保存状态与 CommandPalette 列表项补齐 role/aria-live/aria-controls 等无障碍属性。
+- 便签卡入场动画新增 scroll-timeline：滚动时柔和上浮进入视口。
+
+### 优化
+
+- 设置面板的备份 / 恢复 / 打开目录 / 导出便签 / 显示窗口 五张磁贴接入 GSAP 磁吸跟随，光标接近时按钮轻微倾斜位移，prefers-reduced-motion 自动禁用。
+- 便签列表的入场 stagger 在第 8 张后封顶，避免长列表尾部延迟过大。
+- 新增 styles/polish.css 的 sr-only 工具类，隐藏的 Live 区域对视觉用户不可见。
+
+### 工程
+
+- 新增 MaximizedNotesLayout / NoteEditorPane 组件、useMagneticHover hook；零侵入式修改 App.tsx、NotesGrid、NoteEditor、SettingsPanel、CommandPalette。
+## [0.2.3] - 2026-09-18
+
+### 优化
+
+- 全局 polish 增量样式（src/styles/polish.css）：为主面板叠加柔和的 accent 环境光（按主题区分色相），为标题栏品牌徽标加入 6.4s 呼吸节律、为空状态图标加入双层 ping 环、为便签列表新增 shimmer 骨架屏、为保存状态加入脉冲状态点；统一图标按钮 tactile 反馈与 focus 描边；为编辑器工具栏 active 项加入 1.5px 强调下划线；为便签卡 hover 加入 5% accent 顶部渐变 halo；为 modal / 命令面板 / confirm-dialog / settings-panel / history-panel 补齐 1px 内反射高光与顶部光泽层（dark 模式自动切 lighten 混合），完整还原 Liquid Glass 视觉；为 Toast 增加 blur+saturate 玻璃质感与弹簧入场；为命令面板 kbd 提示样式精致化；为设置面板分区补充顶边线与 eyebrow accent 圆点；为 Switch 补充 hover halo。所有动画仅作用于 transform / opacity，已在 prefers-reduced-motion 下完全禁用。
+
+### 工程
+
+- 新增纯加法样式文件 src/styles/polish.css，零 TS/JSX 改动；vite build / tsc --noEmit / eslint 全部通过。
+
 ## [0.2.2] - 2026-08-03
 
 ### 新增

@@ -14,11 +14,12 @@ import {
   TextT,
   X,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import type { FontPreferences } from "../../ui/fontPreferences";
 import { commonSystemFonts, normalizeFontFamilies } from "../../ui/systemFonts";
 import { defaultMainWindowSize, maximumMainWindowSize, minimumMainWindowSize } from "../../ui/windowSizePreferences";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import { useMagneticHover } from "../../ui/useMagneticHover";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -75,6 +76,35 @@ function wheelDeltaInPixels(event: WheelEvent, pageHeight: number) {
   if (event.deltaMode === 1) return event.deltaY * 16;
   if (event.deltaMode === 2) return event.deltaY * pageHeight;
   return event.deltaY;
+}
+
+interface MagneticActionProps {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
+  type?: "button" | "submit";
+  title?: string;
+}
+
+function MagneticAction({ children, onClick, disabled, className, ariaLabel, type = "button", title }: MagneticActionProps) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useMagneticHover(ref, { strength: 0.16, scale: 1.02 });
+  return (
+    <button
+      ref={ref}
+      type={type}
+      className={className}
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      title={title}
+      style={{ willChange: "transform" } as CSSProperties}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function SettingsPanel(props: SettingsPanelProps) {
@@ -257,7 +287,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <div className="settings-row__icon"><Eye size={17} /></div>
             <div className="settings-row__copy">
               <strong>界面主题</strong>
-              <span>浅色、深色、护眼、Tokyo Night 与微信风格</span>
+              <span>浅色、深色、护眼、Tokyo Night、微信与印象笔记</span>
             </div>
             <ThemeSwitcher expanded />
           </div>
@@ -464,26 +494,26 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <div><span id="settings-maintenance">维护</span><small>备份、恢复与窗口找回</small></div>
             </header>
           <div className="settings-actions" aria-label="备份与恢复">
-            <button className="settings-action" disabled={props.busy} onClick={props.onBackup}>
+            <MagneticAction className="settings-action" disabled={props.busy} onClick={props.onBackup}>
               <Archive size={18} />
               <span><strong>立即备份</strong><small>创建加密快照</small></span>
-            </button>
-            <button className="settings-action" disabled={props.busy} onClick={props.onRestore}>
+            </MagneticAction>
+            <MagneticAction className="settings-action" disabled={props.busy} onClick={props.onRestore}>
               <ShieldCheck size={18} />
               <span><strong>恢复备份</strong><small>重启后替换数据</small></span>
-            </button>
-            <button className="settings-action" onClick={props.onOpenBackups}>
+            </MagneticAction>
+            <MagneticAction className="settings-action" onClick={props.onOpenBackups}>
               <FolderOpen size={18} />
               <span><strong>打开目录</strong><small>查看备份文件</small></span>
-            </button>
-            <button type="button" className="settings-action" onClick={() => props.onExport?.()}>
+            </MagneticAction>
+            <MagneticAction type="button" className="settings-action" onClick={() => props.onExport?.()}>
               <Export size={18} />
               <span><strong>导出便签</strong><small>Markdown 或 PDF</small></span>
-            </button>
-            <button className="settings-action" onClick={props.onShowHidden}>
+            </MagneticAction>
+            <MagneticAction className="settings-action" onClick={props.onShowHidden}>
               <Eye size={18} />
               <span><strong>显示窗口</strong><small>找回已隐藏便签</small></span>
-            </button>
+            </MagneticAction>
           </div>
           </section>
           </div>

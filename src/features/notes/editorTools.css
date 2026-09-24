@@ -1,0 +1,42 @@
+.editor-tools { flex: 0 0 auto; min-width: 0; container-type: inline-size; border-bottom: 1px solid var(--border); }
+.editor-tools .toolbar.editor-tools__main { display: flex; flex-wrap: wrap; align-items: center; overflow: visible; width: 100%; min-width: 0; box-sizing: border-box; border-bottom: 0; gap: 3px; }
+.note-editor .editor-tools .toolbar.editor-tools__main,
+.wander-card__body .note-editor--embedded .editor-tools .toolbar.editor-tools__main { width: auto; margin: 0; align-self: stretch; flex-wrap: wrap; overflow: visible; padding: 5px 12px; }
+.editor-tools .toolbar__btn { flex: 0 0 auto; }
+.editor-tools__heading { max-width: 85px; min-height: 28px; padding: 3px 5px; border: 1px solid var(--border); border-radius: 6px; color: var(--fg); background: var(--surface); font: inherit; font-size: 12px; }
+.editor-tools__secondary, .editor-tools__table, .editor-tools__link { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 12px 8px; }
+.editor-tools__main .editor-tools__more { display: none; }
+.editor-tools__table button, .editor-tools__link button { min-height: 28px; border: 1px solid var(--border); background: var(--surface); color: var(--fg-muted); border-radius: 5px; padding: 3px 7px; font-size: 11px; }
+.editor-tools__table button:hover, .editor-tools__link button:hover { background: var(--accent-soft); color: var(--accent); }
+.editor-tools__link { border-top: 1px solid var(--border); padding-top: 8px; }
+.editor-tools__link input { min-width: 100px; flex: 1 1 180px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--fg); }
+.editor-tools__link [role="alert"] { flex-basis: 100%; color: var(--danger, #c54b42); font-size: 12px; }
+@container (max-width: 600px) {
+  .editor-tools__main .editor-tools__more { display: grid; }
+  .editor-tools__secondary { display: none; }
+  .editor-tools__secondary.is-open { display: flex; max-height: 160px; overflow-y: auto; }
+  .editor-tools__secondary .toolbar__btn { display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; }
+}
+:is(.editor-content, .note-card__content, .wander-card__content) table { display: block; width: 100%; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 12px 0; font-size: inherit; }
+:is(.editor-content, .note-card__content, .wander-card__content) :is(th, td) { min-width: 80px; padding: 7px 10px; border: 1px solid var(--border-strong); vertical-align: top; position: relative; }
+:is(.editor-content, .note-card__content, .wander-card__content) th { background: var(--surface-2); color: var(--fg); font-weight: 600; }
+.editor-content :is(th, td) > p { margin: 0; }
+.editor-content .selectedCell::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--accent-soft); }
+
+/* Keep icon actions centered in the embedded editor as well. */
+.wander-card__body .note-editor--embedded .editor-tools__secondary .toolbar__btn {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+.editor-tools__table button, .editor-tools__link button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  flex: 0 0 30px;
+}

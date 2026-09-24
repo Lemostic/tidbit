@@ -11,6 +11,31 @@ pub enum EdgeDock {
     None,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum KanbanStatus {
+    Todo,
+    Doing,
+    Done,
+}
+
+impl KanbanStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            KanbanStatus::Todo => "todo",
+            KanbanStatus::Doing => "doing",
+            KanbanStatus::Done => "done",
+        }
+    }
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "doing" => KanbanStatus::Doing,
+            "done" => KanbanStatus::Done,
+            _ => KanbanStatus::Todo,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Note {
     pub id: i64,
@@ -33,8 +58,13 @@ pub struct Note {
     pub updated_at: i64,
     pub color: Option<String>,
     pub sort_order: i64,
+    #[serde(default = "default_kanban_status")]
+    pub status: KanbanStatus,
     #[serde(default)]
     pub tags: Vec<String>,
     #[serde(default)]
     pub reminder: Option<ReminderLite>,
 }
+
+
+fn default_kanban_status() -> KanbanStatus { KanbanStatus::Todo }

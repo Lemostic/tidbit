@@ -13,6 +13,7 @@ import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { AudioRecording } from "./AudioRecording";
 import { codeLowlight } from "./codeHighlighting";
 import { EditorToolbar } from "./EditorToolbar";
+import { editorTableExtensions } from "./EditorTable";
 import { HistoryPanel } from "./HistoryPanel";
 import { TimelineCard } from "./TimelineCard";
 
@@ -25,6 +26,8 @@ interface NoteEditorProps {
   allowTrash?: boolean;
   desktopWindow?: boolean;
   embedded?: boolean;
+  /** When true, render the full header (title input, pin, history). */
+  showHead?: boolean;
 }
 
 const colors = [null, "#d75b57", "#d5a23f", "#4e9b75", "#4c86b8"] as const;
@@ -41,7 +44,7 @@ function getStandaloneWebUrl(value: string): string | null {
   }
 }
 
-export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false }: NoteEditorProps) {
+export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false, showHead = !embedded }: NoteEditorProps) {
   const [current, setCurrent] = useState(note);
   const [title, setTitle] = useState(note.title ?? "");
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
@@ -82,6 +85,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
       ImageExtension.configure({ inline: false, allowBase64: true }),
       AudioRecording,
       TimelineCard,
+      ...editorTableExtensions,
       Markdown.configure({ html: true, transformPastedText: true }),
     ],
     content: note.content_html || note.content_md,
@@ -228,7 +232,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
 
   const panel = (
       <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-modal={embedded ? undefined : true} aria-label="编辑便签" onClick={(event) => event.stopPropagation()}>
-        {!embedded && <header className="note-editor__head">
+        {showHead && <header className="note-editor__head">
           <span data-tauri-drag-region={desktopWindow ? true : undefined} className="note-editor__accent" style={{ background: current.color ?? "var(--accent)" }} />
           <input
             className="note-editor__title"
@@ -246,7 +250,7 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
             onClick={() => void mutate(client.notes.setPinned(current.id, !current.is_pinned))}
           ><PushPin size={16} weight={current.is_pinned ? "fill" : "regular"} /></button>
           <button className="btn-icon" aria-label="历史版本" title="历史版本" onClick={() => setHistoryOpen(true)}><ClockCounterClockwise size={16} /></button>
-          <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>
+          {!embedded && <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>}
         </header>}
 
         <div className="note-editor__options">
@@ -267,6 +271,8 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
                 style={{ background: color ?? "var(--surface-2)" }}
                 onClick={() => void mutate(client.notes.setColor(current.id, color))}
                 aria-label={color ? `设置颜色 ${color}` : "使用默认颜色"}
+                aria-pressed={current.color === color}
+                type="button"
                 title={color ? "设置便签颜色" : "默认颜色"}
               >{current.color === color && <Check size={11} weight="bold" />}</button>
             ))}
@@ -304,7 +310,12 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
               </div>
             )}
           </label>
-          <span className={`save-status save-status--${status}`}>{status === "saving" ? "正在保存" : status === "error" ? "保存失败" : "已保存"}</span>
+          <span
+              className={`save-status save-status--${status}`}
+              role="status"
+              aria-live={status === "error" ? "assertive" : "polite"}
+              aria-atomic="true"
+            >{status === "saving" ? "正在保存" : status === "error" ? "保存失败" : "已保存"}</span>
           <span>{current.word_count} 字</span>
           {allowTrash && <button className="editor-trash" onClick={() => setConfirmingDelete(true)}><Trash size={14} /> 删除</button>}
         </footer>

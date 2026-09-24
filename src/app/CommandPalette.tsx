@@ -77,6 +77,11 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
           <input
             autoFocus
             aria-label="搜索"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="palette-listbox"
+            aria-activedescendant={filtered.length > 0 ? `palette-opt-${active}` : undefined}
+            aria-autocomplete="list"
             placeholder="搜索便签或执行命令"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -123,12 +128,12 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
             )}
           </div>
         ) : (
-          <ul role="listbox" className="palette__list" tabIndex={0} onKeyDown={(e) => {
+          <ul role="listbox" id="palette-listbox" className="palette__list" tabIndex={0} onKeyDown={(e) => {
             if (e.key === "Enter") void runActive();
             if (e.key === "Escape") onClose();
           }}>
             {filtered.map((command, index) => (
-              <li key={command.id} role="option" className="palette__item" aria-selected={index === active}>
+              <li key={command.id} id={`palette-opt-${index}`} role="option" className={`palette__item${index === active ? " is-active" : ""}`} aria-selected={index === active}>
                 <button onMouseEnter={() => setActive(index)} onClick={() => { void command.run(); onClose(); }}>
                   <span><strong>{command.title}</strong>{command.hint && <small>{command.hint}</small>}</span>
                   {command.shortcut && <kbd>{command.shortcut}</kbd>}

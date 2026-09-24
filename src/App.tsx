@@ -13,10 +13,11 @@ import { ExportDialog } from "./features/export/ExportDialog";
 import { useBackupStatus } from "./features/backup/useBackupStatus";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
 import { NotesGrid } from "./features/notes/NotesGrid";
+import { MaximizedNotesLayout } from "./features/notes/MaximizedNotesLayout";
 import { TrashView } from "./features/notes/TrashView";
 import { LockScreen } from "./features/settings/LockScreen";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
-import { applyTheme, type Theme } from "./ui/theme";
+import { applyTheme, themes, type Theme } from "./ui/theme";
 import { Toast, type ToastState } from "./ui/Toast";
 import { applyFontPreferences, loadFontPreferences, saveFontPreferences } from "./ui/fontPreferences";
 import { client } from "./ipc/client";
@@ -32,8 +33,6 @@ import {
   saveMainWindowSize,
   type MainWindowSize,
 } from "./ui/windowSizePreferences";
-
-const themes: Theme[] = ["light", "dark", "sepia", "tokyo-night", "wechat"];
 
 interface DataDirectoryInfo {
   default_dir: string;
@@ -71,6 +70,8 @@ async function fitCurrentWindowToWorkArea(requested: MainWindowSize) {
 }
 
 export default function App() {
+  const [viewMode, setViewMode] = useState<"cards" | "list" | "kanban">(() => (localStorage.getItem("tidbit:note-view-mode") as "cards" | "list" | "kanban") || "cards");
+  const cycleViewMode = useCallback((mode: "cards" | "list" | "kanban") => { localStorage.setItem("tidbit:note-view-mode", mode); setViewMode(mode); }, []);
   const [groupId, setGroupId] = useState<number | null>(null);
   const [view, setView] = useState<"notes" | "trash">("notes");
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -101,6 +102,9 @@ export default function App() {
   const [mainWindowSize, setMainWindowSize] = useState(loadMainWindowSize);
   const [windowSizeBusy, setWindowSizeBusy] = useState(false);
   const [hiddenEdge, setHiddenEdge] = useState<"left" | "right" | "top" | "bottom" | null>(null);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [isWide, setIsWide] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1100);
+  const [announcement, setAnnouncement] = useState("");
   const backup = useBackupStatus();
   const { entry: changelogEntry, dismiss: dismissChangelog } = useChangelogOnUpdate();
   const interactionLocked = settingsOpen || paletteOpen || restoreOpen || exportOpen || locked || changelogEntry !== null;
@@ -159,6 +163,15 @@ export default function App() {
       notify({ kind: "success", message: `便签已移动到「${groupName}」` });
     } catch {
       notify({ kind: "error", message: "移动便签失败" });
+    }
+  }, [notify]);
+
+  const moveNoteToTrash = useCallback(async (noteId: number) => {
+    try {
+      await client.notes.trash(noteId);
+      notify({ kind: "success", message: "便签已移到回收站" });
+    } catch {
+      notify({ kind: "error", message: "移到回收站失败" });
     }
   }, [notify]);
 
@@ -418,6 +431,59 @@ export default function App() {
     };
   }, [dockingEnabled, interactionLocked]);
 
+  //   // Multi-source window mode detection.
+  const checkMaximized = useCallback(() => {
+    try {
+      const win = getCurrentWindow();
+      win.isMaximized().then((value) => {
+        setIsMaximized((current) => (current === value ? current : value));
+      }).catch(() => undefined);
+    } catch { /* no-op outside Tauri */ }
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    const disposers: Array<() => void> = [];
+    let rafId: number | null = null;
+    let pollId: number | null = null;
+
+    const sync = () => {
+      if (disposed) return;
+      setIsWide(window.innerWidth >= 1100);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        if (disposed) return;
+        checkMaximized();
+      });
+    };
+
+    sync();
+
+    try {
+      const win = getCurrentWindow();
+      win.onResized(sync).then((unlisten) => {
+        if (disposed) unlisten();
+        else disposers.push(unlisten);
+      }).catch(() => undefined);
+    } catch { /* no-op */ }
+
+    window.addEventListener("resize", sync);
+    disposers.push(() => window.removeEventListener("resize", sync));
+
+    pollId = window.setInterval(() => {
+      if (document.visibilityState === "visible") sync();
+    }, 400);
+
+    return () => {
+      disposed = true;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (pollId !== null) clearInterval(pollId);
+      disposers.forEach((fn) => fn());
+    };
+  }, [checkMaximized]);
+
+  const isNoteMode = isMaximized || isWide;
+
   const commands = useMemo(() => buildCommands({
     newNote: requestNote,
     newGroup: requestGroup,
@@ -450,18 +516,60 @@ export default function App() {
     return () => { window.removeEventListener("keydown", onKey); unlisten?.(); };
   }, [openPalette, openSettings, requestGroup, requestNote, snapshotNow]);
 
+  // D.4: announce background events to the screen-reader live region.
+  useEffect(() => {
+    const unsubs: Array<() => void> = [];
+    let cancelled = false;
+    let debounceId: number | null = null;
+    void listen<string>("tidbit://reminder-fired", (event) => {
+      if (cancelled) return;
+      setAnnouncement(event.payload || "便签提醒已触发");
+    }).then((dispose) => { if (!cancelled) unsubs.push(dispose); else dispose(); });
+    void listen<string>("tidbit://note-updated", () => {
+      if (cancelled) return;
+      if (debounceId !== null) window.clearTimeout(debounceId);
+      debounceId = window.setTimeout(() => {
+        setAnnouncement("便签已更新");
+      }, 1500);
+    }).then((dispose) => { if (!cancelled) unsubs.push(dispose); else dispose(); });
+    return () => {
+      cancelled = true;
+      if (debounceId !== null) window.clearTimeout(debounceId);
+      unsubs.forEach((fn) => fn());
+    };
+  }, []);
+
   return (
     <>
-      <div className="app-shell">
+      <div className="app-shell" data-is-maximized={isNoteMode ? "true" : "false"}>
         <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
         <EdgePresence edge={hiddenEdge} />
         <div className="app-body">
+          {!isNoteMode && (
           <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={(id) => { setGroupId(id); setView("notes"); }} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} trashActive={view === "trash"} onShowTrash={showTrash} />
+          )}
           <main className="app-main">
             {view === "trash" ? (
               <TrashView onNotice={notify} onRestored={() => setNotesRefreshRequest((value) => value + 1)} />
+            ) : isNoteMode ? (
+              <MaximizedNotesLayout
+                groupId={groupId}
+                createNoteRequest={createNoteRequest}
+                createGroupRequest={createGroupRequest}
+                openNoteId={openNoteId}
+                onOpenHandled={clearOpenNote}
+                onNotice={notify}
+                notesRefreshRequest={notesRefreshRequest}
+                view={view}
+                onShowTrash={showTrash}
+                onSelectGroup={(id) => setGroupId(id)}
+                onTrashNote={async (id) => {
+                  await moveNoteToTrash(id);
+                  setNotesRefreshRequest((value) => value + 1);
+                }}
+              />
             ) : (
-              <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} />
+              <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} viewMode={viewMode} onViewModeChange={cycleViewMode}  />
             )}
           </main>
         </div>
@@ -511,6 +619,7 @@ export default function App() {
       {restoreOpen && <RestoreWizard onDone={() => setRestoreOpen(false)} onClose={() => setRestoreOpen(false)} />}
       {locked && <LockScreen pin={lockPin} onUnlock={() => setLocked(false)} />}
       <ChangelogDialog entry={changelogEntry} onClose={dismissChangelog} />
+      <div id="tidbit-live" role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</div>
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );

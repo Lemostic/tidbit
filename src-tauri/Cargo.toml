@@ -1,6 +1,6 @@
 [package]
 name = "tidbit"
-version = "0.2.2"
+version = "0.2.10"
 edition = "2021"
 
 [lib]

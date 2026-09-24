@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import { beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { NoteEditor } from "../features/notes/NoteEditor";
 import type { Note } from "../ipc/types";
@@ -45,9 +45,12 @@ beforeEach(() => {
   invoke.mockReset();
   invoke.mockResolvedValue(note);
   vi.stubGlobal("MediaRecorder", MediaRecorderMock);
+  Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:voice-preview") });
+  Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+  const track = { stop: vi.fn(), getSettings: () => ({}) };
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
-    value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) },
+    value: { getSupportedConstraints: () => ({}), getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [track], getAudioTracks: () => [track] }) },
   });
 });
 
@@ -174,13 +177,17 @@ it("restores a saved timeline card and keeps its node controls functional", asyn
 });
 
 it("records, inserts, and renames a voice memo block", async () => {
-  const { getByLabelText } = render(
+  const { getByLabelText, getByRole, queryByLabelText } = render(
     <NoteEditor note={note} groups={[]} onClose={() => {}} onChanged={() => {}} onTrash={async () => {}} />
   );
 
   fireEvent.click(getByLabelText("开始录音"));
-  await waitFor(() => expect(getByLabelText("停止并插入录音")).toBeInTheDocument());
-  fireEvent.click(getByLabelText("停止并插入录音"));
+  fireEvent.click(within(getByRole("dialog", { name: "语音备忘录" })).getByRole("button", { name: "开始录音" }));
+  const stop = await waitFor(() => getByRole("button", { name: "停止并试听" }));
+  fireEvent.click(stop);
+  await waitFor(() => expect(getByLabelText("试听录音")).toBeInTheDocument());
+  expect(queryByLabelText("录音名称")).not.toBeInTheDocument();
+  fireEvent.click(getByRole("button", { name: "插入笔记" }));
 
   const nameInput = await waitFor(() => getByLabelText("录音名称"));
   expect((nameInput as HTMLInputElement).value).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);

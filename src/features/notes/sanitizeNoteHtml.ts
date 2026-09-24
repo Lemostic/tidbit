@@ -4,6 +4,7 @@ import { cleanTimelineDescription, cleanTimelineSingleLine, normalizeTimelineDat
 const allowedTags = new Set([
   "A", "BLOCKQUOTE", "BR", "CODE", "DEL", "EM", "H1", "H2", "H3", "H4",
   "HR", "IMG", "LI", "OL", "P", "PRE", "S", "STRIKE", "STRONG", "UL",
+  "TABLE", "THEAD", "TBODY", "TFOOT", "TR", "TH", "TD",
 ]);
 
 const removableTags = new Set(["IFRAME", "OBJECT", "SCRIPT", "STYLE", "TEMPLATE"]);

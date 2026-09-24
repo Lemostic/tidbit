@@ -1,4 +1,4 @@
-import { Archive, ArrowClockwise, NotePencil, Plus, Tag as TagIcon, WarningCircle } from "@phosphor-icons/react";
+import { Archive, ArrowClockwise, KanbanIcon, ListBullets, NotePencil, Plus, SquaresFour, Tag as TagIcon, WarningCircle } from "@phosphor-icons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,6 +8,8 @@ import type { ToastState } from "../../ui/Toast";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { useGroups } from "../groups/useGroups";
 import { NoteCard } from "./NoteCard";
+import { NoteListRow } from "./NoteListRow";
+import { KanbanBoard } from "./KanbanBoard";
 import { NoteEditor } from "./NoteEditor";
 import { NoteSortControl } from "./NoteSortControl";
 import { loadNoteSortPreference, saveNoteSortPreference, sortNotes, type NoteSortPreference } from "./noteSort";
@@ -22,9 +24,17 @@ interface NotesGridProps {
   onOpenHandled: () => void;
   onNotice: (toast: ToastState) => void;
   refreshRequest: number;
+  /** When provided, clicking a note calls this instead of opening the modal editor. */
+  onSelectNote?: (note: Note) => void;
+  /** View mode: "cards" (default), "list", or "kanban". */
+  viewMode?: "cards" | "list" | "kanban";
+  /** Notify parent when the user clicks a view toggle button. */
+  onViewModeChange?: (mode: "cards" | "list" | "kanban") => void;
+  /** Optional callback when Kanban board requests creating a note in a specific status. */
+  onCreateInStatus?: (status: "todo" | "doing" | "done") => void;
 }
 
-export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, onNotice, refreshRequest }: NotesGridProps) {
+export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, onNotice, refreshRequest, onSelectNote, viewMode = "cards", onViewModeChange, onCreateInStatus }: NotesGridProps) {
   const archiveStorageKey = `show-archived:${groupId ?? "all"}`;
   const [showArchived, setShowArchived] = useState(() => localStorage.getItem(archiveStorageKey) === "true");
   const [sortPreference, setSortPreference] = useState(loadNoteSortPreference);
@@ -107,7 +117,13 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
   const createNote = async () => {
     try {
       const note = await create("新便签");
-      setEditingNote(note);
+      // In external mode (e.g. maximized Note layout), hand off the new
+      // note to the parent instead of opening the modal here.
+      if (onSelectNote) {
+        onSelectNote(note);
+      } else {
+        setEditingNote(note);
+      }
     } catch {
       onNotice({ kind: "error", message: "新建便签失败" });
     }
@@ -230,6 +246,11 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
             <p className="notes__description">随手记下，也能随时找回</p>
           </div>
           <div className="notes__head-actions">
+            <div className="notes__view-toggle" role="radiogroup" aria-label="视图切换">
+              <button type="button" className={`notes__view-btn${viewMode === "cards" ? " is-active" : ""}`} role="radio" aria-checked={viewMode === "cards"} onClick={() => onViewModeChange?.("cards")} title="卡片视图"><SquaresFour size={14} weight={viewMode === "cards" ? "fill" : "regular"} /></button>
+              <button type="button" className={`notes__view-btn${viewMode === "list" ? " is-active" : ""}`} role="radio" aria-checked={viewMode === "list"} onClick={() => onViewModeChange?.("list")} title="列表视图"><ListBullets size={14} weight={viewMode === "list" ? "fill" : "regular"} /></button>
+              <button type="button" className={`notes__view-btn${viewMode === "kanban" ? " is-active" : ""}`} role="radio" aria-checked={viewMode === "kanban"} onClick={() => onViewModeChange?.("kanban")} title="看板视图"><KanbanIcon size={14} weight={viewMode === "kanban" ? "fill" : "regular"} /></button>
+            </div>
             <div className="notes__archive-toggle" title="显示归档便签">
               <Archive size={13} />
               <span>显示归档</span>
@@ -263,6 +284,21 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
             <div><p className="notes__empty-title">这里还没有便签</p><p>新建一条，随手记下今天的事项。</p></div>
             <button className="btn btn-primary" onClick={() => void createNote()}><Plus size={15} />新建便签</button>
           </div>
+        ) : viewMode === "kanban" ? (
+          <KanbanBoard
+            notes={visibleNotes}
+            onNoteOpen={(note) => { if (onSelectNote) onSelectNote(note); else setEditingNote(note); }}
+            onChanged={() => void refresh()}
+            onCreateNote={onCreateInStatus ?? (() => void createNote())}
+          />
+        ) : viewMode === "list" ? (
+          <div className="notes__body">
+            <div className="note-list">
+              {visibleNotes.map((note) => (
+                <NoteListRow key={note.id} note={note} active={note.id === editingNote?.id} onOpen={(n) => { if (onSelectNote) onSelectNote(n); else setEditingNote(n); }} />
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="notes__body">
             <div className="notes__list">
@@ -277,7 +313,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
                   <NoteCard
                     note={note}
                     wanderActive={wanderActive}
-                    onOpen={() => setEditingNote(note)}
+                    onOpen={() => { if (onSelectNote) onSelectNote(note); else setEditingNote(note); }}
                     onToggleVisibility={() => void client.notes.setContentHidden(note.id, !note.is_content_hidden).then((updated) => setNotes((current) => current.map((item) => item.id === updated.id ? updated : item))).catch(() => onNotice({ kind: "error", message: "内容显示状态更新失败" }))}
                     onTogglePin={() => void client.notes.setPinned(note.id, !note.is_pinned).then(refresh).catch(() => onNotice({ kind: "error", message: "置顶操作失败" }))}
                     onToggleArchive={() => void client.notes.setArchived(note.id, !note.is_archived).then(refresh).then(() => onNotice({ kind: "success", message: note.is_archived ? "便签已取消归档" : "便签已归档" })).catch(() => onNotice({ kind: "error", message: "归档操作失败" }))}

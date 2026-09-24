@@ -1,3 +1,4 @@
+use crate::domain::note::KanbanStatus;
 use crate::domain::{EdgeDock, Note};
 use crate::error::AppError;
 use crate::infra::db::Pool;
@@ -42,6 +43,7 @@ impl NoteRepo {
             updated_at: r.get(17)?,
             color: r.get(18)?,
             sort_order: r.get(19)?,
+            status: KanbanStatus::from_str(&r.get::<_, String>(20)?),
             tags: Vec::new(),
             reminder: None,
         })
@@ -50,7 +52,7 @@ impl NoteRepo {
     const SELECT: &'static str =
         "SELECT id, group_id, title, content_md, content_html, word_count, \
         is_pinned, is_content_hidden, is_archived, is_trashed, trashed_at, geom_x, geom_y, geom_w, geom_h, edge_dock, \
-        created_at, updated_at, color, sort_order FROM note";
+        created_at, updated_at, color, sort_order, status FROM note";
 
     pub fn create_in_group(&self, group_id: Option<i64>, title: &str) -> Result<Note, AppError> {
         let now = chrono::Utc::now().timestamp_millis();
@@ -82,6 +84,7 @@ impl NoteRepo {
         &self,
         group_id: Option<i64>,
         include_archived: bool,
+        status: Option<KanbanStatus>,
     ) -> Result<Vec<Note>, AppError> {
         let conn = self.pool.get()?;
         let archived_filter = if include_archived {
@@ -89,13 +92,16 @@ impl NoteRepo {
         } else {
             " AND is_archived = 0"
         };
+        let status_filter = status
+            .map(|s| format!(" AND status = '{}'", s.as_str()))
+            .unwrap_or_default();
         let sql = match group_id {
             Some(_) => format!(
-                "{s} WHERE group_id = ?1 AND is_trashed = 0{archived_filter} ORDER BY is_archived ASC, sort_order ASC, updated_at DESC, id ASC",
+                "{s} WHERE group_id = ?1 AND is_trashed = 0{archived_filter}{status_filter} ORDER BY is_archived ASC, sort_order ASC, updated_at DESC, id ASC",
                 s = Self::SELECT,
             ),
             None => format!(
-                "{s} WHERE is_trashed = 0{archived_filter} ORDER BY is_archived ASC, sort_order ASC, updated_at DESC, id ASC",
+                "{s} WHERE is_trashed = 0{archived_filter}{status_filter} ORDER BY is_archived ASC, sort_order ASC, updated_at DESC, id ASC",
                 s = Self::SELECT,
             ),
         };
@@ -190,7 +196,17 @@ impl NoteRepo {
         self.get(id)
     }
 
-    pub fn move_to_group(&self, id: i64, group_id: Option<i64>) -> Result<Note, AppError> {
+    pub fn set_status(&self, id: i64, status: KanbanStatus) -> Result<Note, AppError> {
+        let now = chrono::Utc::now().timestamp_millis();
+        let conn = self.pool.get()?;
+        conn.execute(
+            "UPDATE note SET status=?1, updated_at=?2 WHERE id=?3",
+            rusqlite::params![status.as_str(), now, id],
+        )?;
+        self.get(id)
+    }
+
+pub fn move_to_group(&self, id: i64, group_id: Option<i64>) -> Result<Note, AppError> {
         let existing = self.get(id)?;
         if existing.group_id == group_id {
             return Ok(existing);

@@ -37,6 +37,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0010_note_reminder",
         include_str!("../../migrations/0010_note_reminder.sql"),
     ),
+    (
+        "0011_note_status",
+        include_str!("../../migrations/0011_note_status.sql"),
+    ),
 ];
 
 /// Rewrites legacy `data:image/...;base64,...` URLs stored in note content

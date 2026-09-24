@@ -435,18 +435,21 @@ select:disabled {
 :root[data-theme="sepia"] .groups-rail > .group-tab,
 :root[data-theme="tokyo-night"] .groups-rail > .group-tab,
 :root[data-theme="wechat"] .groups-rail > .group-tab,
+:root[data-theme="evernote"] .groups-rail > .group-tab,
 :root:not([data-theme]) .groups-rail > .group-tab:hover:not(.is-active),
 :root[data-theme="light"] .groups-rail > .group-tab:hover:not(.is-active),
 :root[data-theme="dark"] .groups-rail > .group-tab:hover:not(.is-active),
 :root[data-theme="sepia"] .groups-rail > .group-tab:hover:not(.is-active),
 :root[data-theme="tokyo-night"] .groups-rail > .group-tab:hover:not(.is-active),
 :root[data-theme="wechat"] .groups-rail > .group-tab:hover:not(.is-active),
+:root[data-theme="evernote"] .groups-rail > .group-tab:hover:not(.is-active),
 :root:not([data-theme]) .groups-rail > .group-tab.is-active,
 :root[data-theme="light"] .groups-rail > .group-tab.is-active,
 :root[data-theme="dark"] .groups-rail > .group-tab.is-active,
 :root[data-theme="sepia"] .groups-rail > .group-tab.is-active,
 :root[data-theme="tokyo-night"] .groups-rail > .group-tab.is-active,
-:root[data-theme="wechat"] .groups-rail > .group-tab.is-active {
+:root[data-theme="wechat"] .groups-rail > .group-tab.is-active,
+:root[data-theme="evernote"] .groups-rail > .group-tab.is-active {
   background: var(--tab-surface) !important;
   color: var(--fg) !important;
   text-shadow: none;
@@ -2539,4 +2542,77 @@ input[type="range"] { accent-color: var(--accent); }
   color: var(--fg-subtle);
   font-size: 10.5px;
   line-height: 1.4;
+}
+
+
+
+/* ── Note mode: right pane becomes pure editor ─────────────────────── */
+.app-shell[data-is-maximized="true"] .note-editor {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  height: 100%;
+}
+
+:root[data-theme="evernote"] {
+  color-scheme: light;
+  --accent: #00a82d;
+  --accent-hover: #008f26;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(0, 168, 45, 0.13);
+  --bg: #f3f5f1;
+  --app-surface: #f8faf7;
+  --surface: #ffffff;
+  --surface-2: #e9eee9;
+  --surface-3: #dfe8e0;
+  --card-surface: #fffef8;
+  --fg: #25352b;
+  --fg-muted: #5c6c62;
+  --fg-subtle: #87948b;
+  --border: rgba(37, 74, 45, 0.12);
+  --border-strong: rgba(37, 74, 45, 0.22);
+  --rail-bg: #24352b;
+  --rail-fg: #d5e3d7;
+  --note-bg: #fffef8;
+  --danger: #c94c4c;
+  --danger-soft: rgba(201, 76, 76, 0.12);
+  --success: #00a82d;
+  --warning: #bd7b22;
+  --shadow-sm: 0 1px 2px rgba(37, 74, 45, 0.06), 0 7px 18px rgba(37, 74, 45, 0.08);
+  --shadow-md: 0 4px 10px rgba(37, 74, 45, 0.08), 0 20px 44px rgba(37, 74, 45, 0.14);
+  --shadow-lg: 0 12px 30px rgba(37, 74, 45, 0.12), 0 36px 84px rgba(37, 74, 45, 0.18);
+}
+.app-shell[data-is-maximized="true"] .note-editor__head {
+  /* Keep title input + group/color/tag selector visible */
+  padding: 8px 18px 6px;
+  border-bottom: 1px solid var(--border);
+  gap: 6px;
+}
+.app-shell[data-is-maximized="true"] .note-editor__head .note-editor__title-input {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+}
+/* Hide save-status indicator (no reminder / 已保存 / 字数 / 删除 in Note mode) */
+.app-shell[data-is-maximized="true"] .note-editor__status {
+  display: none !important;
+}
+/* Toolbar more compact in Note mode */
+.app-shell[data-is-maximized="true"] .toolbar {
+  padding: 4px 14px;
+  gap: 1px;
+}
+/* Editor content fills remaining space */
+.app-shell[data-is-maximized="true"] .editor-content {
+  flex: 1;
+  padding: 18px 28px;
+  font-size: 14.5px;
+  line-height: 1.78;
+}
+.app-shell[data-is-maximized="true"] .editor-content .ProseMirror {
+  min-height: 100%;
+  max-width: 780px;
+  margin: 0 auto;
 }

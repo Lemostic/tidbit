@@ -169,6 +169,7 @@ pub fn run() {
             ipc::notes::notes_set_archived,
             ipc::notes::notes_set_content_hidden,
             ipc::notes::notes_set_color,
+            ipc::notes::notes_set_status,
             ipc::notes::notes_move_group,
             ipc::notes::notes_reorder,
             ipc::notes::notes_set_geometry,

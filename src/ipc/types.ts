@@ -24,6 +24,7 @@ export interface Note {
   updated_at: number;
   color: string | null;
   sort_order: number;
+  status?: "todo" | "doing" | "done";
   tags?: string[];
   reminder?: { remind_at: number; notified: boolean; repeat_rule: string | null | undefined } | null;
 }

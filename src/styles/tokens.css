@@ -126,6 +126,31 @@
   --glass-shadow: rgba(88, 68, 43, 0.22);
 }
 
+:root[data-theme="evernote"] {
+  color-scheme: light;
+  --accent: #00a82d;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(0, 168, 45, 0.13);
+  --bg: #f3f5f1;
+  --surface: #ffffff;
+  --surface-2: #e9eee9;
+  --fg: #25352b;
+  --fg-muted: #5c6c62;
+  --fg-subtle: #87948b;
+  --border: #dce5dd;
+  --border-strong: #c3d1c5;
+  --rail-bg: #24352b;
+  --rail-fg: #d5e3d7;
+  --note-bg: #fffef8;
+  --glass-base: rgba(248, 252, 248, 0.68);
+  --glass-raised: rgba(255, 255, 255, 0.78);
+  --glass-recessed: rgba(231, 240, 232, 0.52);
+  --glass-line: rgba(255, 255, 255, 0.78);
+  --glass-specular: rgba(255, 255, 255, 0.66);
+  --glass-depth-line: rgba(49, 91, 59, 0.16);
+  --glass-shadow: rgba(45, 77, 52, 0.2);
+}
+
 /* Honor OS dark preference when no explicit theme is set. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {

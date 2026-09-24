@@ -1,3 +1,4 @@
+use crate::domain::note::KanbanStatus;
 use crate::domain::{EdgeDock, Note, Revision};
 use crate::error::AppError;
 use crate::state::AppState;
@@ -26,10 +27,12 @@ pub async fn notes_list(
     state: State<'_, AppState>,
     group_id: Option<i64>,
     include_archived: Option<bool>,
+    status: Option<String>,
 ) -> Result<Vec<Note>, AppError> {
+    let ks = status.as_deref().map(KanbanStatus::from_str);
     state
         .notes
-        .list_by_group(group_id, include_archived.unwrap_or(false))?
+        .list_by_group(group_id, include_archived.unwrap_or(false), ks)?
         .into_iter()
         .map(|note| attach_tags(&state, note))
         .collect()
@@ -106,6 +109,16 @@ pub async fn notes_set_color(
     color: Option<String>,
 ) -> Result<Note, AppError> {
     attach_tags(&state, state.notes.set_color(id, color.as_deref())?)
+}
+
+#[tauri::command]
+pub async fn notes_set_status(
+    state: State<'_, AppState>,
+    id: i64,
+    status: String,
+) -> Result<Note, AppError> {
+    let ks = KanbanStatus::from_str(&status);
+    attach_tags(&state, state.notes.set_status(id, ks)?)
 }
 
 #[tauri::command]

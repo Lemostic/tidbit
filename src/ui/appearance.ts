@@ -1,6 +1,6 @@
 import { emit } from "@tauri-apps/api/event";
 import { applyGlassEffect, applyGlassOpacity, loadGlassEffect, loadGlassOpacity } from "./glassEffect";
-import { applyTheme, type Theme } from "./theme";
+import { applyTheme, themes, type Theme } from "./theme";
 
 export const appearanceChangedEvent = "tidbit://appearance-changed";
 
@@ -12,7 +12,6 @@ export interface AppearancePreferences {
 
 function loadTheme(): Theme {
   const stored = localStorage.getItem("theme");
-  const themes: Theme[] = ["light", "dark", "sepia", "tokyo-night", "wechat"];
   return themes.includes(stored as Theme) ? stored as Theme : "light";
 }
 

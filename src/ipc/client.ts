@@ -17,8 +17,8 @@ export interface ExportResult {
 
 export const client = {
   notes: {
-    list: (group_id: number | null, include_archived = false) =>
-      invoke<Note[]>("notes_list", { groupId: group_id, includeArchived: include_archived }).then(arr =>
+    list: (group_id: number | null, include_archived = false, status?: "todo" | "doing" | "done") =>
+      invoke<Note[]>("notes_list", { groupId: group_id, includeArchived: include_archived, status }).then(arr =>
         arr.map(n => noteSchema.parse(n))
       ),
     get: (id: number) =>
@@ -41,6 +41,8 @@ export const client = {
       invoke<Note>("notes_set_content_hidden", { id, hidden }).then(n => noteSchema.parse(n)),
     setColor: (id: number, color: string | null) =>
       invoke<Note>("notes_set_color", { id, color }).then(n => noteSchema.parse(n)),
+    setStatus: (id: number, status: "todo" | "doing" | "done") =>
+      invoke<Note>("notes_set_status", { id, status }).then(n => noteSchema.parse(n)),
     moveGroup: (id: number, group_id: number | null) =>
       invoke<Note>("notes_move_group", { id, groupId: group_id }).then(n => noteSchema.parse(n)),
     reorder: (ids: number[]) => invoke<void>("notes_reorder", { ids }),
