@@ -696,20 +696,33 @@
   flex: 0 0 auto;
 }
 
-/* ── Editor content: full-width, no max-width constraint ─────────────── */
+/* ── Editor content: full-width, fill the pane (override refinement.css
+   card chrome — margin/border/radius/background) ─────────────────── */
 .app-shell[data-is-maximized="true"] .editor-content {
   flex: 1 1 auto !important;
-  padding: 22px 36px 80px !important;
+  margin: 0 !important;
+  padding: 22px 36px 40px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--surface) !important;
   overflow-y: auto;
-  background: var(--surface);
+  outline: none;
 }
 .app-shell[data-is-maximized="true"] .editor-content .ProseMirror {
-  max-width: 920px !important;
+  max-width: 100% !important;
+  width: 100%;
+  min-height: 0 !important;
   margin: 0 !important;
   font-size: 14.5px;
   line-height: 1.78;
   color: var(--fg);
-  min-height: 100%;
+}
+/* Keep content height natural so the scrollbar only appears when
+   the user actually scrolls past the visible area. */
+.app-shell[data-is-maximized="true"] .editor-content .ProseMirror::after {
+  content: "";
+  display: block;
+  height: 8px;
 }
 .app-shell[data-is-maximized="true"] .editor-content .ProseMirror h1,
 .app-shell[data-is-maximized="true"] .editor-content .ProseMirror h2,
