@@ -1,6 +1,7 @@
 pub mod export;
 pub mod groups;
 pub mod notes;
+pub mod query_parser;
 
 pub mod attachments;
 pub mod backup;
