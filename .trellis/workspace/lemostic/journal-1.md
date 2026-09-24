@@ -27,3 +27,27 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 2: 商业化 UI 打磨与 0.2.12 发布
+<!-- trellis-session: v=2 fp=4a50364a69dd5d9b -->
+
+**Date**: 2026-09-25
+**Task**: 商业化 UI 打磨与 0.2.12 发布
+**Branch**: `main`
+
+### Summary
+
+命令面板商业化打磨(分组图标、键位提示条、遮罩减淡、标题层级),修复宽窗口编辑器空状态贴顶与暗色空态对比度,文本选区跟随主题色;修复版本一致性测试的硬编码版本号;发布 0.2.12 并归档 09-19-ui-experience-evernote-theme 任务。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dd43ecf` | fix(test): unpin release version assertion in tauriBuildConfig test |
+| `d4b3fb7` | feat(ui): commercial polish for command palette and editor empty state |
+| `739bcfe` | chore(release): 0.2.12 |
+
+### Status
+
+[OK] **Completed**
