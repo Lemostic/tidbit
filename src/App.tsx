@@ -20,6 +20,7 @@ import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { applyTheme, themes, type Theme } from "./ui/theme";
 import { Toast, type ToastState } from "./ui/Toast";
 import { applyFontPreferences, loadFontPreferences, saveFontPreferences } from "./ui/fontPreferences";
+import { applyLineHeightPreference, loadLineHeightPreference, saveLineHeightPreference } from "./ui/lineHeightPreference";
 import { client } from "./ipc/client";
 import { loadGlassEffect, loadGlassOpacity, saveGlassEffect, saveGlassOpacity } from "./ui/glassEffect";
 import { broadcastAppearance } from "./ui/appearance";
@@ -90,6 +91,7 @@ export default function App() {
   const [autostartBusy, setAutostartBusy] = useState(false);
   const [lockPin, setLockPin] = useState(() => localStorage.getItem("privacy-pin") ?? "");
   const [fonts, setFonts] = useState(loadFontPreferences);
+  const [lineHeight, setLineHeight] = useState<number>(() => loadLineHeightPreference());
   const [availableFonts, setAvailableFonts] = useState<string[]>(() => [...commonSystemFonts]);
   const [fontsLoading, setFontsLoading] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(false);
@@ -190,6 +192,10 @@ export default function App() {
   }, [fonts]);
 
   useEffect(() => {
+    applyLineHeightPreference(lineHeight);
+  }, [lineHeight]);
+
+  useEffect(() => {
     if (!settingsOpen || fontsLoaded) return;
     let cancelled = false;
     setFontsLoading(true);
@@ -271,6 +277,11 @@ export default function App() {
   const updateFonts = useCallback((next: typeof fonts) => {
     setFonts(next);
     saveFontPreferences(next);
+  }, []);
+
+  const updateLineHeight = useCallback((next: number) => {
+    setLineHeight(next);
+    saveLineHeightPreference(next);
   }, []);
 
   const updateWanderOpacity = useCallback((next: number) => {
@@ -584,6 +595,8 @@ export default function App() {
         lockPin={lockPin}
         busy={busy}
         fonts={fonts}
+        lineHeight={lineHeight}
+        onLineHeightChange={updateLineHeight}
         availableFonts={availableFonts}
         fontsLoading={fontsLoading}
         wanderOpacity={wanderOpacity}

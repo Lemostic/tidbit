@@ -28,7 +28,10 @@ DST_ICO = ROOT / "src-tauri" / "icons" / "icon.ico"
 
 # Sizes Windows actually samples for the taskbar / pinned shortcut thumbnails.
 # 256x256 is kept so the entry list also covers HiDPI app icons.
-SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+# The first entry is what older GDI / IconCache paths read first, so we
+# lead with a frame that satisfies the Windows taskbar minimum (>= 32 px).
+# Smaller sizes are kept at the tail for legacy shortcuts.
+SIZES = [(32, 32), (48, 48), (24, 24), (64, 64), (128, 128), (256, 256), (16, 16)]
 
 
 def encode_bmp_entry(img_rgba: Image.Image) -> bytes:

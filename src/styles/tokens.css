@@ -54,6 +54,7 @@
   --font-group: "Microsoft YaHei UI", "Segoe UI", sans-serif;
   --font-note-title: "Microsoft YaHei UI", "Segoe UI", sans-serif;
   --font-note-body: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  --note-line-height: 1.5;
   --glass-base: rgba(247, 250, 253, 0.64);
   --glass-raised: rgba(255, 255, 255, 0.7);
   --glass-recessed: rgba(235, 241, 247, 0.46);

@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import type { FontPreferences } from "../../ui/fontPreferences";
+import { lineHeightStep, maxLineHeight, minLineHeight } from "../../ui/lineHeightPreference";
 import { commonSystemFonts, normalizeFontFamilies } from "../../ui/systemFonts";
 import { defaultMainWindowSize, maximumMainWindowSize, minimumMainWindowSize } from "../../ui/windowSizePreferences";
 import { ThemeSwitcher } from "./ThemeSwitcher";
@@ -41,7 +42,9 @@ interface SettingsPanelProps {
   onDockingChange: (enabled: boolean) => void;
   onAutostartChange: (enabled: boolean) => void;
   onLockPinChange: (pin: string) => void;
+  lineHeight: number;
   onFontsChange: (fonts: FontPreferences) => void;
+  onLineHeightChange: (value: number) => void;
   onWanderOpacityChange: (opacity: number) => void;
   onGlassChange: (enabled: boolean) => void;
   onGlassOpacityChange: (opacity: number) => void;
@@ -436,6 +439,21 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <small className="settings-fonts__status" aria-live="polite">
               {props.fontsLoading ? "正在读取 Windows 系统字体…" : `已加载 ${fontOptions.length} 种可用字体。`}
             </small>
+          </div>
+
+          <div className="settings-field settings-opacity">
+            <label htmlFor="note-line-height"><TextT size={16} /> 笔记正文行间距 <span>{props.lineHeight.toFixed(2)}</span></label>
+            <input
+              id="note-line-height"
+              type="range"
+              min={minLineHeight}
+              max={maxLineHeight}
+              step={lineHeightStep}
+              value={props.lineHeight}
+              onChange={(event) => props.onLineHeightChange(Number(event.target.value))}
+              aria-label="笔记正文行间距"
+            />
+            <div className="settings-opacity__scale"><span>紧凑</span><span>舒展</span></div>
           </div>
           </section>
 

@@ -389,7 +389,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .note-card__placeholder { margin: 5px 0 8px; color: var(--fg-subtle); font-size: 12px; }
 .note-card__encrypted { display: flex; align-items: center; gap: 7px; min-height: 50px; margin: 7px 0 9px; padding: 9px 10px; border-left: 2px solid var(--accent); background: var(--accent-soft); color: var(--fg-muted); font-size: 12px; }
 .note-card__encrypted svg { flex: 0 0 auto; color: var(--accent); }
-.note-card__content { position: relative; min-width: 0; margin: 7px 0 9px; overflow: hidden; color: var(--fg-muted); font-family: var(--font-note-body); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; word-break: break-word; }
+.note-card__content { position: relative; min-width: 0; margin: 7px 0 9px; overflow: hidden; color: var(--fg-muted); font-family: var(--font-note-body); font-size: 12px; line-height: var(--note-line-height); overflow-wrap: anywhere; word-break: break-word; }
 .note-card__content > :first-child { margin-top: 0; }
 .note-card__content > :last-child { margin-bottom: 0; }
 .note-card__content p { margin: 0 0 0.65em; }
@@ -481,7 +481,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .voice-recorder__error { max-width: 108px; overflow: hidden; color: #c94f52; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes recording-pulse { 50% { opacity: 0.38; transform: scale(0.82); } }
 .editor-content { min-height: 0; }
-.editor-content .ProseMirror { min-width: 0; min-height: 100%; font-family: var(--font-note-body); line-height: 1.75; overflow-wrap: anywhere; word-break: break-word; }
+.editor-content .ProseMirror { min-width: 0; min-height: 100%; font-family: var(--font-note-body); line-height: var(--note-line-height); overflow-wrap: anywhere; word-break: break-word; }
 .editor-content .ProseMirror p { margin: 0 0 0.65em; }
 .editor-content .ProseMirror blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid var(--accent); color: var(--fg-muted); }
 .audio-recording,
@@ -772,7 +772,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
   box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .note-card__inner { padding: 10px 10px 8px 14px; }
-.note-card__content { margin: 6px 0 8px; line-height: 1.62; }
+.note-card__content { margin: 6px 0 8px; line-height: var(--note-line-height); }
 .note-card__meta { gap: 8px; padding-top: 6px; border-top-color: color-mix(in srgb, var(--border) 62%, transparent); }
 .note-card__actions { gap: 0; opacity: 0.52; }
 .note-action { width: 23px; height: 23px; border-radius: 5px; }
@@ -830,7 +830,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .wander-card__body .note-editor--embedded .toolbar { padding: 4px 7px; }
 .wander-card__body .note-editor--embedded .editor-content { padding: 10px 12px; }
 .wander-card__body .note-editor--embedded .note-editor__status { min-height: 29px; }
-.wander-card__content { color: var(--fg-muted); font-family: var(--font-note-body); font-size: 13px; line-height: 1.72; }
+.wander-card__content { color: var(--fg-muted); font-family: var(--font-note-body); font-size: 13px; line-height: var(--note-line-height); }
 .wander-card__content > :first-child { margin-top: 0; }
 .wander-card__content > :last-child { margin-bottom: 0; }
 .wander-card__content h1, .wander-card__content h2, .wander-card__content h3 { margin: 0.75em 0 0.35em; color: var(--fg); line-height: 1.35; }

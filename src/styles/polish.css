@@ -826,7 +826,7 @@
 .note-card__actions { transition: opacity var(--dur-fast) var(--ease); }
 .note-card:focus-within .note-card__actions { opacity: 1; }
 .note-card__title { line-height: 1.5; }
-.note-card__content { line-height: 1.75; }
+.note-card__content { line-height: var(--note-line-height); }
 .notes__view-toggle { background: var(--surface-2); }
 .notes__view-btn.is-active { box-shadow: 0 1px 4px color-mix(in srgb, var(--fg) 12%, transparent); }
 .notes__head { gap: 8px; flex-wrap: wrap; }

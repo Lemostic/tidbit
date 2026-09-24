@@ -1062,7 +1062,7 @@ input[type="range"] { accent-color: var(--accent); }
   background: var(--card-surface);
   font-family: var(--font-note-body);
   font-size: 14px;
-  line-height: 1.72;
+  line-height: var(--note-line-height);
 }
 
 .editor-content .ProseMirror { max-width: 68ch; margin: 0 auto; }
