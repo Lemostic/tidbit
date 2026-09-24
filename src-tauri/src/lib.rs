@@ -124,6 +124,8 @@ pub fn run() {
             app.manage(window::edge_dock::DockRuntimeState::default());
             // BackupKey: v1 uses a zeroed key (M5 will wire from UI PIN)
             app.manage(state::BackupKey([0u8; 32]));
+            // Auto backup: one snapshot per launch, then per configured interval.
+            backup::scheduler::start(app.handle().clone());
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.center();
                 let _ = window.show();
@@ -223,6 +225,8 @@ pub fn run() {
             ipc::backup::backup_restore,
             ipc::backup::backup_list,
             ipc::backup::backup_open_dir,
+            ipc::backup::backup_settings_get,
+            ipc::backup::backup_settings_set,
             ipc::settings::data_directory_get,
             ipc::settings::data_directory_pick,
             ipc::settings::data_directory_set,

@@ -1,6 +1,7 @@
 import {
   Archive,
   ArrowsOut,
+  ClockCounterClockwise,
   Eye,
   FolderOpen,
   HardDrive,
@@ -11,10 +12,12 @@ import {
   Drop,
   Export,
   ShieldCheck,
+  Stack,
   TextT,
   X,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import type { AutoBackupSettings } from "../backup/useBackupStatus";
 import type { FontPreferences } from "../../ui/fontPreferences";
 import { lineHeightStep, maxLineHeight, minLineHeight } from "../../ui/lineHeightPreference";
 import { commonSystemFonts, normalizeFontFamilies } from "../../ui/systemFonts";
@@ -55,6 +58,8 @@ interface SettingsPanelProps {
   onOpenBackups: () => void;
   onShowHidden: () => void;
   onExport?: () => void;
+  autoBackup: AutoBackupSettings;
+  onAutoBackupChange: (settings: AutoBackupSettings) => void;
   dataDirectory: string;
   defaultDataDirectory: string;
   dataDirectoryBusy: boolean;
@@ -532,6 +537,50 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <Eye size={18} />
               <span><strong>显示窗口</strong><small>找回已隐藏便签</small></span>
             </MagneticAction>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row__icon"><Archive size={17} /></div>
+            <div className="settings-row__copy">
+              <strong>自动备份</strong>
+              <span>每次启动自动备份一次，之后按间隔进行</span>
+            </div>
+            <input
+              type="checkbox"
+              className="switch"
+              checked={props.autoBackup.enabled}
+              onChange={(event) => props.onAutoBackupChange({ ...props.autoBackup, enabled: event.target.checked })}
+              aria-label="自动备份"
+            />
+          </div>
+          <div className="settings-field settings-opacity">
+            <label htmlFor="auto-backup-interval"><ClockCounterClockwise size={16} /> 备份间隔 <span>{props.autoBackup.intervalHours} 小时</span></label>
+            <input
+              id="auto-backup-interval"
+              type="range"
+              min="0.5"
+              max="24"
+              step="0.5"
+              value={props.autoBackup.intervalHours}
+              disabled={!props.autoBackup.enabled}
+              onChange={(event) => props.onAutoBackupChange({ ...props.autoBackup, intervalHours: Number(event.target.value) })}
+              aria-label="自动备份间隔"
+            />
+            <div className="settings-opacity__scale"><span>半小时</span><span>24 小时</span></div>
+          </div>
+          <div className="settings-field settings-opacity">
+            <label htmlFor="auto-backup-retention"><Stack size={16} /> 保留份数 <span>{props.autoBackup.retentionCount} 份</span></label>
+            <input
+              id="auto-backup-retention"
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+              value={props.autoBackup.retentionCount}
+              disabled={!props.autoBackup.enabled}
+              onChange={(event) => props.onAutoBackupChange({ ...props.autoBackup, retentionCount: Number(event.target.value) })}
+              aria-label="自动备份保留份数"
+            />
+            <small>超出上限时自动清理最旧的自动备份；手动“立即备份”不受影响。</small>
           </div>
           </section>
           </div>

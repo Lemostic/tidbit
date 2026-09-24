@@ -38,6 +38,8 @@ function renderSettings(overrides: Partial<Parameters<typeof SettingsPanel>[0]> 
     onRestore: vi.fn(),
     onOpenBackups: vi.fn(),
     onShowHidden: vi.fn(),
+    autoBackup: { enabled: true, intervalHours: 1, retentionCount: 20 },
+    onAutoBackupChange: vi.fn(),
     dataDirectory: "C:\\data",
     defaultDataDirectory: "C:\\default",
     dataDirectoryBusy: false,
@@ -83,6 +85,25 @@ it("keeps autostart off by default and disables the switch while updating", () =
 
   rerender(<SettingsPanel {...props} autostartBusy />);
   expect(screen.getByRole("checkbox", { name: "开机自动启动" })).toBeDisabled();
+});
+
+it("toggles auto backup and reports interval and retention changes", () => {
+  const onAutoBackupChange = vi.fn();
+  const { rerender, props } = renderSettings({ onAutoBackupChange });
+  expect(screen.getByRole("checkbox", { name: "自动备份" })).toBeChecked();
+
+  fireEvent.click(screen.getByRole("checkbox", { name: "自动备份" }));
+  expect(onAutoBackupChange).toHaveBeenCalledWith({ enabled: false, intervalHours: 1, retentionCount: 20 });
+
+  fireEvent.change(screen.getByLabelText("自动备份间隔"), { target: { value: "2" } });
+  expect(onAutoBackupChange).toHaveBeenLastCalledWith({ enabled: true, intervalHours: 2, retentionCount: 20 });
+
+  fireEvent.change(screen.getByLabelText("自动备份保留份数"), { target: { value: "35" } });
+  expect(onAutoBackupChange).toHaveBeenLastCalledWith({ enabled: true, intervalHours: 1, retentionCount: 35 });
+
+  rerender(<SettingsPanel {...props} autoBackup={{ enabled: false, intervalHours: 2, retentionCount: 35 }} />);
+  expect(screen.getByLabelText("自动备份间隔")).toBeDisabled();
+  expect(screen.getByLabelText("自动备份保留份数")).toBeDisabled();
 });
 
 it("applies, tracks, and resets the main window dimensions", () => {
@@ -146,7 +167,14 @@ it("moves focus into the dialog and wraps keyboard focus within it", () => {
   const onClose = vi.fn();
   renderSettings({ onClose });
   const close = screen.getByRole("button", { name: "关闭设置" });
-  const last = screen.getByRole("button", { name: /显示窗口/ });
+  // The trap wraps from whatever currently is the last focusable control,
+  // so derive it instead of hardcoding a label.
+  const focusable = Array.from(
+    screen.getByRole("dialog", { name: "设置" }).querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+  const last = focusable[focusable.length - 1];
 
   expect(close).toHaveFocus();
   last.focus();

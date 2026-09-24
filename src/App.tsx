@@ -10,7 +10,7 @@ import { RestoreWizard } from "./features/backup/RestoreWizard";
 import { ChangelogDialog } from "./features/changelog/ChangelogDialog";
 import { useChangelogOnUpdate } from "./features/changelog/useChangelogOnUpdate";
 import { ExportDialog } from "./features/export/ExportDialog";
-import { useBackupStatus } from "./features/backup/useBackupStatus";
+import { useBackupStatus, AUTO_BACKUP_DEFAULTS, type AutoBackupSettings } from "./features/backup/useBackupStatus";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
 import { NotesGrid } from "./features/notes/NotesGrid";
 import { MaximizedNotesLayout } from "./features/notes/MaximizedNotesLayout";
@@ -107,9 +107,29 @@ export default function App() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [isWide, setIsWide] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1100);
   const [announcement, setAnnouncement] = useState("");
+  const [autoBackup, setAutoBackup] = useState<AutoBackupSettings>(AUTO_BACKUP_DEFAULTS);
   const backup = useBackupStatus();
   const { entry: changelogEntry, dismiss: dismissChangelog } = useChangelogOnUpdate();
   const interactionLocked = settingsOpen || paletteOpen || restoreOpen || exportOpen || locked || changelogEntry !== null;
+
+  useEffect(() => {
+    let cancelled = false;
+    void backup
+      .settings()
+      .then((settings) => {
+        if (!cancelled && settings && typeof settings.enabled === "boolean") setAutoBackup(settings);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [backup]);
+
+  const updateAutoBackup = useCallback((settings: AutoBackupSettings) => {
+    setAutoBackup(settings);
+    void backup
+      .saveSettings(settings)
+      .then((normalized) => { if (normalized) setAutoBackup(normalized); })
+      .catch(() => undefined);
+  }, [backup]);
 
   const openSettings = useCallback(() => {
     dismissChangelog();
@@ -620,6 +640,8 @@ export default function App() {
         onOpenBackups={() => void openBackups()}
         onShowHidden={() => void showHidden()}
         onExport={() => { setSettingsOpen(false); setExportOpen(true); }}
+        autoBackup={autoBackup}
+        onAutoBackupChange={updateAutoBackup}
         dataDirectory={dataDirectory}
         defaultDataDirectory={defaultDataDirectory}
         dataDirectoryBusy={dataDirectoryBusy}
