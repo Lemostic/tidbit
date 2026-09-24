@@ -32,11 +32,18 @@ fn rename_repoints_every_note_and_drops_old_tag() {
     let pool = common::pool();
     setup(&pool);
     let repo = TagRepo::new(pool.clone());
-    let n1 = NoteRepo::new(pool.clone()).create_in_group(None, "n1").unwrap();
-    let n2 = NoteRepo::new(pool.clone()).create_in_group(None, "n2").unwrap();
-    let n3 = NoteRepo::new(pool.clone()).create_in_group(None, "n3").unwrap();
+    let n1 = NoteRepo::new(pool.clone())
+        .create_in_group(None, "n1")
+        .unwrap();
+    let n2 = NoteRepo::new(pool.clone())
+        .create_in_group(None, "n2")
+        .unwrap();
+    let n3 = NoteRepo::new(pool.clone())
+        .create_in_group(None, "n3")
+        .unwrap();
     repo.set_for_note(n1.id, &["工作".into()]).unwrap();
-    repo.set_for_note(n2.id, &["工作".into(), "其他".into()]).unwrap();
+    repo.set_for_note(n2.id, &["工作".into(), "其他".into()])
+        .unwrap();
     repo.set_for_note(n3.id, &["其他".into()]).unwrap();
 
     let updated = repo.rename("工作", "工 作").unwrap();
@@ -54,8 +61,11 @@ fn rename_dedupes_when_both_names_already_linked() {
     let pool = common::pool();
     setup(&pool);
     let repo = TagRepo::new(pool.clone());
-    let note = NoteRepo::new(pool.clone()).create_in_group(None, "n").unwrap();
-    repo.set_for_note(note.id, &["a".into(), "b".into()]).unwrap();
+    let note = NoteRepo::new(pool.clone())
+        .create_in_group(None, "n")
+        .unwrap();
+    repo.set_for_note(note.id, &["a".into(), "b".into()])
+        .unwrap();
     // Both "a" and "b" already on the note — the UPDATE skips the row
     // (NOT EXISTS) and the orphan-delete step drops the remaining "a"
     // link, leaving exactly one "b".
@@ -69,8 +79,12 @@ fn delete_removes_tag_from_every_note() {
     let pool = common::pool();
     setup(&pool);
     let repo = TagRepo::new(pool.clone());
-    let n1 = NoteRepo::new(pool.clone()).create_in_group(None, "n1").unwrap();
-    let n2 = NoteRepo::new(pool.clone()).create_in_group(None, "n2").unwrap();
+    let n1 = NoteRepo::new(pool.clone())
+        .create_in_group(None, "n1")
+        .unwrap();
+    let n2 = NoteRepo::new(pool.clone())
+        .create_in_group(None, "n2")
+        .unwrap();
     repo.set_for_note(n1.id, &["x".into()]).unwrap();
     repo.set_for_note(n2.id, &["x".into(), "y".into()]).unwrap();
 

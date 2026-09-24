@@ -558,6 +558,7 @@ mod tests {
             updated_at: 0,
             color: None,
             sort_order: id,
+            status: crate::domain::note::KanbanStatus::Todo,
             tags: Vec::new(),
             reminder: None,
         }

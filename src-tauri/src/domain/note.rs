@@ -66,5 +66,6 @@ pub struct Note {
     pub reminder: Option<ReminderLite>,
 }
 
-
-fn default_kanban_status() -> KanbanStatus { KanbanStatus::Todo }
+fn default_kanban_status() -> KanbanStatus {
+    KanbanStatus::Todo
+}

@@ -55,11 +55,19 @@ impl RepeatRule {
         match self.freq {
             Frequency::Daily => {
                 let day = base.date_naive() + chrono::Duration::days(interval);
-                Some(Utc.from_local_datetime(&day.and_hms_opt(0, 0, 0)?).single()?.timestamp_millis())
+                Some(
+                    Utc.from_local_datetime(&day.and_hms_opt(0, 0, 0)?)
+                        .single()?
+                        .timestamp_millis(),
+                )
             }
             Frequency::Weekly => {
                 let day = base.date_naive() + chrono::Duration::weeks(interval);
-                Some(Utc.from_local_datetime(&day.and_hms_opt(0, 0, 0)?).single()?.timestamp_millis())
+                Some(
+                    Utc.from_local_datetime(&day.and_hms_opt(0, 0, 0)?)
+                        .single()?
+                        .timestamp_millis(),
+                )
             }
             Frequency::Monthly => {
                 let (y, m, d) = (base.year(), base.month(), base.day());
@@ -72,11 +80,19 @@ impl RepeatRule {
                 let last_day = last_day_of_month(target_y, target_m as u32);
                 let day = d.min(last_day);
                 let date = chrono::NaiveDate::from_ymd_opt(target_y, target_m as u32, day)?;
-                Some(Utc.from_local_datetime(&date.and_hms_opt(0, 0, 0)?).single()?.timestamp_millis())
+                Some(
+                    Utc.from_local_datetime(&date.and_hms_opt(0, 0, 0)?)
+                        .single()?
+                        .timestamp_millis(),
+                )
             }
             Frequency::Yearly => {
                 let target = base.date_naive() + chrono::Duration::days(365 * interval);
-                Some(Utc.from_local_datetime(&target.and_hms_opt(0, 0, 0)?).single()?.timestamp_millis())
+                Some(
+                    Utc.from_local_datetime(&target.and_hms_opt(0, 0, 0)?)
+                        .single()?
+                        .timestamp_millis(),
+                )
             }
         }
     }
@@ -86,7 +102,11 @@ fn last_day_of_month(year: i32, month: u32) -> u32 {
     match month {
         2 => {
             let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
-            if leap { 29 } else { 28 }
+            if leap {
+                29
+            } else {
+                28
+            }
         }
         4 | 6 | 9 | 11 => 30,
         _ => 31,
@@ -99,7 +119,9 @@ mod tests {
     use chrono::{TimeZone, Utc};
 
     fn ms(y: i32, m: u32, d: u32) -> i64 {
-        Utc.with_ymd_and_hms(y, m, d, 0, 0, 0).unwrap().timestamp_millis()
+        Utc.with_ymd_and_hms(y, m, d, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis()
     }
 
     #[test]

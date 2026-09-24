@@ -206,7 +206,7 @@ impl NoteRepo {
         self.get(id)
     }
 
-pub fn move_to_group(&self, id: i64, group_id: Option<i64>) -> Result<Note, AppError> {
+    pub fn move_to_group(&self, id: i64, group_id: Option<i64>) -> Result<Note, AppError> {
         let existing = self.get(id)?;
         if existing.group_id == group_id {
             return Ok(existing);
@@ -281,7 +281,6 @@ pub fn move_to_group(&self, id: i64, group_id: Option<i64>) -> Result<Note, AppE
         Ok(())
     }
 
-    
     /// List all trashed notes, newest first.
     pub fn list_trashed(&self) -> Result<Vec<Note>, AppError> {
         let conn = self.pool.get()?;

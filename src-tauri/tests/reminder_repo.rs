@@ -9,7 +9,10 @@ fn schedules_fires_and_clears_a_reminder() {
         .unwrap();
     let repo = ReminderRepo::new(pool);
     assert_eq!(
-        repo.set(note.id, Some(200), None).unwrap().unwrap().remind_at,
+        repo.set(note.id, Some(200), None)
+            .unwrap()
+            .unwrap()
+            .remind_at,
         200
     );
     assert!(repo.due(199).unwrap().is_empty());

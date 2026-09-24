@@ -52,6 +52,7 @@ pub fn pool() -> Pool {
            updated_at    INTEGER NOT NULL,
            color         TEXT
            ,sort_order   INTEGER NOT NULL DEFAULT 0
+           ,status       TEXT NOT NULL DEFAULT 'todo'
          );
          CREATE INDEX IF NOT EXISTS idx_note_group ON note(group_id, updated_at DESC);
          CREATE INDEX IF NOT EXISTS idx_note_updated ON note(updated_at DESC) WHERE is_trashed = 0;

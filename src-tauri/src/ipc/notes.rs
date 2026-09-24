@@ -136,7 +136,11 @@ pub async fn tags_list(state: State<'_, AppState>) -> Result<Vec<String>, AppErr
 }
 
 #[tauri::command]
-pub async fn tag_rename(state: State<'_, AppState>, old: String, new: String) -> Result<u64, AppError> {
+pub async fn tag_rename(
+    state: State<'_, AppState>,
+    old: String,
+    new: String,
+) -> Result<u64, AppError> {
     state.tags.rename(&old, &new)
 }
 
@@ -219,7 +223,10 @@ pub async fn notes_purge_trash(state: State<'_, AppState>) -> Result<u64, AppErr
 }
 
 #[tauri::command]
-pub async fn notes_revisions(state: State<'_, AppState>, id: i64) -> Result<Vec<Revision>, AppError> {
+pub async fn notes_revisions(
+    state: State<'_, AppState>,
+    id: i64,
+) -> Result<Vec<Revision>, AppError> {
     state.revisions.list(id)
 }
 

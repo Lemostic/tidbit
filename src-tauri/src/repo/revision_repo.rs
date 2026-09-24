@@ -38,7 +38,6 @@ impl RevisionRepo {
         Ok(())
     }
 
-
     /// Restore a note's content (markdown and derived fields) from a revision.
     /// The stored HTML is regenerated client-side, so we set it to the same
     /// markdown string as a safe placeholder and let the editor re-render it.

@@ -22,7 +22,10 @@ fn serve_attachment<R: tauri::Runtime>(
             .body(Vec::new())
             .expect("static response")
     };
-    let Some(data_dir) = ctx.app_handle().try_state::<data_directory::DataDirectory>() else {
+    let Some(data_dir) = ctx
+        .app_handle()
+        .try_state::<data_directory::DataDirectory>()
+    else {
         return not_found();
     };
     let path = request.uri().path().trim_start_matches('/');
@@ -31,7 +34,9 @@ fn serve_attachment<R: tauri::Runtime>(
     };
     if note_id.is_empty()
         || note_id.bytes().any(|byte| !byte.is_ascii_digit())
-        || !stored_name.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte))
+        || !stored_name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte))
     {
         return not_found();
     }
@@ -112,7 +117,10 @@ pub fn run() {
             // Startup housekeeping: permanently remove notes trashed more than
             // 30 days ago so the trash cannot grow without bound.
             let purge_ts = chrono::Utc::now().timestamp_millis() - 30 * 24 * 60 * 60 * 1000;
-            let _ = app.state::<state::AppState>().notes.purge_older_than(purge_ts);
+            let _ = app
+                .state::<state::AppState>()
+                .notes
+                .purge_older_than(purge_ts);
             app.manage(window::edge_dock::DockRuntimeState::default());
             // BackupKey: v1 uses a zeroed key (M5 will wire from UI PIN)
             app.manage(state::BackupKey([0u8; 32]));

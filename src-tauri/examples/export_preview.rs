@@ -44,6 +44,7 @@ fn main() {
         updated_at: 1_700_000_100_000,
         color: None,
         sort_order: 1,
+        status: tidbit_lib::domain::note::KanbanStatus::Todo,
         tags: Vec::new(),
         reminder: None,
     }];

@@ -36,7 +36,7 @@ fn list_by_group_none_returns_all_active() {
     let nr = NoteRepo::new(pr);
     let n1 = nr.create_in_group(None, "A").unwrap();
     let n2 = nr.create_in_group(None, "B").unwrap();
-    let all = nr.list_by_group(None, false).unwrap();
+    let all = nr.list_by_group(None, false, None).unwrap();
     assert_eq!(all.len(), 2);
     // Newly created notes are inserted first in the manual order.
     assert_eq!(
@@ -58,7 +58,7 @@ fn reorder_persists_manual_order() {
     let c = nr.create_in_group(None, "C").unwrap();
     nr.reorder(&[a.id, c.id, b.id]).unwrap();
     let ids = nr
-        .list_by_group(None, false)
+        .list_by_group(None, false, None)
         .unwrap()
         .into_iter()
         .map(|n| n.id)
@@ -88,7 +88,7 @@ fn moving_to_group_places_note_at_the_end() {
     let moved = nr.create_in_group(None, "待移动").unwrap();
     nr.move_to_group(moved.id, Some(group_id)).unwrap();
     let ids = nr
-        .list_by_group(Some(group_id), false)
+        .list_by_group(Some(group_id), false, None)
         .unwrap()
         .into_iter()
         .map(|n| n.id)
@@ -103,7 +103,7 @@ fn list_by_group_filters_trashed() {
     let n = nr.create_in_group(None, "Keep").unwrap();
     let _ = nr.create_in_group(None, "Trash").unwrap();
     nr.trash(n.id + 1).unwrap();
-    let active = nr.list_by_group(None, false).unwrap();
+    let active = nr.list_by_group(None, false, None).unwrap();
     assert_eq!(active.len(), 1);
     assert_eq!(active[0].title.as_deref(), Some("Keep"));
 }
@@ -162,7 +162,7 @@ fn content_visibility_does_not_change_timestamp_or_manual_order() {
     let second = nr.create_in_group(None, "Second").unwrap();
     let third = nr.create_in_group(None, "Third").unwrap();
     nr.reorder(&[first.id, second.id, third.id]).unwrap();
-    let before = nr.list_by_group(None, false).unwrap();
+    let before = nr.list_by_group(None, false, None).unwrap();
     let second_before = nr.get(second.id).unwrap();
 
     let hidden = nr.set_content_hidden(second.id, true).unwrap();
@@ -170,7 +170,7 @@ fn content_visibility_does_not_change_timestamp_or_manual_order() {
     assert_eq!(hidden.updated_at, second_before.updated_at);
     assert_eq!(hidden.sort_order, second_before.sort_order);
 
-    let after_hide = nr.list_by_group(None, false).unwrap();
+    let after_hide = nr.list_by_group(None, false, None).unwrap();
     assert_eq!(
         after_hide.iter().map(|note| note.id).collect::<Vec<_>>(),
         before.iter().map(|note| note.id).collect::<Vec<_>>()
@@ -180,7 +180,7 @@ fn content_visibility_does_not_change_timestamp_or_manual_order() {
     assert!(!shown.is_content_hidden);
     assert_eq!(shown.updated_at, second_before.updated_at);
     assert_eq!(
-        nr.list_by_group(None, false)
+        nr.list_by_group(None, false, None)
             .unwrap()
             .iter()
             .map(|note| note.id)
@@ -200,13 +200,13 @@ fn archived_notes_are_hidden_by_default_and_can_be_included() {
     assert!(archived.is_archived);
     assert!(!archived.is_pinned);
 
-    let default_list = nr.list_by_group(None, false).unwrap();
+    let default_list = nr.list_by_group(None, false, None).unwrap();
     assert_eq!(
         default_list.iter().map(|n| n.id).collect::<Vec<_>>(),
         vec![active.id]
     );
 
-    let with_archived = nr.list_by_group(None, true).unwrap();
+    let with_archived = nr.list_by_group(None, true, None).unwrap();
     assert_eq!(with_archived.len(), 2);
     assert!(with_archived.iter().any(|note| note.id == archived.id));
 }

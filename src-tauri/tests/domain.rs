@@ -44,6 +44,7 @@ fn round_trip_note_serializes() {
         updated_at: Utc::now().timestamp_millis(),
         color: Some("#ff0000".into()),
         sort_order: 0,
+        status: tidbit_lib::domain::note::KanbanStatus::Todo,
         tags: Vec::new(),
         reminder: None,
     };
