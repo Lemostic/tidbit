@@ -48,3 +48,5 @@ src-tauri/Cargo.lock
 # local Playwright / runtime captures (regenerated every debug session)
 .pw-*.png
 .dsh/
+# stray one-off icon exports left in repo root by the Windows icon tooling
+/icon-*.png
