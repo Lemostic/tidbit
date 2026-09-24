@@ -123,6 +123,9 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
                 </select>
               )}
             </div>
+            <p className="palette__syntax-hint">
+              语法：<code>&quot;短语&quot;</code> · <code>-排除</code> · <code>前缀*</code> · <code>tag:标签</code> · <code>group:分组</code>
+            </p>
             {loading ? <div className="skeleton-list"><span /><span /><span /></div> : error ? <div className="inline-error">{error}</div> : (
               <SearchResults hits={hits} onOpen={(id) => { onOpenNote?.(id); onClose(); }} />
             )}

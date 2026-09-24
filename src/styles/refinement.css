@@ -2455,6 +2455,22 @@ input[type="range"] { accent-color: var(--accent); }
 }
 .palette__filter-check input { accent-color: var(--accent); }
 .palette__filters .select { min-width: 96px; height: 24px; font-size: 10.5px; }
+.palette__syntax-hint {
+  margin: 0;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-subtle);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+.palette__syntax-hint code {
+  font-family: inherit;
+  color: var(--fg-muted);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+}
 
 /* ---- Tag manager + filter bar extras ---- */
 .note-tag--manage {
