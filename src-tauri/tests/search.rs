@@ -29,7 +29,9 @@ fn matches_each_keyword_and_ranks_title_hits() {
     let a = repo.create_in_group(None, "便签").unwrap();
     let _ = repo.update_content(a.id, "团队周报", "html", 4).unwrap();
     let b = repo.create_in_group(None, "周报汇总").unwrap();
-    let _ = repo.update_content(b.id, "需要提交材料", "html", 8).unwrap();
+    let _ = repo
+        .update_content(b.id, "需要提交材料", "html", 8)
+        .unwrap();
     let c = repo.create_in_group(None, "无关").unwrap();
     let _ = repo.update_content(c.id, "喝水", "html", 2).unwrap();
 
@@ -52,15 +54,23 @@ fn excludes_hidden_and_trashed_and_archived_by_default() {
     let pool = common::pool();
     let repo = NoteRepo::new(pool.clone());
     let visible = repo.create_in_group(None, "可见").unwrap();
-    let _ = repo.update_content(visible.id, "秘密计划", "html", 4).unwrap();
+    let _ = repo
+        .update_content(visible.id, "秘密计划", "html", 4)
+        .unwrap();
     let hidden = repo.create_in_group(None, "隐藏").unwrap();
-    let _ = repo.update_content(hidden.id, "秘密计划", "html", 4).unwrap();
+    let _ = repo
+        .update_content(hidden.id, "秘密计划", "html", 4)
+        .unwrap();
     let _ = repo.set_content_hidden(hidden.id, true).unwrap();
     let trashed = repo.create_in_group(None, "回收").unwrap();
-    let _ = repo.update_content(trashed.id, "秘密计划", "html", 4).unwrap();
+    let _ = repo
+        .update_content(trashed.id, "秘密计划", "html", 4)
+        .unwrap();
     let _ = repo.trash(trashed.id).unwrap();
     let archived = repo.create_in_group(None, "归档").unwrap();
-    let _ = repo.update_content(archived.id, "秘密计划", "html", 4).unwrap();
+    let _ = repo
+        .update_content(archived.id, "秘密计划", "html", 4)
+        .unwrap();
     let _ = repo.set_archived(archived.id, true).unwrap();
 
     let hits = search_notes(&pool, "秘密计划", None, false).unwrap();
@@ -102,4 +112,147 @@ fn empty_query_returns_no_hits() {
     let repo = NoteRepo::new(pool.clone());
     let _ = repo.create_in_group(None, "任意").unwrap();
     assert!(search_notes(&pool, "   ", None, false).unwrap().is_empty());
+}
+
+#[test]
+fn quoted_phrase_matches_whole_sequence_only() {
+    let pool = common::pool();
+    let repo = NoteRepo::new(pool.clone());
+    let phrase = repo.create_in_group(None, "A").unwrap();
+    let _ = repo
+        .update_content(phrase.id, "项目周会安排", "html", 6)
+        .unwrap();
+    let scattered = repo.create_in_group(None, "B").unwrap();
+    let _ = repo
+        .update_content(scattered.id, "项目很多，周会照常", "html", 9)
+        .unwrap();
+
+    let hits = search_notes(&pool, "\"项目周会\"", None, false).unwrap();
+    let ids: Vec<i64> = hits.iter().map(|h| h.id).collect();
+    assert_eq!(ids, vec![phrase.id]);
+    // The phrase is one highlight term, stars removed.
+    assert_eq!(hits[0].terms, vec!["项目周会".to_string()]);
+}
+
+#[test]
+fn exclusion_removes_matching_notes() {
+    let pool = common::pool();
+    let repo = NoteRepo::new(pool.clone());
+    let keep = repo.create_in_group(None, "A").unwrap();
+    let _ = repo.update_content(keep.id, "周报初稿", "html", 4).unwrap();
+    let drop = repo.create_in_group(None, "B").unwrap();
+    let _ = repo.update_content(drop.id, "周报草稿", "html", 4).unwrap();
+
+    let hits = search_notes(&pool, "周报 -草稿", None, false).unwrap();
+    let ids: Vec<i64> = hits.iter().map(|h| h.id).collect();
+    assert_eq!(ids, vec![keep.id]);
+    // Excluded terms are not highlighted.
+    assert_eq!(hits[0].terms, vec!["周报".to_string()]);
+}
+
+#[test]
+fn prefix_only_matches_when_requested() {
+    let pool = common::pool();
+    let repo = NoteRepo::new(pool.clone());
+    let starts = repo.create_in_group(None, "A").unwrap();
+    let _ = repo
+        .update_content(starts.id, "2026 计划", "html", 4)
+        .unwrap();
+    let middle = repo.create_in_group(None, "B").unwrap();
+    let _ = repo
+        .update_content(middle.id, "展望 2026 年", "html", 4)
+        .unwrap();
+
+    let hits = search_notes(&pool, "2026*", None, false).unwrap();
+    let ids: Vec<i64> = hits.iter().map(|h| h.id).collect();
+    assert_eq!(ids, vec![starts.id]);
+
+    // Without the star, substring matching keeps the old behavior.
+    let hits = search_notes(&pool, "2026", None, false).unwrap();
+    assert_eq!(hits.len(), 2);
+}
+
+#[test]
+fn tag_filter_in_query_and_filters_alone_are_valid() {
+    let pool = common::pool();
+    seed(&pool);
+    let repo = NoteRepo::new(pool.clone());
+    let tags = TagRepo::new(pool.clone());
+    let a = repo.create_in_group(None, "A").unwrap();
+    let _ = repo.update_content(a.id, "会议记录", "html", 4).unwrap();
+    let b = repo.create_in_group(None, "B").unwrap();
+    let _ = repo.update_content(b.id, "会议记录", "html", 4).unwrap();
+    let _ = tags.set_for_note(a.id, &["工作".into()]).unwrap();
+
+    // tag: inside the query string.
+    let hits = search_notes(&pool, "会议 tag:工作", None, false).unwrap();
+    let ids: Vec<i64> = hits.iter().map(|h| h.id).collect();
+    assert_eq!(ids, vec![a.id]);
+
+    // A filter with no positive term lists matching notes.
+    let hits = search_notes(&pool, "tag:工作", None, false).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].id, a.id);
+    assert!(hits[0].snippet.contains("会议记录"));
+
+    // Exclusions alone are valid too.
+    let hits = search_notes(&pool, "-missing", None, false).unwrap();
+    assert_eq!(hits.len(), 2);
+}
+
+#[test]
+fn group_filter_restricts_to_named_group() {
+    let pool = common::pool();
+    seed(&pool);
+    {
+        let conn = pool.get().unwrap();
+        conn.execute_batch(
+            "INSERT INTO \"group\" (id, name, created_at, updated_at) VALUES (1, '灵感', 0, 0);",
+        )
+        .unwrap();
+    }
+    let repo = NoteRepo::new(pool.clone());
+    let inside = repo.create_in_group(Some(1), "A").unwrap();
+    let _ = repo.update_content(inside.id, "点子", "html", 4).unwrap();
+    let outside = repo.create_in_group(None, "B").unwrap();
+    let _ = repo.update_content(outside.id, "点子", "html", 4).unwrap();
+
+    let hits = search_notes(&pool, "点子 group:灵感", None, false).unwrap();
+    let ids: Vec<i64> = hits.iter().map(|h| h.id).collect();
+    assert_eq!(ids, vec![inside.id]);
+
+    // Unknown group name matches nothing.
+    let hits = search_notes(&pool, "点子 group:不存在", None, false).unwrap();
+    assert!(hits.is_empty());
+}
+
+#[test]
+fn unbalanced_quote_is_a_query_syntax_error() {
+    let pool = common::pool();
+    let err = search_notes(&pool, "\"周报", None, false).unwrap_err();
+    assert!(err.to_string().contains("引号未闭合"), "got {err:?}");
+}
+
+#[test]
+fn like_wildcards_and_escapes_are_literal() {
+    let pool = common::pool();
+    let repo = NoteRepo::new(pool.clone());
+    let pct = repo.create_in_group(None, "A").unwrap();
+    let _ = repo.update_content(pct.id, "增长100%", "html", 4).unwrap();
+    let no_pct = repo.create_in_group(None, "B").unwrap();
+    let _ = repo
+        .update_content(no_pct.id, "增长100 percent", "html", 4)
+        .unwrap();
+    let path = repo.create_in_group(None, "C").unwrap();
+    let _ = repo
+        .update_content(path.id, "C:\\Users\\me", "html", 4)
+        .unwrap();
+
+    let hits = search_notes(&pool, "100%", None, false).unwrap();
+    let ids: Vec<i64> = hits.iter().map(|h| h.id).collect();
+    assert_eq!(ids, vec![pct.id]);
+
+    let hits = search_notes(&pool, "C:\\Users", None, false).unwrap();
+    let ids: Vec<i64> = hits.iter().map(|h| h.id).collect();
+    assert_eq!(ids, vec![path.id]);
 }

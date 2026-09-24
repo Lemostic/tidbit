@@ -1,3 +1,4 @@
+use super::query_parser::{parse_query, ParseError, Term};
 use crate::error::AppError;
 use crate::infra::db::Pool;
 use crate::state::AppState;
@@ -10,7 +11,7 @@ pub struct Hit {
     pub group_id: Option<i64>,
     pub title: Option<String>,
     pub snippet: String,
-    /// Original query keywords, returned so the client can highlight them.
+    /// Positive query terms, returned so the client can highlight them.
     pub terms: Vec<String>,
     pub score: i64,
 }
@@ -41,7 +42,11 @@ fn make_snippet(content: &str, terms: &[String]) -> String {
     let char_count = text[pos..].chars().count();
     let start_char = char_start.saturating_sub(30);
     let end_char = (start_char + SNIPPET_WINDOW).min(char_start + char_count);
-    let mut out: String = text.chars().skip(start_char).take(end_char - start_char).collect();
+    let mut out: String = text
+        .chars()
+        .skip(start_char)
+        .take(end_char - start_char)
+        .collect();
     if start_char > 0 {
         out.insert_str(0, "…");
     }
@@ -51,33 +56,58 @@ fn make_snippet(content: &str, terms: &[String]) -> String {
     out
 }
 
-/// Full-text search over notes.
+/// Escape a term for use inside a LIKE pattern with `ESCAPE '\'`.
+fn escape_like(text: &str) -> String {
+    text.replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
+/// LIKE pattern for one term: prefix terms anchor at the start of the text,
+/// all other terms match anywhere (substring, required for CJK).
+fn like_pattern(term: &Term) -> String {
+    if term.prefix {
+        format!("{}%", escape_like(&term.text))
+    } else {
+        format!("%{}%", escape_like(&term.text))
+    }
+}
+
+fn tag_exists_clause(tag_idx: usize) -> String {
+    format!(
+        "EXISTS (SELECT 1 FROM note_tag nt JOIN tag t2 ON t2.id = nt.tag_id \
+         WHERE nt.note_id = n.id AND t2.name = ?{tag_idx} COLLATE NOCASE)"
+    )
+}
+
+/// Full-text search over notes with a light query syntax
+/// (see `query_parser`): `"quoted phrases"`, `prefix*`, `-excluded` terms,
+/// `tag:name` filters and a `group:name` filter. Plain words keep the
+/// historical behavior: substring AND, title hit 3× against body hit 1×.
 ///
-/// Each whitespace-separated keyword must match the title OR the body
-/// (AND semantics). Ranking weights a title hit 3× against a body hit 1×.
 /// Hidden-content notes and (unless `include_archived`) archived notes are
-/// excluded. When `tag` is given only notes carrying that tag are returned.
+/// excluded. The `tag` argument (palette dropdown) ANDs with any `tag:`
+/// filters from the query. A query made only of filters/exclusions is valid
+/// and ranks by recency. Unbalanced quotes surface as
+/// [`AppError::QuerySyntax`] so the UI can show a readable message.
 pub fn search_notes(
     pool: &Pool,
     q: &str,
     tag: Option<&str>,
     include_archived: bool,
 ) -> Result<Vec<Hit>, AppError> {
-    let keywords: Vec<String> = q
-        .split_whitespace()
-        .map(|k| k.trim())
-        .filter(|k| !k.is_empty())
-        .map(|k| k.to_string())
-        .collect();
-    if keywords.is_empty() {
-        return Ok(Vec::new());
-    }
+    let parsed = match parse_query(q) {
+        Ok(parsed) => parsed,
+        Err(ParseError::Empty) => return Ok(Vec::new()),
+        Err(err) => return Err(AppError::from(err)),
+    };
 
     let mut params: Vec<String> = Vec::new();
     let mut conditions: Vec<String> = Vec::new();
     let mut score_terms: Vec<String> = Vec::new();
-    for kw in &keywords {
-        let pattern = format!("%{}%", kw.replace('%', "\\%").replace('_', "\\_"));
+
+    for term in &parsed.includes {
+        let pattern = like_pattern(term);
         let title_idx = params.len() + 1;
         params.push(pattern.clone());
         let body_idx = params.len() + 1;
@@ -91,19 +121,52 @@ pub fn search_notes(
         ));
     }
 
-    let archived_clause = if include_archived { "" } else { " AND n.is_archived = 0" };
-    let tag_clause = match tag {
-        Some(tag_name) => {
-            let tag_idx = params.len() + 1;
-            params.push(tag_name.to_string());
-            format!(
-                " AND EXISTS (SELECT 1 FROM note_tag nt JOIN tag t2 ON t2.id = nt.tag_id \
-                 WHERE nt.note_id = n.id AND t2.name = ?{tag_idx} COLLATE NOCASE)"
-            )
-        }
-        None => String::new(),
+    for term in &parsed.excludes {
+        let pattern = like_pattern(term);
+        let title_idx = params.len() + 1;
+        params.push(pattern.clone());
+        let body_idx = params.len() + 1;
+        params.push(pattern);
+        conditions.push(format!(
+            "NOT (n.title LIKE ?{title_idx} ESCAPE '\\' OR n.content_md LIKE ?{body_idx} ESCAPE '\\')"
+        ));
+    }
+
+    for tag_name in &parsed.tags {
+        let tag_idx = params.len() + 1;
+        params.push(tag_name.clone());
+        conditions.push(tag_exists_clause(tag_idx));
+    }
+
+    if let Some(tag_name) = tag {
+        let tag_idx = params.len() + 1;
+        params.push(tag_name.to_string());
+        conditions.push(tag_exists_clause(tag_idx));
+    }
+
+    if let Some(group_name) = &parsed.group {
+        let group_idx = params.len() + 1;
+        params.push(group_name.clone());
+        conditions.push(format!(
+            "n.group_id = (SELECT id FROM \"group\" WHERE name = ?{group_idx} COLLATE NOCASE)"
+        ));
+    }
+
+    if conditions.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let score = if score_terms.is_empty() {
+        "0".to_string()
+    } else {
+        score_terms.join(" + ")
     };
 
+    let archived_clause = if include_archived {
+        ""
+    } else {
+        " AND n.is_archived = 0"
+    };
     let sql = format!(
         "SELECT n.id, n.group_id, n.title, n.content_md, ({score}) AS score
          FROM note n
@@ -111,13 +174,13 @@ pub fn search_notes(
            AND n.is_content_hidden = 0
            {archived_clause}
            AND ({where_cond})
-           {tag_clause}
          ORDER BY score DESC, n.updated_at DESC, n.id ASC
          LIMIT 50",
-        score = score_terms.join(" + "),
+        score = score,
         where_cond = conditions.join(" AND "),
     );
 
+    let highlight_terms = parsed.highlight_terms();
     let conn = pool.get()?;
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt
@@ -126,8 +189,8 @@ pub fn search_notes(
                 id: row.get(0)?,
                 group_id: row.get(1)?,
                 title: row.get(2)?,
-                snippet: make_snippet(&row.get::<_, String>(3)?, &keywords),
-                terms: keywords.clone(),
+                snippet: make_snippet(&row.get::<_, String>(3)?, &highlight_terms),
+                terms: highlight_terms.clone(),
                 score: row.get(4)?,
             })
         })?
@@ -142,5 +205,10 @@ pub async fn search_query(
     tag: Option<String>,
     include_archived: Option<bool>,
 ) -> Result<Vec<Hit>, AppError> {
-    search_notes(&state.pool, &q, tag.as_deref(), include_archived.unwrap_or(false))
+    search_notes(
+        &state.pool,
+        &q,
+        tag.as_deref(),
+        include_archived.unwrap_or(false),
+    )
 }
