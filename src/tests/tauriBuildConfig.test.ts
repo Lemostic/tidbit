@@ -39,12 +39,23 @@ describe("Tauri production build", () => {
     expect(cargoManifest).toMatch(/^custom-protocol = \["tauri\/custom-protocol"\]$/m);
   });
 
-  test("uses the roomier default window size", () => {
+  test("keeps the roomier default window size", () => {
     const configPath = resolve(process.cwd(), "src-tauri/tauri.conf.json");
     const config = JSON.parse(readFileSync(configPath, "utf8")) as {
       app: { windows: Array<{ width: number; height: number; center: boolean }> };
     };
     expect(config.app.windows[0]).toMatchObject({ width: 780, height: 820, center: true });
+  });
+
+  test("disables the native drag-drop handler so HTML5 drag works (kanban)", () => {
+    const configPath = resolve(process.cwd(), "src-tauri/tauri.conf.json");
+    const config = JSON.parse(readFileSync(configPath, "utf8")) as {
+      app: { windows: Array<{ label: string; dragDropEnabled?: boolean }> };
+    };
+    const main = config.app.windows.find((window) => window.label === "main");
+    // WebView2's native drop handler suppresses HTML5 drag & drop; the app
+    // has no native file-drop listeners, so it must stay off.
+    expect(main?.dragDropEnabled).toBe(false);
   });
 
   test("uses tidbit as the application data directory identifier", () => {
