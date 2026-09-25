@@ -36,6 +36,20 @@ it("cycles into the new themes", () => {
   fireEvent.click(button);
   expect(document.documentElement.dataset.theme).toBe("evernote");
   fireEvent.click(button);
+  // New programmer-classic themes follow the existing six.
+  expect(document.documentElement.dataset.theme).toBe("one-dark");
+  fireEvent.click(button);
+  expect(document.documentElement.dataset.theme).toBe("dracula");
+  fireEvent.click(button);
+  expect(document.documentElement.dataset.theme).toBe("nord");
+  fireEvent.click(button);
+  expect(document.documentElement.dataset.theme).toBe("solarized-dark");
+  fireEvent.click(button);
+  expect(document.documentElement.dataset.theme).toBe("gruvbox-dark");
+  fireEvent.click(button);
+  expect(document.documentElement.dataset.theme).toBe("monokai");
+  fireEvent.click(button);
+  // Wraps back to the first entry in the themes array.
   expect(document.documentElement.dataset.theme).toBe("light");
 });
 

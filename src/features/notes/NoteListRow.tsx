@@ -1,5 +1,5 @@
 import "./NoteListRow.css";
-import { Clock, PushPin, Archive, Eye } from "@phosphor-icons/react";
+import { Clock, PushPin, Archive, Eye, Trash } from "@phosphor-icons/react";
 import type { Note } from "../../ipc/types";
 
 interface NoteListRowProps {
@@ -7,6 +7,9 @@ interface NoteListRowProps {
   active?: boolean;
   onOpen?: (note: Note) => void;
   onContextMenu?: (event: React.MouseEvent, note: Note) => void;
+  /** When provided, hovering the row reveals a trash button. Clicking it
+   *  calls this callback without opening the note. */
+  onTrash?: (note: Note) => void;
 }
 
 function formatRelativeTime(ts: number): string {
@@ -27,11 +30,11 @@ function formatRelativeTime(ts: number): string {
  * Compact list-row for the middle column of the maximized Note layout.
  * One row per note: color dot + title + tags + timestamp. No cards.
  */
-export function NoteListRow({ note, active, onOpen, onContextMenu }: NoteListRowProps) {
+export function NoteListRow({ note, active, onOpen, onContextMenu, onTrash }: NoteListRowProps) {
   const color = note.color ?? "var(--border-strong)";
   return (
     <div
-      className={`note-list-row${active ? " is-active" : ""}`}
+      className={`note-list-row${active ? " is-active" : ""}${onTrash ? " has-trash" : ""}`}
       style={{ "--row-color": color } as React.CSSProperties}
       onClick={() => onOpen?.(note)}
       onContextMenu={(e) => onContextMenu?.(e, note)}
@@ -68,6 +71,20 @@ export function NoteListRow({ note, active, onOpen, onContextMenu }: NoteListRow
       </span>
       <span className="note-list-row__meta mono">{note.word_count} 字</span>
       <span className="note-list-row__time mono">{formatRelativeTime(note.updated_at)}</span>
+      {onTrash && (
+        <button
+          type="button"
+          className="note-list-row__trash"
+          aria-label={`删除便签：${note.title?.trim() || "无标题"}`}
+          title="移到回收站"
+          onClick={(event) => {
+            event.stopPropagation();
+            onTrash(note);
+          }}
+        >
+          <Trash size={12} />
+        </button>
+      )}
     </div>
   );
 }

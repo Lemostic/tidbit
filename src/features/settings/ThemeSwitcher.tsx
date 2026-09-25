@@ -1,5 +1,18 @@
 import { useEffect, useState } from "react";
-import { ChatCircleDots, City, Leaf, MoonStars, Notebook, SunDim } from "@phosphor-icons/react";
+import {
+  ChatCircleDots,
+  City,
+  Code,
+  Ghost,
+  Leaf,
+  MoonStars,
+  Notebook,
+  Snowflake,
+  SunDim,
+  Terminal,
+  Tree,
+  Waveform,
+} from "@phosphor-icons/react";
 import { applyTheme, themes, type Theme } from "../../ui/theme";
 import { broadcastAppearance, loadAppearance } from "../../ui/appearance";
 
@@ -10,6 +23,27 @@ const labels: Record<Theme, string> = {
   "tokyo-night": "Tokyo Night",
   wechat: "微信风格",
   evernote: "印象笔记",
+  "one-dark": "One Dark",
+  dracula: "Dracula",
+  nord: "Nord",
+  "solarized-dark": "Solarized Dark",
+  "gruvbox-dark": "Gruvbox",
+  monokai: "Monokai",
+};
+
+const ICONS: Record<Theme, typeof SunDim> = {
+  light: SunDim,
+  dark: MoonStars,
+  sepia: Leaf,
+  "tokyo-night": City,
+  wechat: ChatCircleDots,
+  evernote: Notebook,
+  "one-dark": Code,
+  dracula: Ghost,
+  nord: Snowflake,
+  "solarized-dark": Waveform,
+  "gruvbox-dark": Tree,
+  monokai: Terminal,
 };
 
 export function ThemeSwitcher({ expanded = false }: { expanded?: boolean }) {
@@ -30,17 +64,7 @@ export function ThemeSwitcher({ expanded = false }: { expanded?: boolean }) {
       {themes.map((theme) => <option key={theme} value={theme}>{labels[theme]}</option>)}
     </select>;
   }
-  const Icon = t === "dark"
-    ? MoonStars
-    : t === "sepia"
-      ? Leaf
-      : t === "tokyo-night"
-        ? City
-        : t === "wechat"
-          ? ChatCircleDots
-          : t === "evernote"
-            ? Notebook
-            : SunDim;
+  const Icon = ICONS[t] ?? SunDim;
   return (
     <button
       className="btn-icon"

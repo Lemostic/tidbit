@@ -1,7 +1,7 @@
 /* NoteListRow — compact one-row-per-note for maximized middle column */
 .note-list-row {
   display: grid;
-  grid-template-columns: 4px 1fr auto auto auto;
+  grid-template-columns: 4px 1fr auto auto auto auto;
   align-items: center;
   gap: 12px;
   height: 38px;
@@ -120,6 +120,40 @@
   outline-offset: -2px;
 }
 
+/* Trash button — only present on rows where onTrash was supplied.
+   Hidden by default; revealed on row hover/focus and always visible on active row. */
+.note-list-row__trash {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg-subtle);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+.note-list-row:hover .note-list-row__trash,
+.note-list-row:focus-within .note-list-row__trash,
+.note-list-row.is-active .note-list-row__trash {
+  opacity: 1;
+}
+.note-list-row__trash:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.note-list-row__trash:focus-visible {
+  opacity: 1;
+  outline: 2px solid color-mix(in srgb, var(--danger) 60%, transparent);
+  outline-offset: 1px;
+}
+
 /* List container */
 .note-list {
   display: flex;
@@ -140,4 +174,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .note-list-row { transition: none; }
+  .note-list-row__trash { transition: none; }
 }

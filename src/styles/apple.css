@@ -1025,7 +1025,6 @@ button:active,
 .confirm-dialog footer { padding-top: 10px; }
 
 .confirm-dialog .confirm-dialog__danger {
-  border-radius: 18px;
   background: #ff453a;
 }
 

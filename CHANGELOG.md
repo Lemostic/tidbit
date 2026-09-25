@@ -2,6 +2,21 @@
 
 本文件记录 tidbit 的用户可见变更。版本格式遵循语义化版本，尚未发布的功能统一归入 `Unreleased`。
 
+## [Unreleased]
+
+### 新增
+
+- **全屏便签列表可直接删除**：窗口最大化/够宽时进入 OneNote 三栏布局，中间列表的便签行悬停即显垃圾桶图标，点击后弹出确认对话框，确认后移到回收站并自动关闭该便签在右侧编辑器中的 tab。
+- **新建便签未编辑切换列表时自动丢弃**：新建便签时立即持久化到数据库；若用户没在便签正文中输入任何内容就切换分组/切到回收站视图/关闭该 tab，这条空白便签会自动从数据库清理（删除走回收站，可恢复），并弹出"已丢弃空白便签"提示。
+- **6 套新增程序员主题**：设置 → 外观新增 One Dark / Dracula / Nord / Solarized Dark / Gruvbox / Monokai 主题，连同原 6 套共 12 套可选；每套独立配 `--danger` / `--success` / `--warning` 与玻璃高光色。
+- **插件市场骨架（实验）**：设置新增"插件市场"入口，列出本地 Mock 注册表（导出增强、紧凑模式、字数统计、番茄钟、云同步示例），支持安装/卸载/启用/禁用；启用后通过命令面板（Ctrl+K）以"插件"分组调用。数据源暂为内置 `registry.json`，后续可替换为远端索引。
+
+### 修复
+
+- **最大化窗口下打开回收站后被困**：Note 模式（窗口最大化或足够宽）下点击左下角回收站，分组导航会随三栏布局一起消失，回收站占满主区域且没有任何返回入口。现在回收站视图保留左侧分组导航（回收站项高亮），回收站内容横跨便签列表与编辑器两栏，点击任意分组即可退出回收站；窄窗口下的回收站行为不变。
+- **确认弹窗删除/取消按钮圆角不一致**：删除按钮原本继承 `apple.css` 里覆盖的 18px 大圆角，取消按钮是 9px；两者改为统一继承基础按钮的圆角，视觉对齐。
+- **CI Frontend checks 在 Windows runner 失败**：`pnpm build` 通过 `prebuild` hook 触发了 `python scripts/regenerate_windows_icon.py`，但 GitHub Actions `windows-latest` 默认没有 `python` 命令，build 步骤必挂。已去掉 `prebuild`，`pnpm build` 不再依赖 Python；`pnpm tauri build` 仍需图标，已在 release workflow 中加 `actions/setup-python` + Pillow。
+
 ## [0.2.14] - 2026-09-25
 
 ### 修复

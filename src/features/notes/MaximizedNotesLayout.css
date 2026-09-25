@@ -64,16 +64,9 @@
   box-shadow: none;
 }
 
-/* Trash banner inside the nav column */
-.maximized-layout__trash-banner {
-  padding: 18px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  color: var(--fg-muted);
-  font-size: 12px;
-}
-.maximized-layout__trash-title { font-weight: 700; font-size: 14px; color: var(--fg); }
+/* Trash view spans the list + editor columns; the nav column stays visible
+   so groups remain switchable while the trash is open. */
+.maximized-layout__list--wide { grid-column: 2 / -1; }
 
 /* ── NavColumn styles ────────────────────────────────────────────── */
 .nav-column {
@@ -303,6 +296,7 @@
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(180px, 38%) 1fr;
   }
+  .maximized-layout__list--wide { grid-column: auto; }
   .maximized-layout__nav { border-right: 0; border-bottom: 1px solid var(--border); }
   .maximized-layout__list { border-right: 0; border-bottom: 1px solid var(--border); }
   .maximized-layout__nav, .maximized-layout__list { max-height: 36vh; }

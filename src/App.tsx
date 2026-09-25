@@ -580,7 +580,7 @@ export default function App() {
           <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={(id) => { setGroupId(id); setView("notes"); }} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} trashActive={view === "trash"} onShowTrash={showTrash} />
           )}
           <main className="app-main">
-            {view === "trash" ? (
+            {!isNoteMode && view === "trash" ? (
               <TrashView onNotice={notify} onRestored={() => setNotesRefreshRequest((value) => value + 1)} />
             ) : isNoteMode ? (
               <MaximizedNotesLayout
@@ -593,11 +593,12 @@ export default function App() {
                 notesRefreshRequest={notesRefreshRequest}
                 view={view}
                 onShowTrash={showTrash}
-                onSelectGroup={(id) => setGroupId(id)}
+                onSelectGroup={(id) => { setGroupId(id); setView("notes"); }}
                 onTrashNote={async (id) => {
                   await moveNoteToTrash(id);
                   setNotesRefreshRequest((value) => value + 1);
                 }}
+                onTrashChanged={() => setNotesRefreshRequest((value) => value + 1)}
               />
             ) : (
               <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} viewMode={viewMode} onViewModeChange={cycleViewMode}  />
