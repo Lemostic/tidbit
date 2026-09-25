@@ -48,5 +48,14 @@ src-tauri/Cargo.lock
 # local Playwright / runtime captures (regenerated every debug session)
 .pw-*.png
 .dsh/
+
+# catch-all: ignore every root dot-directory (local tooling state).
+# The only root dot-directory we DON'T ignore is .github (workflows,
+# templates, dependabot config, etc.). Add future dot-directories by
+# listing them above this block if they need to be tracked; otherwise
+# they'll be silently absorbed by the rule below.
+/.*/
+/.github/
+
 # stray one-off icon exports left in repo root by the Windows icon tooling
 /icon-*.png
