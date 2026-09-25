@@ -52,10 +52,18 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup Python (for icons:regen prebuild)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+
+      - name: Install Pillow (icons:regen)
+        run: python -m pip install --upgrade pip && python -m pip install Pillow
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
