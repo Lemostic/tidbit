@@ -174,7 +174,8 @@ it("moves focus into the dialog and wraps keyboard focus within it", () => {
       'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
   ).filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
-  const last = focusable[focusable.length - 1];
+  expect(focusable.length).toBeGreaterThan(0);
+  const last = focusable[focusable.length - 1]!;
 
   expect(close).toHaveFocus();
   last.focus();
