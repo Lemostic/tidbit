@@ -19,7 +19,11 @@ export function NoteSortControl({ preference, onChange }: NoteSortControlProps) 
 
   return (
     <div className="notes__sortbar" aria-label="便签排序">
-      <span className="notes__sort-label"><ArrowsDownUp size={13} />排序</span>
+      {/* Icon-only affordances. This row used to read "排序" + "更新时间" +
+          "更新时间（新到旧）" — the same fact three times in one line. The
+          field select and the direction toggle now carry it once, and the
+          full wording stays available to assistive tech via title/aria-label. */}
+      <span className="notes__sort-label" aria-hidden="true"><ArrowsDownUp size={13} /></span>
       <select
         className="notes__sort-select"
         aria-label="排序字段"
@@ -37,11 +41,10 @@ export function NoteSortControl({ preference, onChange }: NoteSortControlProps) 
         type="button"
         className="notes__sort-direction"
         aria-label={`当前排序：${label}，点击切换方向`}
-        title={`当前排序：${label}，点击切换方向`}
+        title={`当前排序：${label}`}
         onClick={() => onChange({ ...preference, direction: preference.direction === "asc" ? "desc" : "asc" })}
       >
         {preference.direction === "asc" ? <SortAscending size={14} /> : <SortDescending size={14} />}
-        <span>{label}</span>
       </button>
     </div>
   );

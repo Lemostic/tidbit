@@ -22,8 +22,10 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 80%, var(--surface-2));
+  /* Recessed surface + a crisp hairline. A sidebar that floats in the same
+     value as the document reads as a toy panel, not a navigation rail. */
+  border-right: 1px solid var(--hairline);
+  background: var(--surface-nav);
   overflow: hidden;
 }
 
@@ -32,8 +34,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 96%, var(--surface-2));
+  border-right: 1px solid var(--hairline);
+  background: var(--surface-list);
   overflow: hidden;
 }
 .maximized-layout__list .notes { height: 100%; }
@@ -46,7 +48,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
+  background: var(--surface-pane);
   overflow: hidden;
 }
 .maximized-layout__pane-body {
@@ -83,10 +85,13 @@
   justify-content: space-between;
   padding: 4px 12px 6px;
   color: var(--fg-subtle);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 10px;
-  font-weight: 700;
+  /* CJK labels do not benefit from uppercase or wide tracking — the old
+     10px/0.08em/uppercase treatment was a Latin-UI habit that made the
+     Chinese string smaller and wider without adding emphasis. */
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 .nav-column__add { padding: 4px 8px; }
 .nav-column__add .field { padding: 6px 10px; font-size: 12px; }
@@ -108,11 +113,11 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   height: 30px;
-  padding: 0 10px 0 14px;
+  padding: 0 10px 0 12px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--fg-muted);
   font: inherit;
@@ -121,12 +126,22 @@
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .nav-item:hover { background: var(--surface-2); color: var(--fg); }
+
+/* One active signal, not four. Previously the row carried a 14% accent
+   wash, a 3px inset accent bar, accent-coloured text AND a 28% accent
+   count chip — decoration stacking that read as playful. Now: a neutral
+   raised surface plus a 2px accent tick. The accent stays a state marker,
+   not a paint job. */
 .nav-item.is-active {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
+  background: var(--surface-2);
+  color: var(--fg);
   font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--accent);
 }
-.nav-item.is-active .nav-item__count { background: color-mix(in srgb, var(--accent) 28%, transparent); color: var(--accent); }
+.nav-item.is-active .nav-item__count {
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  color: var(--fg-muted);
+}
 
 .nav-item__color {
   position: absolute;
@@ -143,15 +158,25 @@
   flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
-  width: 16px;
+  width: 14px;
   color: var(--fg-subtle);
 }
-.nav-item.is-active .nav-item__icon { color: var(--accent); }
+.nav-item.is-active .nav-item__icon { color: var(--fg-muted); }
+
+/* Group identity chip. This was an 8px circle at full saturation — four
+   candy dots in a row is the single strongest "not a real product" signal
+   in the whole shell. A 6px rounded square reads as a system token, and
+   the opacity ceiling keeps a user's chosen colour from shouting. */
 .nav-item__dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
   background: var(--nav-color, var(--fg-subtle));
+  opacity: 0.62;
+  transition: opacity var(--dur-fast) var(--ease);
 }
+.nav-item:hover .nav-item__dot { opacity: 0.85; }
+.nav-item.is-active .nav-item__dot { opacity: 1; }
 
 .nav-item__label {
   flex: 1 1 auto;
@@ -160,20 +185,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12.5px;
+  letter-spacing: -0.01em;
 }
 
 .nav-item__count {
   flex: 0 0 auto;
-  min-width: 22px;
-  height: 18px;
-  padding: 0 6px;
+  min-width: 20px;
+  height: 16px;
+  padding: 0 5px;
   display: inline-grid;
   place-items: center;
-  border-radius: 9px;
-  background: var(--surface-2);
+  border-radius: 8px;
+  background: transparent;
   color: var(--fg-subtle);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .nav-column__foot {
@@ -194,9 +220,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
-  padding: 10px 14px 8px;
-  border-bottom: 1px solid var(--border);
+  min-height: 52px;
+  padding: 10px 14px 10px;
+  border-bottom: 1px solid var(--hairline);
 }
 .maximized-list-head__title {
   flex: 1 1 auto;
@@ -207,68 +233,63 @@
 }
 .maximized-list-head__eyebrow {
   color: var(--fg-subtle);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
+  /* 9px + uppercase + 0.13em tracking was illegible for a Chinese label and
+     read as a decorative sticker. 11px at normal tracking is the smallest
+     size that still clears AA at this weight. */
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
 }
 .maximized-list-head__name {
   margin: 0;
-  padding-left: 8px;
-  position: relative;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--fg);
   font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
-.maximized-list-head__name::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 3px;
-  border-radius: 3px;
-  background: var(--hdr-color, var(--accent));
-  opacity: 0.85;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 .maximized-list-head__count {
   flex: 0 0 auto;
-  min-width: 22px;
-  height: 18px;
+  min-width: 20px;
+  height: 16px;
   display: inline-grid;
   place-items: center;
-  padding: 0 7px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--surface-2);
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
   color: var(--fg-subtle);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .maximized-list-head__new {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 6px;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, var(--fg));
+  border-radius: var(--r-sm);
   background: var(--accent);
   color: var(--accent-fg);
   font-size: 11.5px;
   font-weight: 600;
+  letter-spacing: 0;
   cursor: pointer;
-  transition: filter var(--dur-fast) var(--ease),
+  transition: background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
               transform var(--dur-fast) var(--ease);
 }
-.maximized-list-head__new:hover { filter: brightness(1.06); }
+.maximized-list-head__new:hover {
+  background: color-mix(in srgb, var(--accent) 88%, var(--fg));
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--fg));
+}
 .maximized-list-head__new:active { transform: translateY(1px) scale(0.98); }
 
 /* Slide-in animation per pane on first mount */

@@ -1,12 +1,12 @@
-/* NoteListRow — compact one-row-per-note for maximized middle column */
+/* NoteListRow — compact two-line row for the maximized middle column.
+   Line 1: title + timestamp.  Line 2: tags, flags, word count. */
 .note-list-row {
   display: grid;
-  grid-template-columns: 4px 1fr auto auto auto auto;
+  grid-template-columns: 2px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  height: 38px;
-  padding: 0 12px 0 0;
-  border-radius: 6px;
+  column-gap: 10px;
+  padding: 7px 8px 7px 0;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--fg);
   cursor: pointer;
@@ -16,36 +16,55 @@
 }
 .note-list-row + .note-list-row { margin-top: 1px; }
 
-/* Left 4px color stripe — color stripe always visible, gets brighter on hover. */
+/* 2px rule instead of a 4px rounded bar. The stripe is a status hint, not
+   decoration — a wide saturated bar on every row turns the list into a
+   row of bookmarks. */
 .note-list-row__color {
-  width: 4px;
-  height: 22px;
-  border-radius: 0 3px 3px 0;
+  width: 2px;
+  height: 100%;
+  min-height: 22px;
+  align-self: stretch;
+  border-radius: 1px;
   background: var(--row-color, var(--accent));
-  opacity: 0.78;
-  transition: opacity var(--dur-fast) var(--ease),
-              height var(--dur-fast) var(--ease);
+  opacity: 0.5;
+  transition: opacity var(--dur-fast) var(--ease);
 }
 
-.note-list-row__main {
+.note-list-row__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Line 1 — the title gets the full remaining width. */
+.note-list-row__line {
   min-width: 0;
   display: flex;
   align-items: baseline;
   gap: 8px;
-  overflow: hidden;
 }
 
-/* Title with ellipsis */
 .note-list-row__title {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  font-weight: 540;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   color: var(--fg);
-  line-height: 1.2;
+  line-height: 1.35;
+}
+
+/* Line 2 — secondary metadata, deliberately quiet. */
+.note-list-row__sub {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 16px;
 }
 
 /* Tag chips inline */
@@ -57,19 +76,20 @@
   min-width: 0;
   overflow: hidden;
 }
+.note-list-row__tags:empty { display: none; }
 .note-list-row__tag {
   flex: 0 0 auto;
-  max-width: 80px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--surface-2);
-  color: var(--fg-muted);
-  font-size: 9.5px;
-  font-weight: 600;
+  max-width: 88px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  color: var(--fg-subtle);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 15px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  letter-spacing: 0.01em;
 }
 .note-list-row__tag--more {
   background: transparent;
@@ -81,7 +101,7 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   color: var(--fg-subtle);
 }
 .note-list-row__flag {
@@ -97,22 +117,22 @@
   color: var(--fg-subtle);
   font-variant-numeric: tabular-nums;
 }
-.note-list-row__meta { min-width: 38px; text-align: right; }
-.note-list-row__time { min-width: 32px; text-align: right; }
+.note-list-row__meta { margin-left: auto; }
+.note-list-row__time { white-space: nowrap; }
 
 /* Hover */
 .note-list-row:hover {
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
 }
-.note-list-row:hover .note-list-row__color { opacity: 1; height: 26px; }
+.note-list-row:hover .note-list-row__color { opacity: 0.85; }
 
 /* Active (matches a tab in editor pane) */
 .note-list-row.is-active {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--surface-2);
   box-shadow: inset 2px 0 0 var(--row-color, var(--accent));
 }
-.note-list-row.is-active .note-list-row__title { color: var(--fg); font-weight: 640; }
-.note-list-row.is-active .note-list-row__color { opacity: 1; height: 26px; }
+.note-list-row.is-active .note-list-row__title { color: var(--fg); font-weight: 650; }
+.note-list-row.is-active .note-list-row__color { opacity: 1; }
 
 /* Focus ring */
 .note-list-row:focus-visible {
@@ -123,14 +143,14 @@
 /* Trash button — only present on rows where onTrash was supplied.
    Hidden by default; revealed on row hover/focus and always visible on active row. */
 .note-list-row__trash {
-  flex: 0 0 auto;
+  align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 4px;
   background: transparent;
   color: var(--fg-subtle);
   opacity: 0;
@@ -158,7 +178,7 @@
 .note-list {
   display: flex;
   flex-direction: column;
-  padding: 6px 10px 12px;
+  padding: 4px 8px 12px 6px;
   margin: 0;
   list-style: none;
   overflow-y: auto;
@@ -166,13 +186,119 @@
 
 /* Empty list */
 .note-list__empty {
-  padding: 28px 12px;
-  text-align: center;
+  padding: 32px 12px;
+  text-align: left;
   color: var(--fg-subtle);
   font-size: 12px;
+  line-height: 1.7;
 }
+
+/* Loading skeleton. Deliberately built from the same primitives as
+   .note-list-row (2px stripe, 13px title line, 10px meta line, same 7px
+   padding) so the list keeps its rhythm when data lands. The previous
+   state was a bare "加载中…" string, which caused a visible jump. */
+.note-list-skeleton {
+  display: flex;
+  flex-direction: column;
+}
+.note-list-skeleton__row {
+  display: grid;
+  grid-template-columns: 2px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  padding: 7px 8px 7px 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+}
+.note-list-skeleton__stripe {
+  width: 2px;
+  height: 100%;
+  min-height: 22px;
+  align-self: stretch;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+.note-list-skeleton__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.note-list-skeleton__title,
+.note-list-skeleton__chip,
+.note-list-skeleton__meta {
+  display: block;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  animation: note-skeleton-pulse 1.4s var(--ease) infinite alternate;
+}
+.note-list-skeleton__title { height: 11px; border-radius: var(--r-sm); }
+.note-list-skeleton__sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 15px;
+}
+.note-list-skeleton__chip { width: 44px; height: 10px; }
+.note-list-skeleton__meta { width: 34px; height: 9px; }
+.note-list-skeleton__row:nth-child(2) > * ,
+.note-list-skeleton__row:nth-child(5) > * { animation-delay: 110ms; }
+.note-list-skeleton__row:nth-child(3) > *,
+.note-list-skeleton__row:nth-child(6) > * { animation-delay: 220ms; }
+.note-list-skeleton__row:nth-child(4) > * { animation-delay: 330ms; }
+
+@keyframes note-skeleton-pulse {
+  from { opacity: 0.45; }
+  to   { opacity: 0.9; }
+}
+
+/* Error state — a real block with a way out, not a bare string. */
+.note-list__error {
+  margin: 20px 8px 0;
+  padding: 12px 13px;
+  border: 1px solid color-mix(in srgb, var(--danger) 34%, var(--border));
+  border-left-width: 2px;
+  border-radius: var(--r-sm);
+  background: var(--danger-soft);
+}
+.note-list__error-title {
+  margin: 0 0 3px;
+  color: var(--fg);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.note-list__error-detail {
+  margin: 0 0 9px;
+  color: var(--fg-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.note-list__retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 25px;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
+}
+.note-list__retry:hover { background: var(--surface-2); color: var(--fg); }
+.note-list__retry:active { transform: translateY(1px) scale(0.98); }
 
 @media (prefers-reduced-motion: reduce) {
   .note-list-row { transition: none; }
   .note-list-row__trash { transition: none; }
+  .note-list-skeleton__title,
+  .note-list-skeleton__chip,
+  .note-list-skeleton__meta { animation: none; }
 }

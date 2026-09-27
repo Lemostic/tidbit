@@ -307,7 +307,11 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
                 return (
                 <div
                   key={note.id}
-                  className="note-card"
+                  /* The `has-color` flag lets the card's corner dash appear
+                     only when the user actually assigned a colour. Falling
+                     back to the accent meant every uncoloured note wore the
+                     same stripe, which carries no information. */
+                  className={`note-card${note.color ? " has-color" : ""}`}
                   style={{ "--i": index, "--card-accent": note.color ?? "var(--accent)" } as React.CSSProperties}
                 >
                   <NoteCard

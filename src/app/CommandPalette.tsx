@@ -11,6 +11,10 @@ export type Command = {
   hint?: string;
   group: "note" | "group" | "app" | "search";
   shortcut?: string;
+  /** Per-command icon. Falls back to the group icon when omitted — without
+   *  this, every `app` command rendered as the same GearSix, which made a
+   *  list of six unrelated actions look like a single repeating row. */
+  icon?: Icon;
   run: () => void | Promise<void>;
 };
 
@@ -144,7 +148,7 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
             if (e.key === "Escape") onClose();
           }}>
             {filtered.map((command, index) => {
-              const GroupIcon = GROUP_ICONS[command.group];
+              const GroupIcon = command.icon ?? GROUP_ICONS[command.group];
               return (
                 <li key={command.id} id={`palette-opt-${index}`} role="option" className={`palette__item${index === active ? " is-active" : ""}`} aria-selected={index === active}>
                   <button onMouseEnter={() => setActive(index)} onClick={() => { void command.run(); onClose(); }}>

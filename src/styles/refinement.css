@@ -803,12 +803,18 @@ select:disabled {
 .note-card__toggle:hover { background: var(--accent-soft); }
 
 .note-card__meta {
+  /* The card used to end with a right-aligned "105 字 · #12" cluster, which
+     needed justify-content: flex-end plus an auto-margined last span. With the
+     internal id gone the remaining "time · words" pair reads as one group, so
+     it goes back to the left edge. */
+  justify-content: flex-start;
   gap: 0;
   padding: 9px 0 0;
   border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   color: var(--fg-subtle);
   font-size: 9px;
 }
+.note-card__meta span:last-child { margin-left: 0; }
 
 .note-card__meta span + span::before {
   content: "·";
@@ -2617,7 +2623,9 @@ input[type="range"] { accent-color: var(--accent); }
   --surface-3: #353b45;
   --card-surface: #2c313a;
   --fg: #abb2bf;
-  --fg-muted: #828997;
+  /* #828997 sat at 4.38:1 on #21252b — below AA for secondary text. This
+     block loads after tokens.css, so it is the one that actually wins. */
+  --fg-muted: #8b93a0;
   --fg-subtle: #5c6370;
   --border: rgba(171, 178, 191, 0.1);
   --border-strong: rgba(171, 178, 191, 0.18);
@@ -2675,7 +2683,8 @@ input[type="range"] { accent-color: var(--accent); }
   --surface-3: #4c566a;
   --card-surface: #3b4252;
   --fg: #d8dee9;
-  --fg-muted: #a3aab6;
+  /* #a3aab6 sat at 4.30:1 on #3b4252 — below AA for secondary text. */
+  --fg-muted: #acb3be;
   --fg-subtle: #707786;
   --border: rgba(216, 222, 233, 0.1);
   --border-strong: rgba(216, 222, 233, 0.18);

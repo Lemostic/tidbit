@@ -209,7 +209,7 @@ input, select, textarea { font: inherit; color: var(--fg); }
 .notes__sort-label { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 .notes__sort-select, .notes__sort-direction { height: 26px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); color: var(--fg-muted); font: inherit; }
 .notes__sort-select { min-width: 86px; padding: 0 22px 0 7px; }
-.notes__sort-direction { display: inline-flex; align-items: center; gap: 4px; max-width: 190px; padding: 0 7px; cursor: pointer; }
+.notes__sort-direction { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 28px; max-width: 190px; padding: 0 7px; cursor: pointer; }
 .notes__sort-direction:hover, .notes__sort-select:hover { border-color: var(--border-strong); background: var(--surface-2); color: var(--fg); }
 .notes__sort-direction span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

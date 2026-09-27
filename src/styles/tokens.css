@@ -167,7 +167,9 @@
   --surface: #21252b;
   --surface-2: #2c313a;
   --fg: #abb2bf;
-  --fg-muted: #828997;
+  /* #828997 sat at 4.38:1 on #21252b — a near-miss that failed AA for
+     secondary text. Nudged just light enough to clear it. */
+  --fg-muted: #8b93a0;
   --fg-subtle: #5c6370;
   --border: #2c313a;
   --border-strong: #3a4048;
@@ -219,7 +221,9 @@
   --surface: #3b4252;
   --surface-2: #434c5e;
   --fg: #d8dee9;
-  --fg-muted: #a3aab6;
+  /* Was #a3aab6, which sat at 4.30:1 on #3b4252 — below AA for secondary
+     text. Nudged just light enough to clear it. */
+  --fg-muted: #acb3be;
   --fg-subtle: #707786;
   --border: #434c5e;
   --border-strong: #4c566a;
@@ -313,6 +317,58 @@
   --glass-shadow: rgba(0, 0, 0, 0.45);
 }
 
+/* ------------------------------------------------------------------ *
+ *  Commercial density + contrast layer.
+ *  Every theme block above only overrides the BASE ramps, so these
+ *  derived tokens recompute per theme automatically — one edit here
+ *  lifts all 12 themes at once instead of hand-patching each block.
+ *  Specificity (0,2,0) intentionally matches :root[data-theme="…"]
+ *  so source order (this block is last) wins.
+ * ------------------------------------------------------------------ */
+
+/* `:root` is listed alongside `:root[data-theme]` on purpose. The named-theme
+   blocks below resolve at (0,2,0) and still win for the base ramps, but the
+   previous `:root[data-theme]`-only selector skipped the no-`data-theme`
+   fallback entirely, leaving its --fg-subtle at the old 3.14:1. The comma
+   form keeps named-theme behaviour identical (same specificity, later in the
+   file) while also lifting the default. */
+:root,
+:root[data-theme] {
+  /* Tertiary text was ~3.3:1 on light surfaces — below WCAG AA for the
+     9-11px metadata it carries. Lift it by pulling toward --fg, which
+     darkens on light themes and lightens on dark ones. */
+  --fg-subtle: color-mix(in srgb, var(--fg-muted) 74%, var(--fg));
+
+  /* Hairlines. A desktop shell reads as commercial when panes are divided
+     by crisp 1px rules rather than separated by a near-invisible fog. */
+  --hairline: color-mix(in srgb, var(--fg) 9%, transparent);
+  --hairline-soft: color-mix(in srgb, var(--fg) 6%, transparent);
+  --hairline-firm: color-mix(in srgb, var(--fg) 16%, transparent);
+
+  /* Surface hierarchy: nav is recessed, list neutral, pane is the document
+     surface and therefore the brightest. */
+  --surface-nav: color-mix(in srgb, var(--surface) 93%, var(--bg));
+  --surface-list: var(--surface);
+  --surface-pane: var(--surface);
+
+  /* Accent ink for text sitting on an accent tint — accent itself is often
+     too light to pass AA at 10-11px. */
+  --accent-ink: color-mix(in srgb, var(--accent) 76%, var(--fg));
+  --accent-wash: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-rule: color-mix(in srgb, var(--accent) 62%, transparent);
+
+  /* Desktop density rhythm. */
+  --h-row: 40px;
+  --h-control: 28px;
+  --h-control-sm: 24px;
+
+  /* Crisper radius scale. Small controls on a large screen should not be
+     proportionally as round as they are on a phone. */
+  --r-sm: 5px;
+  --r-md: 7px;
+  --r-lg: 10px;
+}
+
 /* Honor OS dark preference when no explicit theme is set. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
@@ -320,6 +376,16 @@
     --bg: #14181c; --surface: #1b2026; --surface-2: #242b32;
     --fg: #e6e9ee; --fg-muted: #a3acb7; --border: #2a323a;
     --rail-bg: #0f1317; --note-bg: #1b2026;
+    /* Same derived layer as :root[data-theme], so an unset theme still
+       gets the contrast lift and the hairline tokens. */
+    --fg-subtle: color-mix(in srgb, var(--fg-muted) 74%, var(--fg));
+    --hairline: color-mix(in srgb, var(--fg) 9%, transparent);
+    --hairline-soft: color-mix(in srgb, var(--fg) 6%, transparent);
+    --hairline-firm: color-mix(in srgb, var(--fg) 16%, transparent);
+    --surface-nav: color-mix(in srgb, var(--surface) 93%, var(--bg));
+    --accent-ink: color-mix(in srgb, var(--accent) 76%, var(--fg));
+    --accent-wash: color-mix(in srgb, var(--accent) 10%, transparent);
+    --accent-rule: color-mix(in srgb, var(--accent) 62%, transparent);
   }
 }
 

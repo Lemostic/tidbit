@@ -267,13 +267,18 @@
   background: var(--surface-2);
   color: var(--fg);
 }
+/* Selection is a neutral raised surface, not an accent wash. Previously the
+   active row combined an accent-soft background, an accent-tinted icon chip,
+   an accent kbd border AND accent kbd text — the same decoration-stacking
+   that made the nav feel toy-like. The tinted icon chip is now the single
+   accent cue, which is also the one element that moves with the selection. */
 .palette__item.is-active button {
-  background: var(--accent-soft);
+  background: var(--surface-2);
   color: var(--fg);
 }
 .palette__item.is-active button kbd {
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
-  color: var(--accent);
+  border-color: var(--border-strong);
+  color: var(--fg-subtle);
 }
 
 /* ---------- 11. Settings section — visual hierarchy polish -------------- */
@@ -326,6 +331,10 @@
 .note-card:active {
   transform: translateY(0) scale(0.998);
 }
+
+/* The corner dash is a colour marker, so it may only exist when the note has
+   a colour. Without this it rendered in the accent colour on every card. */
+.note-card:not(.has-color)::before { content: none; }
 
 /* ---------- 13. Switch (toggle) tactile polish --------------------------- */
 /* Slight grow + accent halo on hover. */
@@ -626,14 +635,22 @@
   font-weight: 560;
 }
 
-/* ── Options bar (group + colors + tags) — compact pill ───────────────── */
+/* ── Options bar (group + colors + tags) — full-bleed band ────────────── */
+/* refinement.css styles this as an inset card: margin 0 12px 7px, an 11px
+   radius and a full border. The note-mode rules above reset padding and
+   background but left those three, so the metadata bar and the toolbar each
+   rendered as a floating rounded box stacked on the document. In a writing
+   surface they should be full-bleed bands divided by a hairline. */
 .app-shell[data-is-maximized="true"] .note-editor__options {
   flex: 0 0 auto;
   display: flex !important;
   align-items: center;
   gap: 10px !important;
+  margin: 0;
   padding: 6px 32px 10px !important;
-  border-bottom: 1px solid var(--border);
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
   background: transparent;
   min-height: 0;
 }
@@ -643,24 +660,39 @@
   font-size: 12px;
 }
 .app-shell[data-is-maximized="true"] .note-editor__options .color-swatches {
-  gap: 6px;
+  gap: 5px;
 }
+/* Same reasoning as the nav group dot: a row of 18px fully-saturated discs
+   with a 2px white keyline reads as a paint palette. Smaller, no keyline,
+   and the selection is a thin ring rather than a chunky halo. */
 .app-shell[data-is-maximized="true"] .note-editor__options .color-swatch {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
+  border: 0;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 16%, transparent);
+}
+.app-shell[data-is-maximized="true"] .note-editor__options .color-swatch:hover {
+  transform: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 30%, transparent);
+}
+.app-shell[data-is-maximized="true"] .note-editor__options .color-swatch.is-active {
+  box-shadow: 0 0 0 1.5px var(--accent);
 }
 .app-shell[data-is-maximized="true"] .note-editor__options .note-editor__tags input {
   font-size: 11px;
 }
 
-/* ── Toolbar: single rich row, denser ─────────────────────────────────── */
+/* ── Toolbar: full-bleed band, same reason as the options bar ──────────── */
 .app-shell[data-is-maximized="true"] .toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 2px;
+  margin: 0;
   padding: 5px 26px !important;
-  border-bottom: 1px solid var(--border);
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
   background: color-mix(in srgb, var(--surface-2) 35%, var(--surface));
   position: sticky;
   top: 0;
@@ -709,10 +741,14 @@
   outline: none;
 }
 .app-shell[data-is-maximized="true"] .editor-content .ProseMirror {
-  max-width: 100% !important;
+  max-width: 780px !important;
+  /* Reading column centred in the pane. At 918px the column previously ran
+     edge to edge with 36px margins, which left a large dead zone on the
+     right and gave no visual anchor. 780px ≈ 54 CJK characters at 14.5px,
+     close to the comfortable end of the range. */
+  margin: 0 auto !important;
   width: 100%;
   min-height: 0 !important;
-  margin: 0 !important;
   font-size: 14.5px;
   line-height: 1.78;
   color: var(--fg);
@@ -802,26 +838,43 @@
 }
 .color-swatch svg { display: block; pointer-events: none; }
 .color-swatch[aria-label="使用默认颜色"] { color: var(--fg); }
+/* Empty pane. This was a 20px/600 centred headline under a drop-shadowed
+   48×58 bordered "note" illustration — a consumer onboarding screen parked
+   in the middle of a 900px-wide document surface. A pro shell stays quiet
+   when nothing is selected: no illustration, modest type, left-aligned so
+   it reads as a note rather than an advertisement. */
 .note-pane--empty {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
   min-height: 100%;
-  padding: 32px;
-  text-align: center;
-  background: color-mix(in srgb, var(--app-surface) 65%, var(--surface));
+  padding: 72px 0 0 64px;
+  text-align: left;
+  background: var(--surface-pane, var(--surface));
 }
-.note-pane__placeholder { max-width: 360px; }
+.note-pane__placeholder {
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* Browsers ship h2/p with ~1em block margins, which stacked with the flex
+   gap into a ~30px hole between the two lines. */
+.note-pane__placeholder > * { margin: 0; }
 .note-pane__placeholder-glyph {
-  width: 48px;
-  height: 58px;
-  margin: 0 auto 24px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: repeating-linear-gradient(transparent 0 9px, var(--border) 9px 10px) center / 26px 31px no-repeat var(--surface);
-  box-shadow: 0 6px 20px -12px var(--fg-muted);
+  display: none;
 }
-.note-pane__placeholder h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
-.note-pane__placeholder p { color: var(--fg-muted); font-size: 13px; line-height: 1.8; }
+.note-pane__placeholder h2 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--fg-muted);
+}
+.note-pane__placeholder p {
+  color: var(--fg-subtle);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
 .titlebar__brand-mark { animation: none; }
 .notes__empty-glyph::before, .notes__empty-glyph::after { animation: none; }
 .app-main { background-image: none; }
@@ -852,13 +905,18 @@
 .field, .select { min-height: 30px; }
 .settings-panel .field, .settings-panel .select { min-height: 34px; }
 .settings-panel__nav button { transition: background 160ms var(--ease), color 160ms var(--ease); }
-.note-list-row { min-height: 42px; border: 1px solid transparent; }
+/* Row is two-line now, so height is content-driven — only the floor and a
+   transparent 1px frame (kept so the active tint has a crisp edge) remain.
+   Selection is a neutral surface + 2px colour tick, not an accent wash. */
+.note-list-row { min-height: 44px; border: 1px solid transparent; }
+.note-list-row:hover { background: color-mix(in srgb, var(--fg) 4%, transparent); }
 .note-list-row.is-active, .note-list-row[aria-selected="true"] {
-  background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  background: var(--surface-2);
+  border-color: transparent;
+  box-shadow: inset 2px 0 0 var(--row-color, var(--accent));
 }
-.nav-column .nav-item { min-height: 38px; }
-.nav-column .nav-item.is-active { box-shadow: inset 3px 0 0 var(--accent); }
+.nav-column .nav-item { min-height: 30px; }
+.nav-column .nav-item.is-active { box-shadow: inset 2px 0 0 var(--accent); }
 .kanban-board .kanban-column { background: color-mix(in srgb, var(--surface-2) 60%, var(--surface)); }
 .kanban-board .kanban-column__head { padding-block: 12px; }
 .kanban-board .kanban-card { box-shadow: 0 2px 5px color-mix(in srgb, var(--fg) 5%, transparent); }
@@ -988,16 +1046,20 @@ button:disabled:hover { transform: none; filter: none; }
   line-height: 1;
 }
 
-/* Note mode empty pane: the maximized flex !important rule above defeats
-   .note-pane--empty's grid, pinning the placeholder to the top. Re-assert. */
+/* Note mode empty pane. The maximized layout forces the pane to flex, which
+   defeats the plain .note-pane--empty rule. Re-assert the quiet top-left
+   placement here so the unselected state reads as a note, not an ad. */
 .app-shell[data-is-maximized="true"] .note-pane--empty {
-  display: grid !important;
-  place-items: center;
+  display: flex !important;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 72px 0 0 64px;
+  text-align: left;
 }
 
-/* Empty-state paper glyph: keep it readable on dark surfaces. */
+/* The paper illustration is retired — see the note above the first
+   .note-pane--empty rule. Kept as an explicit override so no later
+   stylesheet can resurrect it. */
 .note-pane__placeholder-glyph {
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-strong));
-  background: repeating-linear-gradient(transparent 0 9px, color-mix(in srgb, var(--fg-muted) 55%, transparent) 9px 10px) center / 26px 31px no-repeat var(--surface);
-  box-shadow: 0 8px 22px -14px color-mix(in srgb, var(--fg) 45%, transparent);
+  display: none;
 }

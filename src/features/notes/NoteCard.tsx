@@ -156,7 +156,6 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
       <footer className="note-card__meta mono">
         <span>{formatTime(note.updated_at)}</span>
         <span>{note.word_count} 字</span>
-        <span>#{note.id}</span>
       </footer>
     </article>
   );

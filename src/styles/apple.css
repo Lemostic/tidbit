@@ -2785,7 +2785,7 @@ button:active,
   text-align: center;
   transform: translateX(0) scaleX(1);
   transform-origin: right center;
-  filter: saturate(1.14) brightness(1.02);
+  filter: brightness(1.02);
   overflow: visible;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -2800,11 +2800,16 @@ button:active,
 .group-tab.is-active::before,
 .group-tab.is-active::after { display: none; }
 
+/* The tab's shape, notch and entrance are the deliberate v0.1.1 language and
+   are guarded by appleLayout.test.ts. The saturation boost was not: it
+   amplified whatever group colour the user picked by 24-32%, which is what
+   turned a four-colour rail into a row of candy blocks. Render the chosen
+   colour as chosen and get emphasis from elevation, not chroma. */
 .group-tab:hover:not(.is-active) {
   color: var(--group-tab-fg, #ffffff);
   background: var(--group-tab-bg, var(--rail-bg)) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 7px 16px rgba(22, 27, 31, 0.12);
-  filter: saturate(1.24) brightness(1.08);
+  filter: brightness(1.06);
   transform: translateX(2px) scaleX(0.985);
 }
 
@@ -2814,7 +2819,7 @@ button:active,
   background: var(--group-tab-bg, var(--accent)) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 8px 18px rgba(22, 27, 31, 0.14);
   font-weight: 650;
-  filter: saturate(1.28) brightness(1.07);
+  filter: brightness(1.04);
   transform: translateX(-3px) scaleX(1.055);
   z-index: 2;
 }
@@ -2826,7 +2831,7 @@ button:active,
   color: var(--group-tab-fg, #ffffff);
   background: var(--group-tab-bg, var(--accent)) !important;
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.72);
-  filter: saturate(1.32) brightness(1.1);
+  filter: brightness(1.08);
   transform: translateX(-3px) scaleX(1.055);
 }
 
@@ -2898,8 +2903,8 @@ button:active,
 :root[data-liquid-glass] .group-tab.is-active {
   background: color-mix(in srgb, var(--group-tab-bg, var(--rail-bg)) 88%, transparent) !important;
   border-radius: 0;
-  -webkit-backdrop-filter: blur(18px) saturate(1.5);
-  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(18px) saturate(1.1);
 }
 
 @media (max-width: 620px) {

@@ -1,5 +1,5 @@
 import "./MaximizedNotesLayout.css";
-import { Plus } from "@phosphor-icons/react";
+import { Plus, ArrowClockwise } from "@phosphor-icons/react";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Note } from "../../ipc/types";
 import type { ToastState } from "../../ui/Toast";
@@ -63,6 +63,10 @@ const { groups } = useGroups();
   const [notes, setNotes] = useState<Note[]>([]);
   const [notesLoading, setNotesLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+  /** Bumped by the inline retry button. Kept local so the list can recover
+   *  from a failed fetch without the parent having to re-render it. */
+  const [reloadToken, setReloadToken] = useState(0);
+  const reloadNotes = useCallback(() => setReloadToken((value) => value + 1), []);
   const [pendingTrash, setPendingTrash] = useState<Note | null>(null);
   const [trashing, setTrashing] = useState(false);
   /** Ids of freshly-created notes that the user has not edited yet. These are
@@ -100,7 +104,7 @@ const { groups } = useGroups();
       setNotesLoading(false);
     });
     return () => { cancelled = true; };
-  }, [groupId, notesRefreshRequest, view]);
+  }, [groupId, notesRefreshRequest, reloadToken, view]);
 
   const handleSelectNote = useCallback((note: Note) => {
     setTabs((current) => current.some((t) => t.id === note.id) ? current : [...current, note]);
@@ -358,7 +362,7 @@ const handleCreateNew = useCallback(async () => {
           <section className="maximized-layout__list">
             <header className="maximized-list-head">
               <div className="maximized-list-head__title">
-                <span className="maximized-list-head__eyebrow">Section</span>
+                <span className="maximized-list-head__eyebrow">当前分组</span>
                 <h2 className="maximized-list-head__name"
                   style={{ "--hdr-color": currentGroup?.color ?? "var(--accent)" } as CSSProperties}>
                   {headerTitle}
@@ -378,9 +382,31 @@ const handleCreateNew = useCallback(async () => {
             </header>
             <div className="note-list">
               {notesLoading ? (
-                <div className="note-list__empty">加载中…</div>
+                /* Mirrors .note-list-row geometry (2px stripe, 13px title line,
+                   10px meta line) so the list does not jump when data lands. */
+                <div className="note-list-skeleton" aria-busy="true" aria-label="正在加载便签列表">
+                  {Array.from({ length: 7 }, (_, index) => (
+                    <div className="note-list-skeleton__row" key={index}>
+                      <span className="note-list-skeleton__stripe" />
+                      <span className="note-list-skeleton__body">
+                        <span className="note-list-skeleton__title" style={{ width: `${58 + ((index * 13) % 34)}%` }} />
+                        <span className="note-list-skeleton__sub">
+                          <span className="note-list-skeleton__chip" />
+                          <span className="note-list-skeleton__meta" style={{ marginLeft: "auto" }} />
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
               ) : listError ? (
-                <div className="note-list__empty">加载失败：{listError}</div>
+                <div className="note-list__error" role="alert">
+                  <p className="note-list__error-title">便签列表加载失败</p>
+                  <p className="note-list__error-detail">{listError}</p>
+                  <button type="button" className="note-list__retry" onClick={reloadNotes}>
+                    <ArrowClockwise size={13} weight="bold" />
+                    <span>重试</span>
+                  </button>
+                </div>
               ) : notes.length === 0 ? (
                 <div className="note-list__empty">
                   这个分组还没有便签,<br />
