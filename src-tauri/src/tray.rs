@@ -5,13 +5,16 @@ use tauri::{
 };
 
 use crate::ipc::window::show_main_window;
+use crate::platform::{current_os, tray_icon_is_template};
 use crate::window::edge_dock::DockRuntimeState;
 
 pub fn build_tray<R: tauri::Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "显示 APP", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &quit])?;
-    let mut builder = TrayIconBuilder::<R>::with_id("main-tray").menu(&menu);
+    let mut builder = TrayIconBuilder::<R>::with_id("main-tray")
+        .menu(&menu)
+        .icon_as_template(tray_icon_is_template(current_os()));
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
     }

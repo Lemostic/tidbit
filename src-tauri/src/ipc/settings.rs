@@ -114,13 +114,13 @@ pub fn data_directory_set(app: tauri::AppHandle, path: String) -> Result<(), App
 }
 
 #[tauri::command]
-pub fn autostart_get() -> Result<bool, AppError> {
-    autostart::is_enabled()
+pub fn autostart_get(app: tauri::AppHandle) -> Result<bool, AppError> {
+    autostart::is_enabled(&app)
 }
 
 #[tauri::command]
-pub fn autostart_set(enabled: bool) -> Result<(), AppError> {
-    autostart::set_enabled(enabled)
+pub fn autostart_set(app: tauri::AppHandle, enabled: bool) -> Result<(), AppError> {
+    autostart::set_enabled(&app, enabled)
 }
 
 #[cfg(test)]

@@ -68,6 +68,7 @@ pub mod error;
 pub mod export;
 pub mod hotkey;
 pub mod infra;
+pub mod platform;
 pub mod ipc;
 pub mod repo;
 pub mod security;
@@ -80,7 +81,16 @@ pub mod backup;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .macos_launcher(tauri_plugin_autostart::MacosLauncher::LaunchAgent)
+                .build(),
+        )
+        .plugin(tauri_plugin_dialog::init());
+    builder
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .with_filter(|label| label == "main")
@@ -132,6 +142,7 @@ pub fn run() {
             }
             tray::build_tray(app)?;
             hotkey::register(&app.handle())?;
+            platform::initialize(app)?;
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 loop {
@@ -170,6 +181,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            platform::desktop_profile,
             ipc::notes::notes_list,
             ipc::notes::notes_get,
             ipc::notes::notes_create,
@@ -239,10 +251,9 @@ pub fn run() {
             if matches!(ev, tauri::WindowEvent::Moved { .. }) {
                 ipc::wander::schedule_wander_snap(win);
             }
-            if win.label() == "main" {
-                window_state::install_close_to_tray(win.app_handle(), ev);
-            }
+            window_state::install_close_to_tray(win.app_handle(), win.label(), ev);
         })
-        .run(tauri::generate_context!())
-        .expect("failed to start tidbit");
+        .build(tauri::generate_context!())
+        .expect("failed to start tidbit")
+        .run(platform::handle_run_event);
 }

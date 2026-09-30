@@ -14,7 +14,7 @@ custom-protocol = ["tauri/custom-protocol"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "test"] }
+tauri = { version = "2", features = ["tray-icon", "test", "macos-private-api"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-notification = "2"
@@ -45,6 +45,10 @@ uuid = { version = "1", features = ["v4"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+tauri-plugin-autostart = "2"
+tauri-plugin-dialog = "2"
 
 [dev-dependencies]
 tempfile = "3"

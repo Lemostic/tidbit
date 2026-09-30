@@ -1,13 +1,15 @@
 use crate::error::AppError;
 
+#[cfg(target_os = "windows")]
 const APP_VALUE_NAME: &str = "tidbit";
 
+#[cfg(any(target_os = "windows", test))]
 fn startup_command(executable: &std::path::Path) -> String {
     format!("\"{}\"", executable.display())
 }
 
 #[cfg(target_os = "windows")]
-pub fn is_enabled() -> Result<bool, AppError> {
+pub fn is_enabled<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) -> Result<bool, AppError> {
     use std::io::ErrorKind;
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
@@ -28,7 +30,10 @@ pub fn is_enabled() -> Result<bool, AppError> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn set_enabled(enabled: bool) -> Result<(), AppError> {
+pub fn set_enabled<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<(), AppError> {
     use std::io::ErrorKind;
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
@@ -49,13 +54,41 @@ pub fn set_enabled(enabled: bool) -> Result<(), AppError> {
     Ok(())
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn is_enabled() -> Result<bool, AppError> {
+#[cfg(target_os = "macos")]
+pub fn is_enabled<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<bool, AppError> {
+    use tauri_plugin_autostart::ManagerExt;
+
+    app.autolaunch()
+        .is_enabled()
+        .map_err(|error| AppError::Migration(error.to_string()))
+}
+
+#[cfg(target_os = "macos")]
+pub fn set_enabled<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<(), AppError> {
+    use tauri_plugin_autostart::ManagerExt;
+
+    let manager = app.autolaunch();
+    let result = if enabled {
+        manager.enable()
+    } else {
+        manager.disable()
+    };
+    result.map_err(|error| AppError::Migration(error.to_string()))
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub fn is_enabled<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) -> Result<bool, AppError> {
     Ok(false)
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn set_enabled(_enabled: bool) -> Result<(), AppError> {
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub fn set_enabled<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    _enabled: bool,
+) -> Result<(), AppError> {
     Ok(())
 }
 

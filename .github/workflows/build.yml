@@ -1,4 +1,4 @@
-name: Build Windows installers
+name: Build desktop installers
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: windows-build-${{ github.ref }}
+  group: desktop-build-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -63,3 +63,50 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+
+  macos:
+    name: Universal DMG (unsigned)
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          package-manager-cache: false
+
+      - name: Setup Rust targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Signing/notarization slots reserved for when Apple Developer ID + secrets
+      # are provisioned. Until then this produces an unsigned universal DMG that
+      # is sufficient for local install and ad-hoc distribution.
+      - name: Build unsigned macOS installer
+        run: pnpm tauri build --target universal-apple-darwin --bundles dmg
+
+      - name: Upload macOS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: tidbit-macos-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg

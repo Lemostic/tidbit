@@ -1,5 +1,6 @@
 use crate::domain::EdgeDock;
 use crate::error::AppError;
+use crate::platform::{supports_edge_auto_hide, supports_edge_dock};
 use crate::state::AppState;
 use crate::window::edge_dock::{
     animated_position, cursor_hits_reveal_strip, cursor_inside_window, detect_dock,
@@ -87,6 +88,9 @@ pub fn window_hide_to_tray(app: tauri::AppHandle) -> Result<(), AppError> {
 
 #[tauri::command]
 pub fn window_undock(dock_state: State<'_, DockRuntimeState>) {
+    if !supports_edge_dock() {
+        return;
+    }
     dock_state.undock();
 }
 
@@ -95,6 +99,9 @@ pub fn window_cancel_autohide(
     app: tauri::AppHandle,
     dock_state: State<'_, DockRuntimeState>,
 ) -> Result<(), AppError> {
+    if !supports_edge_auto_hide() {
+        return Ok(());
+    }
     if dock_state.is_hidden() {
         show_main_window(&app, &dock_state)?;
     } else {
@@ -136,6 +143,9 @@ pub async fn window_apply_edge_dock(
     win_w: i32,
     win_h: i32,
 ) -> Result<Option<String>, AppError> {
+    if !supports_edge_dock() {
+        return Ok(None);
+    }
     if let Some(window) = app.get_webview_window("main") {
         if window.is_maximized()? {
             dock_state.set_edge(None);
@@ -179,6 +189,9 @@ pub async fn window_hide_now(
     _state: State<'_, AppState>,
     _id: i64,
 ) -> Result<(), AppError> {
+    if !supports_edge_auto_hide() {
+        return Ok(());
+    }
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.hide();
     }
@@ -191,6 +204,9 @@ pub async fn window_show_all_hidden(
     _state: State<'_, AppState>,
     dock_state: State<'_, DockRuntimeState>,
 ) -> Result<(), AppError> {
+    if !supports_edge_auto_hide() {
+        return Ok(());
+    }
     show_main_window(&app, &dock_state)
 }
 
@@ -233,6 +249,9 @@ pub async fn window_arm_autohide(
     app: tauri::AppHandle,
     dock_state: State<'_, DockRuntimeState>,
 ) -> Result<(), AppError> {
+    if !supports_edge_auto_hide() {
+        return Ok(());
+    }
     if dock_state.edge().is_none() {
         return Ok(());
     }
@@ -318,6 +337,9 @@ pub async fn window_reveal_from_edge(
     app: tauri::AppHandle,
     dock_state: State<'_, DockRuntimeState>,
 ) -> Result<(), AppError> {
+    if !supports_edge_auto_hide() {
+        return Ok(());
+    }
     let Some(window) = app.get_webview_window("main") else {
         return Ok(());
     };
