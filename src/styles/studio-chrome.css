@@ -275,6 +275,16 @@
   color: var(--studio-rail-active-fg);
 }
 
+/* The legacy a11y layer paints a seal tick on the active tab; the compact
+   chips are already fully rounded, so drop every inherited pseudo decoration. */
+.app-shell.is-sticky .group-tab::before,
+.app-shell.is-sticky .group-tab::after,
+.app-shell.is-one-note .group-tab::before,
+.app-shell.is-one-note .group-tab::after {
+  content: none;
+  display: none;
+}
+
 .app-shell.is-sticky .group-tab.is-drop-target {
   background: var(--seal);
   color: var(--paper-raised);
@@ -316,20 +326,26 @@
 
 .app-shell.is-sticky .group-tab-wrap .group-tab {
   width: auto;
-  padding-right: 24px;
+}
+
+/* Only the selected chip carries the pencil, so unselected chips keep their
+   natural width and the strip never shows empty trailing space. */
+.app-shell.is-sticky .group-tab-wrap.is-active .group-tab,
+.app-shell.is-sticky .group-tab-wrap:focus-within .group-tab {
+  padding-right: 28px;
 }
 
 .app-shell.is-sticky .group-tab__edit {
   position: absolute;
   top: 50%;
-  right: 4px;
-  width: 20px;
-  height: 20px;
+  right: 5px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--paper-sunk);
-  color: var(--ink-soft);
+  background: transparent;
+  color: var(--ink-faint);
   opacity: 0;
   pointer-events: none;
   transform: translateY(-50%);
@@ -339,20 +355,26 @@
     color var(--dur-fast) var(--ease);
 }
 
-.app-shell.is-sticky .group-tab-wrap:hover .group-tab__edit,
+.app-shell.is-sticky .group-tab-wrap.is-active .group-tab__edit,
 .app-shell.is-sticky .group-tab-wrap:focus-within .group-tab__edit {
   opacity: 1;
   pointer-events: auto;
 }
 
 .app-shell.is-sticky .group-tab-wrap.is-active .group-tab__edit {
-  background: color-mix(in srgb, var(--paper-raised) 90%, transparent);
-  color: var(--ink);
+  color: color-mix(in srgb, var(--paper-raised) 62%, transparent);
 }
 
-.app-shell.is-sticky .group-tab__edit:hover {
-  background: var(--paper-raised);
+.app-shell.is-sticky .group-tab__edit:hover,
+.app-shell.is-sticky .group-tab__edit:focus-visible {
+  background: var(--studio-hover);
   color: var(--seal);
+}
+
+.app-shell.is-sticky .group-tab-wrap.is-active .group-tab__edit:hover,
+.app-shell.is-sticky .group-tab-wrap.is-active .group-tab__edit:focus-visible {
+  background: color-mix(in srgb, var(--paper-raised) 16%, transparent);
+  color: var(--paper-raised);
 }
 
 .app-shell.is-sticky .groups-rail__add {
@@ -682,13 +704,13 @@
 
 .app-shell.is-sticky .group-tab:focus-visible,
 .app-shell.is-one-note .group-tab:focus-visible {
-  outline: var(--studio-focus);
+  outline: 2px solid var(--studio-focus);
   outline-offset: -2px;
 }
 
 .app-shell.is-sticky .groups-rail__add:focus-visible,
 .app-shell.is-one-note .groups-rail__add:focus-visible {
-  outline: var(--studio-focus);
+  outline: 2px solid var(--studio-focus);
   outline-offset: 1px;
 }
 

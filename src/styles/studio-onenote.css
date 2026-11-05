@@ -16,6 +16,8 @@
 /* --------------------------------------------------------------- shell --- */
 
 .app-shell.is-one-note {
+  --page-pad: 56px;
+  --page-measure: 1320px;
   background: var(--paper);
 }
 
@@ -162,7 +164,7 @@
 }
 
 .app-shell.is-one-note .notes__archive-toggle:focus-visible {
-  outline: var(--studio-focus);
+  outline: 2px solid var(--studio-focus);
   outline-offset: 1px;
 }
 
@@ -554,7 +556,7 @@
 }
 
 .app-shell.is-one-note .note-list-item__action:focus-visible {
-  outline: var(--studio-focus);
+  outline: 2px solid var(--studio-focus);
   outline-offset: -1px;
 }
 
@@ -631,7 +633,7 @@
   gap: 18px;
   min-height: 0;
   margin: 0;
-  padding: 42px max(48px, calc(48px + (100% - 740px) / 2)) 0;
+  padding: 34px max(var(--page-pad), calc((100% - var(--page-measure)) / 2)) 0;
   border: 0;
   border-bottom: 0;
   background: transparent;
@@ -694,7 +696,7 @@
   background: transparent;
   color: var(--ink);
   font-family: var(--font-editorial);
-  font-size: clamp(26px, 2.3vw, 31px);
+  font-size: clamp(26px, 2vw, 34px);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.18;
@@ -752,7 +754,7 @@
   justify-content: flex-start;
   gap: 8px 16px;
   margin: 0;
-  padding: 11px max(48px, calc(48px + (100% - 740px) / 2)) 13px;
+  padding: 11px max(var(--page-pad), calc((100% - var(--page-measure)) / 2)) 14px;
   border: 0;
   border-bottom: 1px solid var(--studio-line-soft);
   border-radius: 0;
@@ -826,7 +828,7 @@
 }
 
 .app-shell.is-one-note .note-editor__options .color-swatch:focus-visible {
-  outline: var(--studio-focus);
+  outline: 2px solid var(--studio-focus);
   outline-offset: 2px;
 }
 
@@ -839,7 +841,7 @@
   gap: 2px;
   height: 40px;
   margin: 0;
-  padding: 0 max(48px, calc(48px + (100% - 740px) / 2));
+  padding: 0 max(var(--page-pad), calc((100% - var(--page-measure)) / 2));
   overflow-x: auto;
   overflow-y: hidden;
   border: 0;
@@ -924,15 +926,15 @@
 .app-shell.is-one-note .one-note-pane .editor-content .tiptap {
   box-sizing: border-box;
   width: 100%;
-  max-width: 740px;
+  max-width: none;
   min-height: 100%;
-  margin: 0 auto;
-  padding: 30px 48px 96px;
+  margin: 0;
+  padding: 32px max(var(--page-pad), calc((100% - var(--page-measure)) / 2)) 104px;
   color: var(--ink);
   font-family: var(--font-ui);
-  font-size: 15.5px;
+  font-size: 16px;
   letter-spacing: 0.005em;
-  line-height: 1.85;
+  line-height: 1.88;
   outline: none;
 }
 
@@ -948,7 +950,7 @@
   gap: 14px;
   min-height: 34px;
   margin: 0;
-  padding: 0 max(48px, calc(48px + (100% - 740px) / 2));
+  padding: 0 max(var(--page-pad), calc((100% - var(--page-measure)) / 2));
   border: 0;
   border-top: 1px solid var(--studio-line);
   background: var(--paper-sunk);
@@ -997,7 +999,7 @@
 }
 
 .app-shell.is-one-note .note-editor__status .editor-trash:focus-visible {
-  outline: var(--studio-focus);
+  outline: 2px solid var(--studio-focus);
   outline-offset: 1px;
 }
 
@@ -1154,7 +1156,7 @@
 .app-shell.is-one-note .one-note-pane .toolbar__btn:focus-visible,
 .app-shell.is-one-note .one-note-pane .btn-icon:focus-visible,
 .app-shell.is-one-note .one-note-pane__paper button:focus-visible {
-  outline: var(--studio-focus);
+  outline: 2px solid var(--studio-focus);
   outline-offset: 1px;
 }
 
@@ -1163,34 +1165,42 @@
 }
 
 .app-shell.is-one-note .note-list-item__row:focus-visible {
-  outline: var(--studio-focus);
+  outline: 2px solid var(--studio-focus);
   outline-offset: -2px;
 }
 
 /* -------------------------------------------------------- responsive --- */
 
 @media (max-width: 1400px) {
+  .app-shell.is-one-note {
+    --page-pad: 42px;
+  }
+
   .app-shell.is-one-note .one-note-pane .note-editor__head {
-    padding: 38px 42px 0;
+    padding: 38px var(--page-pad) 0;
   }
   .app-shell.is-one-note .one-note-pane .note-editor__options {
-    padding: 10px 42px 12px;
+    padding: 10px var(--page-pad) 13px;
   }
 
   .app-shell.is-one-note .one-note-pane .toolbar {
-    padding: 0 42px;
+    padding: 0 var(--page-pad);
   }
 
   .app-shell.is-one-note .one-note-pane .editor-content .tiptap {
-    padding: 28px 42px 88px;
+    padding: 30px var(--page-pad) 92px;
   }
 
   .app-shell.is-one-note .one-note-pane .note-editor__status {
-    padding: 0 42px;
+    padding: 0 var(--page-pad);
   }
 }
 
 @media (max-width: 1100px) {
+  .app-shell.is-one-note {
+    --page-pad: 28px;
+  }
+
   .app-shell.is-one-note .notes-workspace.is-one-note {
     grid-template-columns: minmax(264px, 288px) minmax(0, 1fr);
   }
@@ -1213,27 +1223,27 @@
   }
 
   .app-shell.is-one-note .one-note-pane .note-editor__head {
-    padding: 28px 28px 0;
+    padding: 28px var(--page-pad) 0;
   }
   .app-shell.is-one-note .one-note-pane .note-editor__title {
     font-size: 26px;
   }
 
   .app-shell.is-one-note .one-note-pane .note-editor__options {
-    padding: 9px 28px 11px;
+    padding: 9px var(--page-pad) 12px;
   }
 
   .app-shell.is-one-note .one-note-pane .toolbar {
-    padding: 0 28px;
+    padding: 0 var(--page-pad);
   }
 
   .app-shell.is-one-note .one-note-pane .editor-content .tiptap {
-    padding: 24px 28px 76px;
+    padding: 26px var(--page-pad) 80px;
     font-size: 15px;
   }
 
   .app-shell.is-one-note .one-note-pane .note-editor__status {
-    padding: 0 28px;
+    padding: 0 var(--page-pad);
   }
 
   .app-shell.is-one-note .one-note-pane__paper {
@@ -1259,6 +1269,10 @@
 }
 
 @media (max-width: 900px) {
+  .app-shell.is-one-note {
+    --page-pad: 24px;
+  }
+
   .app-shell.is-one-note .notes-workspace.is-one-note {
     grid-template-columns: minmax(240px, 264px) minmax(0, 1fr);
   }
@@ -1283,7 +1297,7 @@
   }
 
   .app-shell.is-one-note .one-note-pane .note-editor__head {
-    padding: 24px 24px 0;
+    padding: 24px var(--page-pad) 0;
   }
   .app-shell.is-one-note .one-note-pane .note-editor__title {
     font-size: 23px;

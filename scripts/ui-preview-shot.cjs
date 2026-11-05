@@ -134,6 +134,10 @@ async function main() {
       viewport: { width: 500, height: 780 },
     });
     await shot(page, "audit-compact");
+    await page.locator(".group-tab-wrap").first().hover();
+    await page.waitForTimeout(250);
+    await page.locator(".groups-rail").screenshot({ path: path.join(outDir, "audit-compact-chips.png") });
+    await page.mouse.move(4, 700);
     await page.locator(".note-card__inner").first().click();
     await page.waitForTimeout(400);
     await shot(page, "audit-compact-editor");
@@ -179,6 +183,18 @@ async function main() {
     await context.close();
   }
 
+  {
+    const { context, page } = await openPage(browser, {
+      label: "main",
+      theme: "light",
+      viewport: { width: 500, height: 780 },
+    });
+    await page.locator(".group-tab-wrap .group-tab").first().click();
+    await page.waitForTimeout(350);
+    await page.locator(".groups-rail").screenshot({ path: path.join(outDir, "audit-compact-chips-active.png") });
+    await context.close();
+  }
+
   // ---- maximized: the everyday desktop route into the notebook -------------
   {
     const { context, page } = await openPage(browser, {
@@ -206,6 +222,9 @@ async function main() {
     await page.locator(".note-list-item__row").nth(1).click({ position: { x: 24, y: 20 } });
     await page.waitForTimeout(400);
     await shot(page, "audit-fullscreen-editor");
+    await page.setViewportSize({ width: 1996, height: 1350 });
+    await page.waitForTimeout(500);
+    await shot(page, "audit-fullscreen-editor-1996");
     await context.close();
   }
 
