@@ -33,6 +33,11 @@ src-tauri/gen/
 /*-check.png
 /wander-inline-edit-release.png
 *.tsbuildinfo
+/tmp-ui-audit/
+
+# local agent scratch state
+/.zcode/
+/.claude-flow/
 
 # tauri
 src-tauri/Cargo.lock

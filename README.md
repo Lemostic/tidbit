@@ -9,10 +9,12 @@
 - 语音备忘录：在便签内直接录音，以独立内容块播放、重命名或删除，默认使用录制时间作为名称。
 - 拖放整理：便签在当前分组内排序，也可以拖到其他分组。
 - 云游便签：将便签固定到桌面，支持自动排列与吸附、折叠、关闭、卡片内编辑和透明度设置。
+- 晾衣绳：在屏幕顶部居中显示一条绳索，便签用衣夹等距挂在绳上。窗口不能拖动或缩放；鼠标移开后自动收起到顶部居中的小条，悬停小条再向下展开。便签悬停时平滑抬起并拨开邻近卡片；点按便签打开编辑器，`×` 取下，Esc 收起。云游便签与晾衣绳互斥。
 - 快速搜索：按 `Ctrl+K` 打开搜索面板。
 - 窗口行为：自定义标题栏拖动、最小化到托盘、边缘吸附及 0.5 秒自动隐藏动画。
 - 系统启动：可在设置中开启或关闭 Windows 开机自动启动，默认关闭。
 - 个性化：浅色、深色、护眼主题，液态玻璃开关及 55%–100% 不透明度，默认 80%。
+- 纸本工作台：深墨功能栏、暖纸内容层与朱砂交互色统一覆盖主窗口、三栏编辑器、设置、命令面板和晾衣绳，并支持系统减少动态效果设置。
 - 字体设置：分组、便签标题和正文可分别指定字体。
 - 数据管理：默认使用 `%APPDATA%\tidbit`，支持迁移到自定义目录、备份与恢复。
 - 隐私保护：隐藏内容占位显示、隐私锁定、SQLCipher 数据库加密。
@@ -56,8 +58,8 @@ pnpm tauri build
 典型输出：
 
 - `src-tauri/target/release/tidbit.exe`：独立可执行文件
-- `src-tauri/target/release/bundle/nsis/tidbit_0.1.2_x64-setup.exe`：NSIS 安装程序
-- `src-tauri/target/release/bundle/msi/tidbit_0.1.2_x64_en-US.msi`：MSI 安装程序
+- `src-tauri/target/release/bundle/nsis/tidbit_0.3.0_x64-setup.exe`：NSIS 安装程序
+- `src-tauri/target/release/bundle/msi/tidbit_0.3.0_x64_en-US.msi`：MSI 安装程序
 
 未签名构建首次运行时可能触发 Windows SmartScreen 提示。
 

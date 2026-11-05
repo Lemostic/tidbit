@@ -28,7 +28,7 @@ beforeEach(() => {
       id: 8, group_id: null, title: "桌面计划", content_md: "正文", content_html: "<p>正文</p>", word_count: 2,
       is_pinned: false, is_content_hidden: false, is_archived: false, is_trashed: false, trashed_at: null,
       geom_x: null, geom_y: null, geom_w: 280, geom_h: 360, edge_dock: "none", created_at: 0, updated_at: 0,
-      color: null, sort_order: 0,
+      color: null, sort_order: 0, clothesline_x: null,
     };
     return undefined;
   });
@@ -64,4 +64,22 @@ it("renders note content and working collapse and close controls", async () => {
   expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ width: 340, height: 62 }));
   fireEvent.click(screen.getByRole("button", { name: "关闭云游便签" }));
   expect(invoke).toHaveBeenCalledWith("wander_close", { noteId: 8 });
+});
+
+it("keeps a hidden note locked out of editing", async () => {
+  invoke.mockImplementation(async (command: string) => {
+    if (command === "notes_get") return {
+      id: 8, group_id: null, title: "机密计划", content_md: "不能显示", content_html: "<p>不能显示</p>", word_count: 4,
+      is_pinned: false, is_content_hidden: true, is_archived: false, is_trashed: false, trashed_at: null,
+      geom_x: null, geom_y: null, geom_w: 280, geom_h: 360, edge_dock: "none", created_at: 0, updated_at: 0,
+      color: null, sort_order: 0, clothesline_x: null,
+    };
+    return undefined;
+  });
+
+  render(<WanderNote noteId={8} initialOpacity={88} />);
+  expect(await screen.findByText("隐私便签")).toBeInTheDocument();
+  expect(screen.getByText("该条便签内容已加密")).toBeInTheDocument();
+  expect(screen.queryByText("不能显示")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "切换为编辑" })).not.toBeInTheDocument();
 });

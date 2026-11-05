@@ -23,6 +23,7 @@ const { invoke } = vi.hoisted(() => ({
       updated_at: 0,
       color: null,
       sort_order: 0,
+      clothesline_x: null,
     },
   ]),
 }));

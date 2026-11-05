@@ -8,6 +8,7 @@ import type { Group, Note } from "../../ipc/types";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { AudioRecording } from "./AudioRecording";
 import { EditorToolbar } from "./EditorToolbar";
+import { formatRelative } from "./NoteListItem";
 
 interface NoteEditorProps {
   note: Note;
@@ -18,11 +19,12 @@ interface NoteEditorProps {
   allowTrash?: boolean;
   desktopWindow?: boolean;
   embedded?: boolean;
+  pane?: boolean;
 }
 
 const colors = [null, "#d75b57", "#d5a23f", "#4e9b75", "#4c86b8"] as const;
 
-export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false }: NoteEditorProps) {
+export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false, pane = false }: NoteEditorProps) {
   const [current, setCurrent] = useState(note);
   const [title, setTitle] = useState(note.title ?? "");
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
@@ -87,26 +89,55 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
     } catch { setStatus("error"); }
   };
 
+  const groupLabel = groups.find((group) => group.id === current.group_id)?.name ?? "全部便签";
+  const editedLabel = current.updated_at ? `${formatRelative(current.updated_at)}编辑` : "尚未编辑";
+
+  const titleInput = (
+    <input
+      className="note-editor__title"
+      value={title}
+      aria-label="便签标题"
+      placeholder="无标题"
+      onChange={(e) => setTitle(e.target.value)}
+      onBlur={() => void updateTitle()}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+    />
+  );
+
+  const headTools = (
+    <>
+      <button
+        className={`btn-icon${current.is_pinned ? " is-selected" : ""}`}
+        aria-label={current.is_pinned ? "取消置顶" : "置顶"}
+        title={current.is_pinned ? "取消置顶" : "置顶"}
+        onClick={() => void mutate(client.notes.setPinned(current.id, !current.is_pinned))}
+      ><PushPin size={16} weight={current.is_pinned ? "fill" : "regular"} /></button>
+      <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>
+    </>
+  );
+
   const panel = (
-      <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-label="编辑便签">
+      <section
+        className={`note-editor${embedded ? " note-editor--embedded" : ""}${pane ? " note-editor--pane" : ""}`}
+        role={pane ? "region" : "dialog"}
+        aria-modal={embedded || pane ? undefined : true}
+        aria-label="编辑便签"
+      >
         {!embedded && <header className="note-editor__head">
           <span data-tauri-drag-region={desktopWindow ? true : undefined} className="note-editor__accent" style={{ background: current.color ?? "var(--accent)" }} />
-          <input
-            className="note-editor__title"
-            value={title}
-            aria-label="便签标题"
-            placeholder="无标题"
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => void updateTitle()}
-            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-          />
-          <button
-            className={`btn-icon${current.is_pinned ? " is-selected" : ""}`}
-            aria-label={current.is_pinned ? "取消置顶" : "置顶"}
-            title={current.is_pinned ? "取消置顶" : "置顶"}
-            onClick={() => void mutate(client.notes.setPinned(current.id, !current.is_pinned))}
-          ><PushPin size={16} weight={current.is_pinned ? "fill" : "regular"} /></button>
-          <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>
+          {pane ? (
+            <div className="note-editor__heading">
+              <div className="note-editor__crumb mono">
+                <span className="note-editor__crumb-group">{groupLabel}</span>
+                <span className="note-editor__crumb-sep" aria-hidden="true">·</span>
+                <span>{editedLabel}</span>
+                <span className="note-editor__crumb-sep" aria-hidden="true">·</span>
+                <span>{current.word_count} 字</span>
+              </div>
+              {titleInput}
+            </div>
+          ) : titleInput}
+          {pane ? <div className="note-editor__head-tools">{headTools}</div> : headTools}
         </header>}
 
         <div className="note-editor__options">
@@ -146,11 +177,15 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
 
   return (
     <>
-    {embedded ? panel : <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
+    {embedded || pane ? panel : <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
     {allowTrash && <ConfirmDialog
       open={confirmingDelete}
       title="删除这条便签？"
-      description={`「${current.title?.trim() || "无标题"}」将被移到回收站，可以稍后恢复。`}
+      description={
+        current.is_content_hidden
+          ? "这条隐私便签将被移到回收站，可以稍后恢复。"
+          : `「${current.title?.trim() || "无标题"}」将被移到回收站，可以稍后恢复。`
+      }
       confirmAriaLabel="确认删除便签"
       busy={deleting}
       onCancel={() => setConfirmingDelete(false)}

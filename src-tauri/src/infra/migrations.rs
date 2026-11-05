@@ -28,6 +28,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0007_note_sort_order",
         include_str!("../../migrations/0007_note_sort_order.sql"),
     ),
+    (
+        "0008_note_clothesline_x",
+        include_str!("../../migrations/0008_note_clothesline_x.sql"),
+    ),
 ];
 
 /// Run all pending migrations in order. Already-applied migrations are skipped.

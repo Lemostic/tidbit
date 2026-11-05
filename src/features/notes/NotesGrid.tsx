@@ -1,13 +1,14 @@
-import { Archive, ArrowClockwise, NotePencil, Plus, WarningCircle } from "@phosphor-icons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Note } from "../../ipc/types";
 import type { ToastState } from "../../ui/Toast";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { useGroups } from "../groups/useGroups";
-import { NoteCard } from "./NoteCard";
+import { writeStoredClotheslineIds } from "../clothesline/useClothesline";
+import { CompactBoard } from "./CompactBoard";
+import { OneNoteWorkspace } from "./OneNoteWorkspace";
 import { NoteEditor } from "./NoteEditor";
 import { useNotes } from "./useNotes";
 
@@ -18,40 +19,54 @@ interface NotesGridProps {
   onOpenHandled: () => void;
   onNotice: (toast: ToastState) => void;
   refreshRequest: number;
+  oneNoteMode?: boolean;
 }
 
 type DropPosition = "before" | "after";
 
 const noteDragType = "application/x-tidbit-note-id";
 
-export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, onNotice, refreshRequest }: NotesGridProps) {
+export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, onNotice, refreshRequest, oneNoteMode = false }: NotesGridProps) {
   const archiveStorageKey = `show-archived:${groupId ?? "all"}`;
   const [showArchived, setShowArchived] = useState(() => localStorage.getItem(archiveStorageKey) === "true");
   const { notes, setNotes, loading, error, create, trash, refresh } = useNotes(groupId, showArchived);
   const { groups } = useGroups();
+  const activeGroup = groups.find((group) => group.id === groupId);
+  const collectionTitle = activeGroup?.name ?? "全部便签";
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [confirmingNote, setConfirmingNote] = useState<Note | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [wanderedIds, setWanderedIds] = useState<Set<number>>(new Set());
+  const [hangingIds, setHangingIds] = useState<Set<number>>(new Set());
   const [draggedNoteId, setDraggedNoteId] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: number; position: DropPosition } | null>(null);
   const lastCreateRequest = useRef(createRequest);
   const lastRefreshRequest = useRef(refreshRequest);
   const suppressOpen = useRef(false);
 
-  const refreshWandered = async () => {
+  const refreshWandered = useCallback(async () => {
     try { setWanderedIds(new Set(await invoke<number[]>("wander_list"))); }
     catch { setWanderedIds(new Set()); }
-  };
+  }, []);
+
+  const refreshHanging = useCallback(async () => {
+    try {
+      const ids = await invoke<number[]>("clothesline_list");
+      setHangingIds(new Set(ids));
+    } catch { setHangingIds(new Set()); }
+  }, []);
 
   useEffect(() => {
     void refreshWandered();
+    void refreshHanging();
     let disposeWander: (() => void) | undefined;
+    let disposeClothesline: (() => void) | undefined;
     let disposeUpdated: (() => void) | undefined;
     void listen("tidbit://wander-changed", () => void refreshWandered()).then((dispose) => { disposeWander = dispose; });
+    void listen("tidbit://clothesline-changed", () => void refreshHanging()).then((dispose) => { disposeClothesline = dispose; });
     void listen("tidbit://note-updated", () => void refresh()).then((dispose) => { disposeUpdated = dispose; });
-    return () => { disposeWander?.(); disposeUpdated?.(); };
-  }, [refresh]);
+    return () => { disposeWander?.(); disposeClothesline?.(); disposeUpdated?.(); };
+  }, [refresh, refreshWandered, refreshHanging]);
 
   useEffect(() => {
     setShowArchived(localStorage.getItem(archiveStorageKey) === "true");
@@ -114,6 +129,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     Promise.all([client.notes.get(openNoteId), invoke<number[]>("wander_list")])
       .then(([note, active]) => {
         if (active.includes(openNoteId)) onNotice({ kind: "info", message: "云游中的便签请在桌面卡片中编辑" });
+        else if (note.is_content_hidden) onNotice({ kind: "info", message: "内容已隐藏，请先显示后再打开" });
         else setEditingNote(note);
       })
       .catch(() => onNotice({ kind: "error", message: "无法打开这条便签" }))
@@ -124,6 +140,7 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     setDeleting(true);
     try {
       await trash(id);
+      setEditingNote((current) => current?.id === id ? null : current);
       onNotice({ kind: "success", message: "便签已移到回收站" });
     } catch {
       onNotice({ kind: "error", message: "删除失败" });
@@ -131,9 +148,14 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
   };
 
   const wanderNote = async (note: Note) => {
+    if (hangingIds.has(note.id)) {
+      onNotice({ kind: "info", message: "请先把便签从晾衣绳上取下" });
+      return;
+    }
     try {
       const opacity = Number(localStorage.getItem("wander-opacity") ?? "88");
       await invoke("wander_open", { noteId: note.id, opacity });
+      setEditingNote((current) => current?.id === note.id ? null : current);
       await refreshWandered();
       onNotice({ kind: "success", message: "便签已在桌面云游" });
     } catch {
@@ -141,9 +163,89 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
     }
   };
 
+  const hangNote = async (note: Note) => {
+    if (wanderedIds.has(note.id)) {
+      onNotice({ kind: "info", message: "请先关闭云游便签" });
+      return;
+    }
+    try {
+      const ids = await invoke<number[]>("clothesline_list");
+      const next = hangingIds.has(note.id)
+        ? ids.filter((value) => value !== note.id)
+        : [...ids, note.id];
+      await invoke("clothesline_set_notes", { noteIds: next });
+      // Keep the same durable snapshot the clothesline window uses so opening
+      // the board later cannot overwrite a newer list with stale storage.
+      writeStoredClotheslineIds(next);
+      await refreshHanging();
+      onNotice({ kind: "success", message: hangingIds.has(note.id) ? "便签已从晾衣绳取下" : "便签已挂到晾衣绳" });
+    } catch {
+      onNotice({ kind: "error", message: "晾衣绳操作失败" });
+    }
+  };
+
+  const openNote = (note: Note) => {
+    if (suppressOpen.current || wanderedIds.has(note.id) || note.is_content_hidden) return;
+    setEditingNote(note);
+  };
+
+  const toggleVisibility = (note: Note) => {
+    void client.notes.setContentHidden(note.id, !note.is_content_hidden)
+      .then((updated) => {
+        setNotes((current) => current.map((item) => item.id === updated.id ? updated : item));
+        if (updated.is_content_hidden) {
+          setEditingNote((current) => current?.id === updated.id ? null : current);
+        }
+      })
+      .catch(() => onNotice({ kind: "error", message: "内容显示状态更新失败" }));
+  };
+
+  const togglePin = (note: Note) => {
+    void client.notes.setPinned(note.id, !note.is_pinned)
+      .then(refresh)
+      .catch(() => onNotice({ kind: "error", message: "置顶操作失败" }));
+  };
+
+  const toggleArchive = (note: Note) => {
+    void client.notes.setArchived(note.id, !note.is_archived)
+      .then(refresh)
+      .then(() => onNotice({ kind: "success", message: note.is_archived ? "便签已取消归档" : "便签已归档" }))
+      .catch(() => onNotice({ kind: "error", message: "归档操作失败" }));
+  };
+
+  const startNoteDrag = (note: Note, event: React.DragEvent<HTMLElement>) => {
+    if (wanderedIds.has(note.id)) {
+      event.preventDefault();
+      return;
+    }
+    suppressOpen.current = true;
+    setDraggedNoteId(note.id);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(noteDragType, String(note.id));
+    event.dataTransfer.setData("text/plain", String(note.id));
+  };
+
+  const dragOverNote = (noteId: number, event: React.DragEvent<HTMLElement>) => {
+    if (draggedNoteId === null || draggedNoteId === noteId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setDropTarget({ id: noteId, position: event.clientY < bounds.top + bounds.height / 2 ? "before" : "after" });
+  };
+
+  const dragLeaveNote = (event: React.DragEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget(null);
+  };
+
+  const dropNote = (noteId: number, event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    const position = dropTarget?.id === noteId ? dropTarget.position : "after";
+    void reorderNotes(noteId, position);
+  };
+
   return (
     <>
-      {editingNote && (
+      {editingNote && !oneNoteMode && (
         <NoteEditor
           note={editingNote}
           groups={groups}
@@ -155,7 +257,11 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
       <ConfirmDialog
         open={Boolean(confirmingNote)}
         title="删除这条便签？"
-        description={`「${confirmingNote?.title?.trim() || "无标题"}」将被移到回收站，可以稍后恢复。`}
+        description={
+          confirmingNote?.is_content_hidden
+            ? "这条隐私便签将被移到回收站，可以稍后恢复。"
+            : `「${confirmingNote?.title?.trim() || "无标题"}」将被移到回收站，可以稍后恢复。`
+        }
         confirmAriaLabel="确认删除便签"
         busy={deleting}
         onCancel={() => setConfirmingNote(null)}
@@ -165,87 +271,75 @@ export function NotesGrid({ groupId, createRequest, openNoteId, onOpenHandled, o
           setConfirmingNote(null);
         }}
       />
-      <section className="notes">
-        <header className="notes__head">
-          <span className="notes__count mono">{notes.length} 条便签</span>
-          <div className="notes__head-actions">
-            <div className="notes__archive-toggle" title="显示归档便签">
-              <Archive size={13} />
-              <span>显示归档</span>
-              <input type="checkbox" className="switch" checked={showArchived} onChange={(event) => toggleArchivedVisibility(event.target.checked)} />
-            </div>
-            <button className="btn btn-primary" onClick={() => void createNote()}><Plus size={15} weight="bold" />新建</button>
-          </div>
-        </header>
-
-        {loading ? (
-          <div className="notes__body"><div className="note-skeleton"><span /><span /><span /></div></div>
-        ) : error ? (
-          <div className="notes__empty">
-            <WarningCircle size={28} />
-            <div><p className="notes__empty-title">便签加载失败</p><p>{error}</p></div>
-            <button className="btn" onClick={() => void refresh()}><ArrowClockwise size={15} />重试</button>
-          </div>
-        ) : notes.length === 0 ? (
-          <div className="notes__empty">
-            <div className="notes__empty-glyph"><NotePencil size={23} weight="duotone" /></div>
-            <div><p className="notes__empty-title">这里还没有便签</p><p>新建一条，随手记下今天的事项。</p></div>
-            <button className="btn btn-primary" onClick={() => void createNote()}><Plus size={15} />新建便签</button>
-          </div>
-        ) : (
-          <div className="notes__body">
-            <div className="notes__list">
-              {notes.map((note, index) => {
-                const wanderActive = wanderedIds.has(note.id);
-                return (
-                <div
-                  key={note.id}
-                  className={`note-card${draggedNoteId === note.id ? " is-dragging" : ""}${dropTarget?.id === note.id ? ` is-drop-${dropTarget.position}` : ""}`}
-                  style={{ "--i": index, "--card-accent": note.color ?? "var(--accent)" } as React.CSSProperties}
-                  draggable={!wanderActive}
-                  aria-grabbed={draggedNoteId === note.id}
-                  onDragStart={(event) => {
-                    if (wanderActive) { event.preventDefault(); return; }
-                    suppressOpen.current = true;
-                    setDraggedNoteId(note.id);
-                    event.dataTransfer.effectAllowed = "move";
-                    event.dataTransfer.setData(noteDragType, String(note.id));
-                    event.dataTransfer.setData("text/plain", String(note.id));
-                  }}
-                  onDragOver={(event) => {
-                    if (draggedNoteId === null || draggedNoteId === note.id) return;
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move";
-                    const bounds = event.currentTarget.getBoundingClientRect();
-                    setDropTarget({ id: note.id, position: event.clientY < bounds.top + bounds.height / 2 ? "before" : "after" });
-                  }}
-                  onDragLeave={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget(null);
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    const position = dropTarget?.id === note.id ? dropTarget.position : "after";
-                    void reorderNotes(note.id, position);
-                  }}
-                  onDragEnd={endDrag}
-                >
-                  <NoteCard
-                    note={note}
-                    wanderActive={wanderActive}
-                    onOpen={() => { if (!suppressOpen.current) setEditingNote(note); }}
-                    onToggleVisibility={() => void client.notes.setContentHidden(note.id, !note.is_content_hidden).then((updated) => setNotes((current) => current.map((item) => item.id === updated.id ? updated : item))).catch(() => onNotice({ kind: "error", message: "内容显示状态更新失败" }))}
-                    onTogglePin={() => void client.notes.setPinned(note.id, !note.is_pinned).then(refresh).catch(() => onNotice({ kind: "error", message: "置顶操作失败" }))}
-                    onToggleArchive={() => void client.notes.setArchived(note.id, !note.is_archived).then(refresh).then(() => onNotice({ kind: "success", message: note.is_archived ? "便签已取消归档" : "便签已归档" })).catch(() => onNotice({ kind: "error", message: "归档操作失败" }))}
-                    onWander={() => void wanderNote(note)}
-                    onTrash={() => setConfirmingNote(note)}
-                  />
-                </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </section>
+      {oneNoteMode ? (
+        <OneNoteWorkspace
+          notes={notes}
+          collectionTitle={collectionTitle}
+          loading={loading}
+          error={error}
+          showArchived={showArchived}
+          selectedId={editingNote?.id ?? null}
+          wanderedIds={wanderedIds}
+          hangingIds={hangingIds}
+          draggedNoteId={draggedNoteId}
+          dropTarget={dropTarget}
+          pane={
+            editingNote ? (
+              <NoteEditor
+                key={editingNote.id}
+                note={editingNote}
+                groups={groups}
+                onClose={() => setEditingNote(null)}
+                onChanged={refresh}
+                onTrash={trashNote}
+                pane
+              />
+            ) : undefined
+          }
+          onToggleArchived={toggleArchivedVisibility}
+          onCreate={() => void createNote()}
+          onRefresh={() => void refresh()}
+          onOpen={openNote}
+          onTogglePin={togglePin}
+          onToggleVisibility={toggleVisibility}
+          onToggleArchive={toggleArchive}
+          onWander={(note) => void wanderNote(note)}
+          onHang={(note) => void hangNote(note)}
+          onTrash={(note) => setConfirmingNote(note)}
+          onDragStart={startNoteDrag}
+          onDragOver={dragOverNote}
+          onDragLeave={dragLeaveNote}
+          onDrop={dropNote}
+          onDragEnd={endDrag}
+        />
+      ) : (
+        <CompactBoard
+          notes={notes}
+          collectionTitle={collectionTitle}
+          loading={loading}
+          error={error}
+          showArchived={showArchived}
+          wanderedIds={wanderedIds}
+          hangingIds={hangingIds}
+          draggedNoteId={draggedNoteId}
+          dropTarget={dropTarget}
+          onToggleArchived={toggleArchivedVisibility}
+          onCreate={() => void createNote()}
+          onRefresh={() => void refresh()}
+          onOpen={openNote}
+          onTogglePin={togglePin}
+          onToggleVisibility={toggleVisibility}
+          onToggleArchive={toggleArchive}
+          onWander={(note) => void wanderNote(note)}
+          onHang={(note) => void hangNote(note)}
+          onTrash={(note) => setConfirmingNote(note)}
+          onDragStart={startNoteDrag}
+          onDragOver={dragOverNote}
+          onDragLeave={dragLeaveNote}
+          onDrop={dropNote}
+          onDragEnd={endDrag}
+        />
+      )}
     </>
   );
 }

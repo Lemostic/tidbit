@@ -22,6 +22,8 @@ describe("desktop window capabilities", () => {
       "core:window:allow-outer-position",
       "core:window:allow-outer-size",
       "core:window:allow-set-size",
+      "core:window:allow-is-maximized",
+      "core:window:allow-is-fullscreen",
       "core:window:allow-toggle-maximize",
     ]));
   });

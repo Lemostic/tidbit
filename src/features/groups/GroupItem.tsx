@@ -34,7 +34,9 @@ export function GroupItem({ group, selected, onClick, onEdit, onNoteDrop }: Grou
           if (Number.isSafeInteger(noteId)) onNoteDrop(noteId, group.id);
         }}
       >
-        <span className="group-tab__color" style={{ background: group.color ?? "transparent" }} />
+        {group.color && (
+          <span className="group-tab__color" aria-hidden="true" style={{ background: group.color }} />
+        )}
         <span className="group-tab__label">{group.name}</span>
       </button>
       <button className="group-tab__edit" onClick={(event) => { event.stopPropagation(); onEdit(); }} aria-label={`编辑分组 ${group.name}`} title="编辑分组">

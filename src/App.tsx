@@ -6,6 +6,7 @@ import { buildCommands } from "./app/buildCommands";
 import { CommandPalette } from "./app/CommandPalette";
 import { EdgePresence } from "./app/EdgePresence";
 import { Titlebar } from "./app/Titlebar";
+import { shouldUseOneNoteLayout } from "./app/windowMode";
 import { RestoreWizard } from "./features/backup/RestoreWizard";
 import { useBackupStatus } from "./features/backup/useBackupStatus";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
@@ -47,6 +48,9 @@ export default function App() {
   const [wanderOpacity, setWanderOpacity] = useState(() => Number(localStorage.getItem("wander-opacity") ?? "88"));
   const [glassEnabled, setGlassEnabled] = useState(loadGlassEffect);
   const [glassOpacity, setGlassOpacity] = useState(loadGlassOpacity);
+  const [clotheslineOpen, setClotheslineOpen] = useState(false);
+  const [clotheslineAutoShow, setClotheslineAutoShow] = useState(() => localStorage.getItem("clothesline-auto-show") === "true");
+  const [oneNoteMode, setOneNoteMode] = useState(false);
   const [dataDirectory, setDataDirectory] = useState("");
   const [defaultDataDirectory, setDefaultDataDirectory] = useState("");
   const [dataDirectoryBusy, setDataDirectoryBusy] = useState(false);
@@ -106,6 +110,43 @@ export default function App() {
   useEffect(() => {
     applyFontPreferences(fonts);
   }, [fonts]);
+
+  // Maximized or fullscreen windows become a three-column OneNote workspace:
+  // groups, note list, then the inline editor. Wide free-floating windows get
+  // the same layout, while the narrow default window keeps its compact modal.
+  useEffect(() => {
+    const win = getCurrentWindow();
+    let disposed = false;
+    let disposeResize: (() => void) | undefined;
+    let timer: number | undefined;
+
+    const syncLayoutMode = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void Promise.all([win.isMaximized(), win.isFullscreen()])
+          .then(([maximized, fullscreen]) => {
+            if (disposed) return;
+            setOneNoteMode(shouldUseOneNoteLayout(window.innerWidth, maximized, fullscreen));
+          })
+          .catch(() => {
+            if (!disposed) setOneNoteMode(shouldUseOneNoteLayout(window.innerWidth, false, false));
+          });
+      }, 80);
+    };
+
+    syncLayoutMode();
+    void win.onResized(syncLayoutMode).then((dispose) => {
+      if (disposed) dispose();
+      else disposeResize = dispose;
+    }).catch(() => undefined);
+    window.addEventListener("resize", syncLayoutMode);
+    return () => {
+      disposed = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      disposeResize?.();
+      window.removeEventListener("resize", syncLayoutMode);
+    };
+  }, []);
 
   useEffect(() => {
     const key = "window-default-size-v3";
@@ -169,6 +210,45 @@ export default function App() {
     setGlassOpacity(opacity);
     saveGlassOpacity(opacity);
     void broadcastAppearance().catch(() => undefined);
+  }, []);
+
+  const toggleClothesline = useCallback(async () => {
+    try {
+      const nextOpen = await invoke<boolean>("clothesline_toggle");
+      setClotheslineOpen(Boolean(nextOpen));
+    } catch {
+      setClotheslineOpen((value) => !value);
+    }
+  }, []);
+
+  const updateClotheslineAutoShow = useCallback((enabled: boolean) => {
+    setClotheslineAutoShow(enabled);
+    localStorage.setItem("clothesline-auto-show", String(enabled));
+  }, []);
+
+  // Mirror the backend's view of whether the clothesline window is open.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const open = await invoke<boolean>("clothesline_is_open");
+        if (!cancelled) setClotheslineOpen(Boolean(open));
+      } catch {
+        if (!cancelled) setClotheslineOpen(false);
+      }
+    };
+    void refresh();
+    let dispose: (() => void) | undefined;
+    void listen("tidbit://clothesline-changed", () => void refresh()).then((d) => { dispose = d; });
+    return () => { cancelled = true; dispose?.(); };
+  }, []);
+
+  // Auto-show on cold start if the user opted in. Fires once after mount.
+  useEffect(() => {
+    if (!clotheslineAutoShow) return;
+    void invoke("clothesline_open").then(() => setClotheslineOpen(true)).catch(() => undefined);
+    // We deliberately only run this on first mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pickDataDirectory = useCallback(async () => {
@@ -304,7 +384,8 @@ export default function App() {
     lockNow: () => setLocked(true),
     showHidden: () => void showHidden(),
     openSettings,
-  }), [cycleTheme, dockingEnabled, openBackups, openSettings, requestGroup, requestNote, setDocking, showHidden, snapshotNow]);
+    toggleClothesline: () => void toggleClothesline(),
+  }), [cycleTheme, dockingEnabled, openBackups, openSettings, requestGroup, requestNote, setDocking, showHidden, snapshotNow, toggleClothesline]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -328,13 +409,15 @@ export default function App() {
 
   return (
     <>
-      <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
-      <EdgePresence edge={hiddenEdge} />
-      <div className="app-body">
-        <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={setGroupId} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} />
-        <main className="app-main">
-          <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} />
-        </main>
+      <div className={`app-shell ${oneNoteMode ? "is-one-note" : "is-sticky"}`} data-layout={oneNoteMode ? "notebook" : "sticky"}>
+        <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} clotheslineOpen={clotheslineOpen} onToggleClothesline={() => void toggleClothesline()} />
+        <EdgePresence edge={hiddenEdge} />
+        <div className="app-body">
+          <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={setGroupId} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} />
+          <main className="app-main">
+            <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} oneNoteMode={oneNoteMode} />
+          </main>
+        </div>
       </div>
 
       <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} onOpenNote={setOpenNoteId} />
@@ -349,6 +432,7 @@ export default function App() {
         wanderOpacity={wanderOpacity}
         glassEnabled={glassEnabled}
         glassOpacity={glassOpacity}
+        clotheslineAutoShow={clotheslineAutoShow}
         onClose={() => setSettingsOpen(false)}
         onDockingChange={setDocking}
         onAutostartChange={(enabled) => void updateAutostart(enabled)}
@@ -357,6 +441,7 @@ export default function App() {
         onWanderOpacityChange={updateWanderOpacity}
         onGlassChange={updateGlassEffect}
         onGlassOpacityChange={updateGlassOpacity}
+        onClotheslineAutoShowChange={updateClotheslineAutoShow}
         onBackup={() => void snapshotNow()}
         onRestore={() => { setSettingsOpen(false); setRestoreOpen(true); }}
         onOpenBackups={() => void openBackups()}

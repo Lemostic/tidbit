@@ -81,33 +81,45 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
   return (
     <>
       <nav className="groups-rail" aria-label="便签分组">
-        <button
-          className={`group-tab${selectedId === null ? " is-active" : ""}${allDropActive ? " is-drop-target" : ""}`}
-          aria-selected={selectedId === null}
-          title="全部便签"
-          onClick={() => onSelect(null)}
-          onDragEnter={(event) => { event.preventDefault(); setAllDropActive(true); }}
-          onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setAllDropActive(true); }}
-          onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAllDropActive(false); }}
-          onDrop={(event) => {
-            event.preventDefault();
-            setAllDropActive(false);
-            const noteId = Number(event.dataTransfer.getData(noteDragType) || event.dataTransfer.getData("text/plain"));
-            if (Number.isSafeInteger(noteId)) onNoteDrop?.(noteId, null, "全部");
-          }}
-        >
-          <span className="group-tab__label">全部</span>
-        </button>
-        {groups.map((group) => (
-          <GroupItem key={group.id} group={group} selected={selectedId === group.id} onClick={() => onSelect(group.id)} onEdit={() => openEditor(group)} onNoteDrop={(noteId, groupId) => onNoteDrop?.(noteId, groupId, group.name)} />
-        ))}
-        {adding ? (
-          <form onSubmit={submit}>
-            <input className="groups-rail__new" autoFocus value={name} placeholder="名称" aria-label="新分组名" onChange={(e) => setName(e.target.value)} onBlur={() => { if (!name.trim()) setAdding(false); }} onKeyDown={(e) => { if (e.key === "Escape") { setName(""); setAdding(false); } }} />
-          </form>
-        ) : (
-          <button className="groups-rail__add" aria-label="新增分组" title="新增分组" onClick={() => setAdding(true)}><Plus size={16} /></button>
-        )}
+        <div className="groups-rail__head" aria-hidden="true">
+          <span className="groups-rail__eyebrow">笔记本</span>
+          {groups.length > 0 && <span className="groups-rail__count">{String(groups.length).padStart(2, "0")}</span>}
+        </div>
+        <span className="groups-rail__rule" aria-hidden="true" />
+        <div className="groups-rail__list">
+          <button
+            className={`group-tab group-tab--all${selectedId === null ? " is-active" : ""}${allDropActive ? " is-drop-target" : ""}`}
+            aria-selected={selectedId === null}
+            title="全部便签"
+            onClick={() => onSelect(null)}
+            onDragEnter={(event) => { event.preventDefault(); setAllDropActive(true); }}
+            onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setAllDropActive(true); }}
+            onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAllDropActive(false); }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setAllDropActive(false);
+              const noteId = Number(event.dataTransfer.getData(noteDragType) || event.dataTransfer.getData("text/plain"));
+              if (Number.isSafeInteger(noteId)) onNoteDrop?.(noteId, null, "全部");
+            }}
+          >
+            <span className="group-tab__label">全部</span>
+          </button>
+          {groups.map((group) => (
+            <GroupItem key={group.id} group={group} selected={selectedId === group.id} onClick={() => onSelect(group.id)} onEdit={() => openEditor(group)} onNoteDrop={(noteId, groupId) => onNoteDrop?.(noteId, groupId, group.name)} />
+          ))}
+        </div>
+        <div className="groups-rail__foot">
+          {adding ? (
+            <form className="groups-rail__form" onSubmit={submit}>
+              <input className="groups-rail__new" autoFocus value={name} placeholder="名称" aria-label="新分组名" onChange={(e) => setName(e.target.value)} onBlur={() => { if (!name.trim()) setAdding(false); }} onKeyDown={(e) => { if (e.key === "Escape") { setName(""); setAdding(false); } }} />
+            </form>
+          ) : (
+            <button className="groups-rail__add" aria-label="新增分组" title="新增分组" onClick={() => setAdding(true)}>
+              <Plus size={15} />
+              <span className="groups-rail__add-label">新建分组</span>
+            </button>
+          )}
+        </div>
       </nav>
 
       {editing && (

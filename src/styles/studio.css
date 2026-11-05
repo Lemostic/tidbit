@@ -1,0 +1,6 @@
+/* Studio entry. Import order mirrors the working surface:
+   foundation → shared chrome → compact sticky board → fullscreen notebook. */
+@import "./studio-base.css";
+@import "./studio-chrome.css";
+@import "./studio-compact.css";
+@import "./studio-onenote.css";

@@ -37,7 +37,9 @@ fn bench_note_create(c: &mut Criterion) {
                 edge_dock       TEXT,
                 created_at      INTEGER NOT NULL,
                 updated_at      INTEGER NOT NULL,
-                color           TEXT
+                color           TEXT,
+                sort_order      INTEGER NOT NULL DEFAULT 0,
+                clothesline_x   REAL
             );
             "#,
         )

@@ -25,6 +25,7 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [titleDraft, setTitleDraft] = useState("");
   const renderedHtml = useMemo(() => sanitizeNoteHtml(note?.content_html ?? ""), [note?.content_html]);
+  const editingActive = editing && note !== null && !note.is_content_hidden;
 
   useEffect(() => {
     applyAppearance(loadAppearance());
@@ -32,6 +33,7 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
     const refresh = async () => {
       try {
         const nextNote = await client.notes.get(noteId);
+        if (nextNote.is_content_hidden) setEditing(false);
         setNote(nextNote);
         setTitleDraft(nextNote.title ?? "");
         try { setGroups(await client.groups.list()); } catch { setGroups([]); }
@@ -57,6 +59,7 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
   };
 
   const toggleEditing = async () => {
+    if (note?.is_content_hidden) return;
     const next = !editing;
     if (next && collapsed) {
       setCollapsed(false);
@@ -87,13 +90,13 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
       <article className={`wander-card${collapsed ? " is-collapsed" : ""}`}>
         <header className="wander-card__head">
           <span data-tauri-drag-region className="wander-card__mark"><Cloud size={15} weight="duotone" /></span>
-          {editing && note ? <input className="wander-card__title-input" aria-label="云游便签标题" value={titleDraft} onMouseDown={(event) => event.stopPropagation()} onChange={(event) => setTitleDraft(event.target.value)} onBlur={() => void updateTitle()} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /> : <strong data-tauri-drag-region>{note?.is_content_hidden ? "隐私便签" : note?.title?.trim() || "云游便签"}</strong>}
-          {note && <button className={`wander-card__mode${editing ? " is-active" : ""}`} aria-label={editing ? "切换为只读" : "切换为编辑"} aria-pressed={editing} title={editing ? "只读模式" : "编辑模式"} onMouseDown={(event) => event.stopPropagation()} onClick={() => void toggleEditing()}>{editing ? <ToggleRight size={18} weight="fill" /> : <ToggleLeft size={18} />}</button>}
+          {editingActive && note ? <input className="wander-card__title-input" aria-label="云游便签标题" value={titleDraft} onMouseDown={(event) => event.stopPropagation()} onChange={(event) => setTitleDraft(event.target.value)} onBlur={() => void updateTitle()} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /> : <strong data-tauri-drag-region>{note?.is_content_hidden ? "隐私便签" : note?.title?.trim() || "云游便签"}</strong>}
+          {note && !note.is_content_hidden && <button className={`wander-card__mode${editingActive ? " is-active" : ""}`} aria-label={editingActive ? "切换为只读" : "切换为编辑"} aria-pressed={editingActive} title={editingActive ? "只读模式" : "编辑模式"} onMouseDown={(event) => event.stopPropagation()} onClick={() => void toggleEditing()}>{editingActive ? <ToggleRight size={18} weight="fill" /> : <ToggleLeft size={18} />}</button>}
           <button aria-label={collapsed ? "展开云游便签" : "折叠云游便签"} title={collapsed ? "展开" : "只显示标题"} onMouseDown={(event) => event.stopPropagation()} onClick={() => void toggleCollapsed()}>{collapsed ? <CaretDown size={14} /> : <CaretUp size={14} />}</button>
           <button aria-label="关闭云游便签" title="关闭" onMouseDown={(event) => event.stopPropagation()} onClick={() => void invoke("wander_close", { noteId })}><X size={14} weight="bold" /></button>
         </header>
-        {!collapsed && <section className={`wander-card__body${editing ? " is-editing" : ""}`}>
-          {editing && note ? <NoteEditor note={note} groups={groups} onClose={() => setEditing(false)} onChanged={() => void refreshAfterEdit()} onTrash={async () => undefined} allowTrash={false} embedded /> : <>
+        {!collapsed && <section className={`wander-card__body${editingActive ? " is-editing" : ""}`}>
+          {editingActive && note ? <NoteEditor note={note} groups={groups} onClose={() => setEditing(false)} onChanged={() => void refreshAfterEdit()} onTrash={async () => undefined} allowTrash={false} embedded /> : <>
           {error ? <p className="wander-card__state">便签加载失败</p> : !note ? <div className="wander-card__skeleton"><span /><span /><span /></div> : note.is_content_hidden ? (
             <div className="wander-card__private"><LockKey size={18} /><span>该条便签内容已加密</span></div>
           ) : renderedHtml ? (
@@ -101,7 +104,7 @@ export function WanderNote({ noteId, initialOpacity }: WanderNoteProps) {
           ) : <p className="wander-card__state">暂无正文</p>}
           </>}
         </section>}
-        {!collapsed && !editing && note && <footer className="wander-card__foot"><span>{note.word_count} 字</span><span>#{note.id}</span></footer>}
+        {!collapsed && !editingActive && note && <footer className="wander-card__foot"><span>{note.word_count} 字</span><span>#{note.id}</span></footer>}
       </article>
     </main>
   );

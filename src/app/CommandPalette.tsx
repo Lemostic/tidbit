@@ -7,7 +7,7 @@ export type Command = {
   id: string;
   title: string;
   hint?: string;
-  group: "note" | "group" | "app" | "search";
+  group: "note" | "group" | "app" | "view" | "search";
   shortcut?: string;
   run: () => void | Promise<void>;
 };

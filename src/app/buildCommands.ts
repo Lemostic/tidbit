@@ -3,6 +3,7 @@ export function buildCommands(handlers: {
   newNote: () => void; newGroup: () => void; toggleTheme: () => void;
   toggleDocking: () => void; manualBackup: () => void; openBackups: () => void;
   lockNow: () => void; showHidden: () => void; openSettings: () => void;
+  toggleClothesline: () => void;
 }): Command[] {
   return [
     { id: "note.new", title: "新建便签", group: "note", shortcut: "Ctrl+N", run: handlers.newNote },
@@ -14,5 +15,6 @@ export function buildCommands(handlers: {
     { id: "app.lock", title: "立即锁定", group: "app", run: handlers.lockNow },
     { id: "app.hidden", title: "显示已隐藏便签", group: "app", run: handlers.showHidden },
     { id: "app.settings", title: "设置", group: "app", run: handlers.openSettings },
+    { id: "view.clothesline", title: "切换晾衣绳", group: "view", run: handlers.toggleClothesline },
   ];
 }

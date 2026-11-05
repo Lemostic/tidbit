@@ -44,6 +44,7 @@ fn round_trip_note_serializes() {
         updated_at: Utc::now().timestamp_millis(),
         color: Some("#ff0000".into()),
         sort_order: 0,
+        clothesline_x: Some(412.5),
     };
     let s = serde_json::to_string(&n).unwrap();
     let n2: Note = serde_json::from_str(&s).unwrap();
@@ -51,6 +52,7 @@ fn round_trip_note_serializes() {
     assert_eq!(n.content_md, n2.content_md);
     assert_eq!(n.geom_w, n2.geom_w);
     assert_eq!(n.geom_h, n2.geom_h);
+    assert_eq!(n.clothesline_x, n2.clothesline_x);
 }
 
 #[test]

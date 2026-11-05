@@ -42,13 +42,14 @@ impl NoteRepo {
             updated_at: r.get(17)?,
             color: r.get(18)?,
             sort_order: r.get(19)?,
+            clothesline_x: r.get(20)?,
         })
     }
 
     const SELECT: &'static str =
         "SELECT id, group_id, title, content_md, content_html, word_count, \
         is_pinned, is_content_hidden, is_archived, is_trashed, trashed_at, geom_x, geom_y, geom_w, geom_h, edge_dock, \
-        created_at, updated_at, color, sort_order FROM note";
+        created_at, updated_at, color, sort_order, clothesline_x FROM note";
 
     pub fn create_in_group(&self, group_id: Option<i64>, title: &str) -> Result<Note, AppError> {
         let now = chrono::Utc::now().timestamp_millis();
@@ -227,6 +228,43 @@ impl NoteRepo {
             rusqlite::params![x, y, w, h, id],
         )?;
         Ok(())
+    }
+
+    /// Persist the free clothesline position of a single note. `None` clears it
+    /// so the note falls back to an even slot the next time it is hung.
+    pub fn set_clothesline_x(&self, id: i64, x: Option<f64>) -> Result<(), AppError> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "UPDATE note SET clothesline_x=?1 WHERE id=?2",
+            rusqlite::params![x, id],
+        )?;
+        Ok(())
+    }
+
+    /// Persist a whole clothesline position snapshot atomically. Notes absent
+    /// from the snapshot keep whatever position they already had.
+    pub fn set_clothesline_positions(&self, positions: &[(i64, f64)]) -> Result<(), AppError> {
+        let mut conn = self.pool.get()?;
+        let tx = conn.transaction()?;
+        for (id, x) in positions {
+            tx.execute(
+                "UPDATE note SET clothesline_x=?1 WHERE id=?2",
+                rusqlite::params![x, id],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Every note that has a stored clothesline position, ordered by id so the
+    /// snapshot is stable across windows.
+    pub fn list_clothesline_positions(&self) -> Result<Vec<(i64, f64)>, AppError> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, clothesline_x FROM note WHERE clothesline_x IS NOT NULL ORDER BY id ASC",
+        )?;
+        let rows = stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?)))?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
     pub fn set_edge_dock(&self, id: i64, edge: EdgeDock) -> Result<(), AppError> {

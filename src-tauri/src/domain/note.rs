@@ -32,4 +32,7 @@ pub struct Note {
     pub updated_at: i64,
     pub color: Option<String>,
     pub sort_order: i64,
+    /// Legacy clothesline position retained for compatibility. The current UI
+    /// lays notes out evenly and never writes a user-dragged position.
+    pub clothesline_x: Option<f64>,
 }

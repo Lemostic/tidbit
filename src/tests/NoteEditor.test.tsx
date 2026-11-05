@@ -10,7 +10,7 @@ const note: Note = {
   id: 1, group_id: null, title: "测试便签", content_md: "test content", content_html: "<p>test content</p>",
   word_count: 12, is_pinned: false, is_content_hidden: false, is_archived: false, is_trashed: false, trashed_at: null,
   geom_x: null, geom_y: null, geom_w: 280, geom_h: 360, edge_dock: "none",
-  created_at: 0, updated_at: 0, color: null, sort_order: 0,
+  created_at: 0, updated_at: 0, color: null, sort_order: 0, clothesline_x: null,
 };
 
 class MediaRecorderMock {

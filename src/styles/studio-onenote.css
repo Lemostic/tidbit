@@ -1,0 +1,1302 @@
+/* ==========================================================================
+   Fullscreen notebook (OneNote layout)
+   --------------------------------------------------------------------------
+   Loaded last (via studio.css) and scoped to `.app-shell.is-one-note` so the
+   sticky board, the compact editor modal and the shared list styles that
+   studio-base.css / atelier.css provide stay untouched outside fullscreen.
+
+   Structure:
+     .app-body
+       └─ .app-main
+            └─ .notes-workspace.is-one-note        (grid: index | page)
+                 ├─ .notes.notes--one-note-list    (page index, own scroll)
+                 └─ .one-note-pane                 (writing page, own scroll)
+   ========================================================================== */
+
+/* --------------------------------------------------------------- shell --- */
+
+.app-shell.is-one-note {
+  background: var(--paper);
+}
+
+.app-shell.is-one-note .app-main > .notes-workspace {
+  flex: 1 1 auto;
+}
+
+.app-shell.is-one-note .notes-workspace.is-one-note {
+  display: grid;
+  grid-template-columns: minmax(300px, var(--studio-index-w)) minmax(0, 1fr);
+  gap: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+/* --------------------------------------------------------- page index --- */
+
+.app-shell.is-one-note .notes-workspace > .notes.notes--one-note-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  border-right: 1px solid var(--studio-line);
+  border-radius: 0;
+  background-color: var(--paper-sunk);
+  background-image: none;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__head {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  min-height: 0;
+  margin: 0;
+  padding: 18px 14px 13px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--studio-line);
+  background: var(--paper-sunk);
+}
+
+.app-shell.is-one-note .notes__heading {
+  min-width: 0;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink-faint);
+  font-family: var(--font-meta);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__eyebrow::after {
+  content: "";
+  flex: 0 0 22px;
+  height: 1px;
+  background: var(--studio-line-strong);
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__title,
+.app-shell.is-one-note .notes__heading .notes__title {
+  min-height: 0;
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-editorial);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell.is-one-note .notes__subline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 7px;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__count {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  font-family: var(--font-meta);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.app-shell.is-one-note .notes__archive-toggle {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 4px;
+  height: 21px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__archive-toggle > span {
+  display: inline;
+}
+
+.app-shell.is-one-note .notes__archive-toggle:hover {
+  border-color: transparent;
+  background: var(--studio-hover);
+  color: var(--ink-soft);
+}
+
+.app-shell.is-one-note .notes__archive-toggle.is-on {
+  border-color: color-mix(in srgb, var(--seal) 28%, transparent);
+  background: var(--seal-tint);
+  color: var(--seal);
+}
+
+.app-shell.is-one-note .notes__archive-toggle:focus-visible {
+  outline: var(--studio-focus);
+  outline-offset: 1px;
+}
+
+.app-shell.is-one-note .notes__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-shell.is-one-note .notes__head-actions .btn-primary {
+  height: 27px;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+}
+
+.app-shell.is-one-note .notes__head-actions .btn-primary svg {
+  display: block;
+}
+
+/* Page index scroll area. */
+.app-shell.is-one-note .notes--one-note-list .notes__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 6px 0 24px;
+  background: none;
+  scrollbar-color: var(--studio-line-strong) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--studio-line-strong);
+  background-clip: content-box;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-shell.is-one-note .notes__list--one-note {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 6px 10px 12px;
+  list-style: none;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__empty {
+  flex: 0 0 auto;
+  max-width: none;
+  margin: 16px 12px;
+  padding: 24px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink-soft);
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__empty::before {
+  content: none;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__empty-glyph {
+  width: 36px;
+  height: 36px;
+  border-color: var(--studio-line-strong);
+  background: transparent;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__empty p {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__empty-title {
+  color: var(--ink-soft);
+  font-family: var(--font-editorial);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__empty-glyph {
+  color: var(--ink-faint);
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__empty > svg {
+  color: var(--seal);
+}
+
+.app-shell.is-one-note .notes--one-note-list .notes__body .note-skeleton {
+  margin: 8px 10px;
+}
+
+/* ------------------------------------------------------ page index row --- */
+
+.app-shell.is-one-note .note-list-item {
+  position: relative;
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  animation: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .note-list-item__row {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 2px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 0 10px;
+  width: 100%;
+  min-height: 50px;
+  margin: 0;
+  padding: 7px 10px 7px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .note-list-item__row:hover {
+  background: transparent;
+}
+
+.app-shell.is-one-note .note-list-item__row[aria-disabled="true"] {
+  cursor: default;
+}
+
+.app-shell.is-one-note .note-list-item__accent {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 2px;
+  height: 22px;
+  margin: 0;
+  border-radius: 0;
+  background: var(--card-accent, var(--seal));
+  opacity: 0.32;
+  transition: opacity var(--dur-fast) var(--ease), height var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .note-list-item__title {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+  line-height: 1.3;
+}
+
+.app-shell.is-one-note .note-list-item__title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell.is-one-note .note-list-item__pin,
+.app-shell.is-one-note .note-list-item__lock {
+  flex: 0 0 auto;
+  color: var(--seal);
+  opacity: 0.72;
+}
+
+.app-shell.is-one-note .note-list-item__preview {
+  grid-column: 2;
+  grid-row: 2;
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell.is-one-note .note-list-item__row[aria-disabled="true"] .note-list-item__preview {
+  font-style: italic;
+}
+
+.app-shell.is-one-note .note-list-item__meta {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  padding-left: 8px;
+  color: var(--ink-faint);
+  font-family: var(--font-meta);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+/* The index keeps one meta token only: the relative time. */
+.app-shell.is-one-note .note-list-item__dot,
+.app-shell.is-one-note .note-list-item__meta > span:last-child {
+  display: none;
+}
+
+.app-shell.is-one-note .note-list-item__flags {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-faint);
+}
+
+.app-shell.is-one-note .note-list-item__flags svg {
+  display: block;
+  width: 11px;
+  height: 11px;
+}
+
+/* Hover: 5% ink wash; the relative time yields to the row actions. */
+.app-shell.is-one-note .note-list-item:hover .note-list-item__row,
+.app-shell.is-one-note .note-list-item__row:focus-visible {
+  background: var(--studio-hover);
+}
+
+.app-shell.is-one-note .note-list-item:hover .note-list-item__accent,
+.app-shell.is-one-note .note-list-item:focus-within .note-list-item__accent {
+  opacity: 0.72;
+}
+
+.app-shell.is-one-note .note-list-item:hover .note-list-item__meta,
+.app-shell.is-one-note .note-list-item:focus-within .note-list-item__meta {
+  opacity: 0;
+}
+
+/* Selected row: a sheet of paper inside the index, not a card. */
+.app-shell.is-one-note .note-list-item.is-selected {
+  border: 0;
+  background: var(--paper-raised);
+  box-shadow: none;
+}
+
+.app-shell.is-one-note .note-list-item.is-selected .note-list-item__row {
+  background: transparent;
+}
+
+.app-shell.is-one-note .note-list-item.is-selected:hover .note-list-item__row,
+.app-shell.is-one-note .note-list-item.is-selected .note-list-item__row:focus-visible {
+  background: color-mix(in srgb, var(--ink) 4%, var(--paper-raised));
+}
+
+.app-shell.is-one-note .note-list-item.is-selected .note-list-item__accent {
+  height: 100%;
+  opacity: 1;
+  box-shadow: none;
+}
+
+.app-shell.is-one-note .note-list-item.is-selected .note-list-item__title {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.app-shell.is-one-note .note-list-item.is-archived .note-list-item__title-text {
+  color: var(--ink-faint);
+  text-decoration: none;
+}
+
+.app-shell.is-one-note .note-list-item.is-dragging {
+  opacity: 0.55;
+}
+
+.app-shell.is-one-note .note-list-item.is-drop-before::after,
+.app-shell.is-one-note .note-list-item.is-drop-after::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  left: 8px;
+  z-index: 2;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--seal);
+}
+
+/* Row actions: hidden until the row is hovered or focused. */
+.app-shell.is-one-note .note-list-item__actions {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  bottom: 4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+  max-height: none;
+  padding: 0 3px;
+  overflow: visible;
+  border-radius: 3px;
+  background: transparent;
+  visibility: hidden;
+  opacity: 0;
+  /* The strip is a reveal surface only: clicks pass through to the row so the
+     right half of an item never becomes a dead zone under the icons. */
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .note-list-item:hover .note-list-item__actions,
+.app-shell.is-one-note .note-list-item:focus-within .note-list-item__actions {
+  visibility: visible;
+  opacity: 1;
+  background: color-mix(in srgb, var(--ink) 5%, var(--paper-sunk));
+}
+
+.app-shell.is-one-note .note-list-item.is-selected:hover .note-list-item__actions,
+.app-shell.is-one-note .note-list-item.is-selected:focus-within .note-list-item__actions {
+  background: color-mix(in srgb, var(--ink) 4%, var(--paper-raised));
+}
+
+.app-shell.is-one-note .note-list-item__action {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-faint);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .note-list-item__action:hover:not(:disabled) {
+  background: var(--studio-press);
+  color: var(--ink);
+}
+
+.app-shell.is-one-note .note-list-item__action.is-active {
+  background: var(--seal-soft);
+  color: var(--seal);
+}
+
+.app-shell.is-one-note .note-list-item__action.is-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 13%, transparent);
+  color: var(--danger);
+}
+
+.app-shell.is-one-note .note-list-item__action:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.app-shell.is-one-note .note-list-item__action:focus-visible {
+  outline: var(--studio-focus);
+  outline-offset: -1px;
+}
+
+/* Expanded preview stays readable but does not become a card. */
+.app-shell.is-one-note .note-list-item.is-expanded {
+  background: var(--paper-raised);
+}
+
+.app-shell.is-one-note .note-list-item__expanded {
+  margin: 0;
+  padding: 8px 14px 12px 22px;
+  border-top: 1px solid var(--studio-line-soft);
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.app-shell.is-one-note .note-list-item__content {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.app-shell.is-one-note .note-list-item__content :is(img, audio, video) {
+  max-width: 100%;
+}
+
+.app-shell.is-one-note .note-list-item__content-empty {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+}
+
+/* ------------------------------------------------------- writing page --- */
+
+.app-shell.is-one-note .one-note-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper-raised);
+  background-image: none;
+}
+
+.app-shell.is-one-note .one-note-pane .note-editor--pane {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--paper-raised);
+  background-image: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  animation: none;
+}
+
+/* Page header replaces the old compact 56px bar. The header, ribbon and
+   footer share the measure of the writing column so that ultra-wide windows
+   never strand the title at the far left of an otherwise centred page. */
+.app-shell.is-one-note .one-note-pane .note-editor__head {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 42px max(48px, calc(48px + (100% - 740px) / 2)) 0;
+  border: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.app-shell.is-one-note .one-note-pane .note-editor__head::after {
+  content: none;
+}
+
+.app-shell.is-one-note .one-note-pane .note-editor__accent {
+  display: none;
+}
+
+.app-shell.is-one-note .note-editor__heading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-shell.is-one-note .note-editor__crumb {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-faint);
+  font-family: var(--font-meta);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.app-shell.is-one-note .note-editor__crumb > span:not(.note-editor__crumb-group) {
+  flex: 0 0 auto;
+}
+
+.app-shell.is-one-note .note-editor__crumb-group {
+  flex: 0 1 auto;
+  max-width: 40%;
+  overflow: hidden;
+  color: var(--seal);
+  text-overflow: ellipsis;
+}
+
+.app-shell.is-one-note .note-editor__crumb-sep {
+  color: color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.app-shell.is-one-note .one-note-pane .note-editor__title {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 3px 0 0;
+  padding: 2px 0 6px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-editorial);
+  font-size: clamp(26px, 2.3vw, 31px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.18;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .one-note-pane .note-editor__title:hover {
+  border-bottom-color: var(--studio-line-soft);
+}
+
+.app-shell.is-one-note .one-note-pane .note-editor__title:focus {
+  border-bottom-color: var(--studio-line);
+  outline: none;
+}
+
+.app-shell.is-one-note .one-note-pane .note-editor__title::placeholder {
+  color: var(--ink-faint);
+  opacity: 0.7;
+}
+
+.app-shell.is-one-note .note-editor__head-tools {
+  position: static;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  margin-top: 1px;
+}
+
+.app-shell.is-one-note .note-editor__head-tools .btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: var(--ink-faint);
+  opacity: 0.85;
+}
+
+.app-shell.is-one-note .note-editor__head-tools .btn-icon:hover {
+  background: var(--studio-hover);
+  color: var(--ink);
+  opacity: 1;
+}
+
+.app-shell.is-one-note .note-editor__head-tools .btn-icon.is-selected {
+  color: var(--seal);
+  opacity: 1;
+}
+
+/* Group + colour options stay a light inline row under the title. */
+.app-shell.is-one-note .one-note-pane .note-editor__options {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 11px max(48px, calc(48px + (100% - 740px) / 2)) 13px;
+  border: 0;
+  border-bottom: 1px solid var(--studio-line-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+.app-shell.is-one-note .note-editor__group {
+  height: 24px;
+  max-width: 220px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .note-editor__group:hover {
+  border-color: var(--studio-line-soft);
+  background: var(--studio-hover);
+}
+
+.app-shell.is-one-note .note-editor__group:focus {
+  border-color: var(--seal);
+  background: var(--paper-raised);
+  outline: none;
+}
+
+.app-shell.is-one-note .note-editor__options .color-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 6px;
+  padding: 0 0 0 14px;
+  border: 0;
+  border-left: 1px solid var(--studio-line-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+.app-shell.is-one-note .note-editor__options .color-swatch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 50%;
+  box-shadow: none;
+  cursor: pointer;
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .note-editor__options .color-swatch:hover {
+  box-shadow: 0 0 0 3px var(--studio-hover);
+}
+
+.app-shell.is-one-note .note-editor__options .color-swatch.is-active {
+  box-shadow: inset 0 0 0 2px var(--paper-raised), 0 0 0 1px var(--ink);
+  border-color: transparent;
+}
+
+.app-shell.is-one-note .note-editor__options .color-swatch svg {
+  color: var(--paper-raised);
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--ink) 45%, transparent));
+}
+
+.app-shell.is-one-note .note-editor__options .color-swatch:focus-visible {
+  outline: var(--studio-focus);
+  outline-offset: 2px;
+}
+
+/* Ribbon. */
+.app-shell.is-one-note .one-note-pane .toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  margin: 0;
+  padding: 0 max(48px, calc(48px + (100% - 740px) / 2));
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--studio-line);
+  border-radius: 0;
+  background: transparent;
+  scrollbar-width: none;
+}
+
+.app-shell.is-one-note .one-note-pane .toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.app-shell.is-one-note .one-note-pane .toolbar__btn {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.app-shell.is-one-note .one-note-pane .toolbar__btn:hover:not(:disabled) {
+  background: var(--studio-hover);
+  color: var(--ink);
+}
+
+.app-shell.is-one-note .one-note-pane .toolbar__btn.is-active {
+  background: var(--seal-tint);
+  color: var(--seal);
+}
+
+.app-shell.is-one-note .one-note-pane .toolbar__btn:disabled {
+  opacity: 0.3;
+}
+
+.app-shell.is-one-note .one-note-pane .toolbar__divider {
+  flex: 0 0 1px;
+  width: 1px;
+  height: 18px;
+  margin: 0 7px;
+  background: var(--studio-line);
+}
+
+.app-shell.is-one-note .one-note-pane .voice-recorder {
+  flex: 0 0 auto;
+}
+
+/* The writing area: a single measured column on the page. */
+.app-shell.is-one-note .one-note-pane .editor-content {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  scrollbar-color: var(--studio-line-strong) transparent;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.app-shell.is-one-note .one-note-pane .editor-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.app-shell.is-one-note .one-note-pane .editor-content::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--studio-line-strong);
+  background-clip: content-box;
+}
+
+.app-shell.is-one-note .one-note-pane .editor-content .tiptap {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 740px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 30px 48px 96px;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15.5px;
+  letter-spacing: 0.005em;
+  line-height: 1.85;
+  outline: none;
+}
+
+.app-shell.is-one-note .one-note-pane .editor-content .tiptap > :first-child {
+  margin-top: 0;
+}
+
+/* Status bar. */
+.app-shell.is-one-note .one-note-pane .note-editor__status {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 max(48px, calc(48px + (100% - 740px) / 2));
+  border: 0;
+  border-top: 1px solid var(--studio-line);
+  background: var(--paper-sunk);
+  color: var(--ink-faint);
+  font-family: var(--font-meta);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.app-shell.is-one-note .note-editor__status .save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: auto;
+  color: var(--ink-faint);
+}
+
+.app-shell.is-one-note .note-editor__status .save-status--saving {
+  color: var(--marker-ochre);
+}
+
+.app-shell.is-one-note .note-editor__status .save-status--error {
+  color: var(--danger);
+}
+
+.app-shell.is-one-note .note-editor__status .editor-trash {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  margin-left: 0;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-family: var(--font-meta);
+  font-size: 10px;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.app-shell.is-one-note .note-editor__status .editor-trash:hover {
+  background: var(--seal-tint);
+  color: var(--seal);
+}
+
+.app-shell.is-one-note .note-editor__status .editor-trash:focus-visible {
+  outline: var(--studio-focus);
+  outline-offset: 1px;
+}
+
+/* ------------------------------------------------------- empty sheet --- */
+
+.app-shell.is-one-note .one-note-pane__empty {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  background: var(--paper-raised);
+  scrollbar-width: thin;
+}
+
+.app-shell.is-one-note .one-note-pane__paper {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 110px clamp(28px, 6vw, 88px) 90px;
+  border: 0;
+  border-radius: 0;
+  background-color: var(--paper-raised);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31px,
+    var(--studio-line-soft) 31px,
+    var(--studio-line-soft) 32px
+  );
+  background-position: 0 -1px;
+  box-shadow: none;
+  color: var(--ink-faint);
+  text-align: center;
+  animation: none;
+}
+
+.app-shell.is-one-note .one-note-pane__paper::before {
+  content: "TIDBIT / NOTEBOOK";
+  position: absolute;
+  top: 32px;
+  left: 48px;
+  color: var(--ink-faint);
+  font-family: var(--font-meta);
+  font-size: 7.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  opacity: 0.7;
+}
+
+.app-shell.is-one-note .one-note-pane__paper::after {
+  content: none;
+  display: none;
+}
+
+.app-shell.is-one-note .one-note-pane__folio {
+  color: var(--seal);
+  font-family: var(--font-meta);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.app-shell.is-one-note .one-note-pane__mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 2px 0 4px;
+  border: 1px solid color-mix(in srgb, var(--seal) 32%, transparent);
+  border-radius: 50%;
+  background: var(--seal-tint);
+  color: var(--seal);
+  transform: rotate(-3deg);
+}
+
+.app-shell.is-one-note .one-note-pane__paper h2 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-editorial);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.app-shell.is-one-note .one-note-pane__paper p {
+  max-width: 42ch;
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.app-shell.is-one-note .one-note-pane__hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 18px;
+  margin-top: 6px;
+  color: var(--ink-faint);
+  font-family: var(--font-meta);
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+}
+
+.app-shell.is-one-note .one-note-pane__hints span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.app-shell.is-one-note .one-note-pane__hints kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--studio-line);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-family: var(--font-meta);
+  font-size: 8px;
+  box-shadow: none;
+}
+
+.app-shell.is-one-note .one-note-pane__paper .btn-primary {
+  height: 30px;
+  margin-top: 6px;
+  padding: 0 13px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  box-shadow: none;
+}
+
+/* -------------------------------------------------------------- focus --- */
+
+.app-shell.is-one-note .notes__head-actions .btn-primary:focus-visible,
+.app-shell.is-one-note .notes--one-note-list .notes__empty button:focus-visible,
+.app-shell.is-one-note .one-note-pane .toolbar__btn:focus-visible,
+.app-shell.is-one-note .one-note-pane .btn-icon:focus-visible,
+.app-shell.is-one-note .one-note-pane__paper button:focus-visible {
+  outline: var(--studio-focus);
+  outline-offset: 1px;
+}
+
+.app-shell.is-one-note .notes__head-actions .btn-primary:focus-visible {
+  outline-offset: 2px;
+}
+
+.app-shell.is-one-note .note-list-item__row:focus-visible {
+  outline: var(--studio-focus);
+  outline-offset: -2px;
+}
+
+/* -------------------------------------------------------- responsive --- */
+
+@media (max-width: 1400px) {
+  .app-shell.is-one-note .one-note-pane .note-editor__head {
+    padding: 38px 42px 0;
+  }
+  .app-shell.is-one-note .one-note-pane .note-editor__options {
+    padding: 10px 42px 12px;
+  }
+
+  .app-shell.is-one-note .one-note-pane .toolbar {
+    padding: 0 42px;
+  }
+
+  .app-shell.is-one-note .one-note-pane .editor-content .tiptap {
+    padding: 28px 42px 88px;
+  }
+
+  .app-shell.is-one-note .one-note-pane .note-editor__status {
+    padding: 0 42px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .app-shell.is-one-note .notes-workspace.is-one-note {
+    grid-template-columns: minmax(264px, 288px) minmax(0, 1fr);
+  }
+
+  .app-shell.is-one-note .notes--one-note-list .notes__head {
+    padding: 15px 12px 11px 15px;
+  }
+
+  .app-shell.is-one-note .notes--one-note-list .notes__title {
+    font-size: 18px;
+  }
+
+  .app-shell.is-one-note .notes__head-actions .btn-primary span {
+    display: none;
+  }
+
+  .app-shell.is-one-note .notes__head-actions .btn-primary {
+    width: 28px;
+    padding: 0;
+  }
+
+  .app-shell.is-one-note .one-note-pane .note-editor__head {
+    padding: 28px 28px 0;
+  }
+  .app-shell.is-one-note .one-note-pane .note-editor__title {
+    font-size: 26px;
+  }
+
+  .app-shell.is-one-note .one-note-pane .note-editor__options {
+    padding: 9px 28px 11px;
+  }
+
+  .app-shell.is-one-note .one-note-pane .toolbar {
+    padding: 0 28px;
+  }
+
+  .app-shell.is-one-note .one-note-pane .editor-content .tiptap {
+    padding: 24px 28px 76px;
+    font-size: 15px;
+  }
+
+  .app-shell.is-one-note .one-note-pane .note-editor__status {
+    padding: 0 28px;
+  }
+
+  .app-shell.is-one-note .one-note-pane__paper {
+    padding: 84px 28px 64px;
+  }
+
+  .app-shell.is-one-note .one-note-pane__paper::before {
+    top: 24px;
+    left: 28px;
+  }
+
+  .app-shell.is-one-note .note-list-item__actions {
+    flex-wrap: wrap;
+    align-content: center;
+    width: 76px;
+    gap: 0;
+  }
+
+  .app-shell.is-one-note .note-list-item__action {
+    width: 25px;
+    height: 21px;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell.is-one-note .notes-workspace.is-one-note {
+    grid-template-columns: minmax(240px, 264px) minmax(0, 1fr);
+  }
+
+  .app-shell.is-one-note .notes--one-note-list .notes__eyebrow {
+    font-size: 7.5px;
+    letter-spacing: 0.14em;
+  }
+
+  .app-shell.is-one-note .note-list-item__row {
+    min-height: 46px;
+    padding-right: 8px;
+  }
+
+  .app-shell.is-one-note .note-list-item__preview {
+    font-size: 10.5px;
+  }
+
+  .app-shell.is-one-note .note-editor__crumb {
+    font-size: 8.5px;
+    gap: 5px;
+  }
+
+  .app-shell.is-one-note .one-note-pane .note-editor__head {
+    padding: 24px 24px 0;
+  }
+  .app-shell.is-one-note .one-note-pane .note-editor__title {
+    font-size: 23px;
+  }
+}
+
+/* ------------------------------------------------------ reduced motion --- */
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell.is-one-note .note-list-item,
+  .app-shell.is-one-note .note-list-item__row,
+  .app-shell.is-one-note .note-list-item__actions,
+  .app-shell.is-one-note .note-editor__title {
+    transition: none;
+  }
+}

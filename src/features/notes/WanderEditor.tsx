@@ -36,6 +36,7 @@ export function WanderEditor({ noteId }: { noteId: number }) {
   const close = () => void invoke("wander_editor_close", { noteId });
   if (error) return <main className="wander-editor-state">便签加载失败</main>;
   if (!note) return <main className="wander-editor-state">正在加载</main>;
+  if (note.is_content_hidden) return <main className="wander-editor-state">隐私便签内容已隐藏</main>;
 
   return (
     <main className="wander-editor-shell">

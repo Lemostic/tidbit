@@ -21,6 +21,7 @@ export const noteSchema = z.object({
   updated_at: z.number(),
   color: z.string().nullable(),
   sort_order: z.number(),
+  clothesline_x: z.number().nullable(),
 });
 
 export const groupSchema = z.object({

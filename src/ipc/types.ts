@@ -24,6 +24,8 @@ export interface Note {
   updated_at: number;
   color: string | null;
   sort_order: number;
+  /** Legacy clothesline position retained for compatibility; the current UI lays notes out evenly. */
+  clothesline_x: number | null;
 }
 
 export interface Group {
