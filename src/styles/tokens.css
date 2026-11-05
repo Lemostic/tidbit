@@ -1,257 +1,394 @@
-/* Tidbit material system: ink chrome, warm paper content, vermilion seal.
-   Legacy token names remain as aliases so older component styles keep working. */
+/* Design tokens — neutral zinc base + one calm, desaturated accent.
+   No pure black, no neon/AI-purple glow. Shadows are tinted to the surface. */
 
 :root {
-  color-scheme: light;
+  /* Accent: a single calm slate-blue, ~60% saturation (not neon). */
+  --accent: #3b6ea5;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(59, 110, 165, 0.14);
 
-  /* Functional chrome and user content are deliberately different materials. */
-  --desk: #e8e0d1;
-  --desk-deep: #ddd2bf;
-  --desk-light: #f2ebdf;
-  --paper: #faf6ec;
-  --paper-raised: #fffaf0;
-  --paper-sunk: #f1eadc;
-  --paper-deep: #e7ddcc;
+  /* Neutral surfaces (light default). */
+  --bg: #f4f5f7;          /* app background */
+  --surface: #ffffff;     /* cards, panels */
+  --surface-2: #eceef1;   /* recessed / hover fills */
+  --fg: #1c2024;          /* off-black, never #000 */
+  --fg-muted: #5b636c;    /* secondary text */
+  --fg-subtle: #8b929b;   /* tertiary / meta */
+  --border: #e2e5e9;      /* hairlines */
+  --border-strong: #cfd4da;
 
-  --ink: #25241f;
-  --ink-deep: #171812;
-  --ink-raised: #30312a;
-  --ink-soft: #625d53;
-  --ink-faint: #8d8578;
-  --ink-on-dark: #f1eadc;
-  --ink-on-dark-soft: #bcb3a3;
+  /* Rail (group tabs). */
+  --rail-bg: #1f262e;
+  --rail-fg: #c7cdd6;
 
-  --line: #d8cdbc;
-  --line-strong: #c5b7a2;
-  --line-soft: #e8dfd1;
+  /* Note surface (sticky-note warmth kept subtle). */
+  --note-bg: #ffffff;
+  --note-accent: var(--accent);
 
-  --seal: #b84a32;
-  --seal-strong: #963823;
-  --seal-soft: rgba(184, 74, 50, 0.12);
-  --seal-tint: rgba(184, 74, 50, 0.065);
-
-  --marker-teal: #3f7f74;
-  --marker-ochre: #b78632;
-  --marker-indigo: #536a9b;
-  --success: #4f7d5d;
-  --danger: #b34843;
-
-  /* Legacy aliases. Keep these names stable for existing tests and components. */
-  --accent: var(--seal);
-  --accent-fg: #fffaf2;
-  --accent-soft: var(--seal-soft);
-  --accent-strong: var(--seal-strong);
-  --accent-tint: var(--seal-tint);
-  --bg: var(--desk);
-  --surface: var(--paper);
-  --surface-2: var(--paper-sunk);
-  --surface-3: var(--paper-deep);
-  --fg: var(--ink);
-  --fg-muted: var(--ink-soft);
-  --fg-subtle: var(--ink-faint);
-  --border: var(--line);
-  --border-strong: var(--line-strong);
-  --border-soft: var(--line-soft);
-  --rail-bg: var(--ink-deep);
-  --rail-fg: var(--ink-on-dark-soft);
-  --note-bg: var(--paper-raised);
-  --note-accent: var(--seal);
-
-  /* Type roles: editorial for identity, UI sans for controls, mono for metadata. */
-  --font-editorial: "Palatino Linotype", Palatino, "Iowan Old Style", "Book Antiqua",
-    Georgia, "Songti SC", "STSong", "SimSun", "Microsoft YaHei UI", serif;
-  --font-ui: "Microsoft YaHei UI", "Segoe UI Variable", "Segoe UI", sans-serif;
-  --font-meta: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
-  --font-group: var(--font-ui);
-  --font-note-title: var(--font-ui);
-  --font-note-body: var(--font-ui);
-  --font-display: var(--font-editorial);
-  --font-mono: var(--font-meta);
-
-  --r-sm: 5px;
+  /* Radius scale. */
+  --r-sm: 6px;
   --r-md: 8px;
-  --r-lg: 11px;
-  --r-xl: 16px;
-  --shell-radius: 12px;
-  --paper-radius: 8px;
-  --app-radius: var(--shell-radius);
+  --r-lg: 12px;
 
+  /* Spacing scale. */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
   --sp-4: 16px;
   --sp-5: 24px;
 
-  --shadow-xs: 0 1px 1px rgba(55, 43, 25, 0.06);
-  --shadow-sm: 0 1px 2px rgba(55, 43, 25, 0.07), 0 5px 14px -10px rgba(55, 43, 25, 0.24);
-  --shadow-md: 0 2px 4px rgba(55, 43, 25, 0.07), 0 18px 32px -22px rgba(55, 43, 25, 0.34);
-  --shadow-lg: 0 4px 12px rgba(55, 43, 25, 0.08), 0 34px 72px -34px rgba(55, 43, 25, 0.42);
-  --shadow-paper: 0 1px 1px rgba(55, 43, 25, 0.08), 0 12px 26px -18px rgba(55, 43, 25, 0.32);
-  --shadow-float: 0 28px 70px -30px rgba(29, 24, 16, 0.54);
+  /* Tinted, wide-spread diffusion shadows (never harsh black). */
+  --shadow-sm: 0 1px 2px rgba(28, 32, 36, 0.055), 0 3px 9px -7px rgba(28, 32, 36, 0.18);
+  --shadow-md: 0 10px 24px -16px rgba(28, 32, 36, 0.32);
+  --shadow-lg: 0 24px 56px -24px rgba(28, 32, 36, 0.36);
 
+  /* Motion — premium easing, no linear. */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-paper: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.32, 1.6, 0.36, 1);
   --dur-fast: 0.12s;
-  --dur: 0.22s;
-  --dur-slow: 0.38s;
+  --dur: 0.24s;
 
-  --titlebar-h: 42px;
-  --rail-w: 72px;
-
-  /* Studio layer: the two working modes share one material grammar.
-     Compact ("sticky") is a stack of notes; fullscreen is a notebook spread. */
-  --studio-titlebar-h: 42px;
-  --studio-rail-w: 232px;
-  --studio-index-w: 332px;
-  --studio-page-max: 760px;
-  --studio-line: color-mix(in srgb, var(--ink) 14%, transparent);
-  --studio-line-soft: color-mix(in srgb, var(--ink) 7%, transparent);
-  --studio-line-strong: color-mix(in srgb, var(--ink) 26%, transparent);
-  --studio-hover: color-mix(in srgb, var(--ink) 5%, transparent);
-  --studio-press: color-mix(in srgb, var(--ink) 9%, transparent);
-  --studio-rail-bg: color-mix(in srgb, var(--paper-sunk) 72%, var(--desk) 28%);
-  --studio-rail-active: var(--ink);
-  --studio-rail-active-fg: var(--paper-raised);
-  --studio-card: var(--paper-raised);
-  --studio-focus: var(--seal);
-  --studio-gap: 12px;
-
-  --glass-base: color-mix(in srgb, var(--ink) 78%, transparent);
-  --glass-raised: color-mix(in srgb, var(--paper) 82%, transparent);
-  --glass-recessed: color-mix(in srgb, var(--paper-sunk) 74%, transparent);
-  --glass-line: rgba(255, 250, 240, 0.3);
-  --glass-specular: rgba(255, 250, 240, 0.3);
-  --glass-depth-line: rgba(23, 24, 18, 0.2);
-  --glass-shadow: rgba(23, 24, 18, 0.3);
+  --titlebar-h: 34px;
+  --rail-w: 68px;
+  --app-radius: 8px;
+  --font-group: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  --font-note-title: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  --font-note-body: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  --note-line-height: 1.5;
+  --glass-base: rgba(247, 250, 253, 0.64);
+  --glass-raised: rgba(255, 255, 255, 0.7);
+  --glass-recessed: rgba(235, 241, 247, 0.46);
+  --glass-line: rgba(255, 255, 255, 0.72);
+  --glass-specular: rgba(255, 255, 255, 0.58);
+  --glass-depth-line: rgba(112, 137, 163, 0.18);
+  --glass-shadow: rgba(55, 72, 91, 0.18);
   --liquid-glass-opacity: 80%;
 }
 
-:root[data-theme="light"] {
-  color-scheme: light;
-}
+:root[data-theme="light"] { color-scheme: light; }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --desk: #11130f;
-  --desk-deep: #0c0e0a;
-  --desk-light: #171a13;
-  --paper: #1b1d17;
-  --paper-raised: #23251e;
-  --paper-sunk: #171913;
-  --paper-deep: #12140f;
+  --accent: #6f9fd8;
+  --accent-fg: #0f1216;
+  --accent-soft: rgba(111, 159, 216, 0.18);
 
-  --ink: #eee7d8;
-  --ink-deep: #090b07;
-  --ink-raised: #292b22;
-  --ink-soft: #b8af9e;
-  --ink-faint: #8f8779;
-  --ink-on-dark: #f2ebdd;
-  --ink-on-dark-soft: #bcb3a3;
+  --bg: #14181c;
+  --surface: #1b2026;
+  --surface-2: #242b32;
+  --fg: #e6e9ee;
+  --fg-muted: #a3acb7;
+  --fg-subtle: #6f7883;
+  --border: #2a323a;
+  --border-strong: #384049;
 
-  --line: #36352c;
-  --line-strong: #4a473a;
-  --line-soft: #292a22;
+  --rail-bg: #0f1317;
+  --rail-fg: #b6bec9;
 
-  --seal: #d66f52;
-  --seal-strong: #e58a6e;
-  --seal-soft: rgba(214, 111, 82, 0.16);
-  --seal-tint: rgba(214, 111, 82, 0.08);
-  --success: #7aa687;
-  --danger: #df7a72;
+  --note-bg: #1b2026;
 
-  --accent-fg: #1b120d;
-  --rail-bg: var(--ink-deep);
-  --rail-fg: var(--ink-on-dark-soft);
-  --note-bg: var(--paper-raised);
-
-  --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.32);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.36), 0 7px 18px -12px rgba(0, 0, 0, 0.54);
-  --shadow-md: 0 2px 5px rgba(0, 0, 0, 0.3), 0 20px 38px -26px rgba(0, 0, 0, 0.7);
-  --shadow-lg: 0 5px 16px rgba(0, 0, 0, 0.36), 0 38px 82px -38px rgba(0, 0, 0, 0.82);
-  --shadow-paper: 0 1px 1px rgba(0, 0, 0, 0.28), 0 14px 30px -20px rgba(0, 0, 0, 0.65);
-  --shadow-float: 0 32px 80px -32px rgba(0, 0, 0, 0.82);
-
-  --glass-base: color-mix(in srgb, var(--ink-deep) 76%, transparent);
-  --glass-raised: color-mix(in srgb, var(--paper-raised) 80%, transparent);
-  --glass-recessed: color-mix(in srgb, var(--paper) 72%, transparent);
-  --glass-line: rgba(255, 245, 228, 0.14);
-  --glass-specular: rgba(255, 245, 228, 0.16);
-  --glass-depth-line: rgba(0, 0, 0, 0.42);
-  --glass-shadow: rgba(0, 0, 0, 0.52);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 16px -6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 40px -18px rgba(0, 0, 0, 0.6);
+  --glass-base: rgba(24, 31, 39, 0.64);
+  --glass-raised: rgba(34, 43, 53, 0.72);
+  --glass-recessed: rgba(15, 21, 27, 0.5);
+  --glass-line: rgba(255, 255, 255, 0.16);
+  --glass-specular: rgba(255, 255, 255, 0.2);
+  --glass-depth-line: rgba(3, 8, 13, 0.42);
+  --glass-shadow: rgba(5, 9, 13, 0.46);
 }
 
 :root[data-theme="sepia"] {
   color-scheme: light;
-  --desk: #dfc7a1;
-  --desk-deep: #d2b88f;
-  --desk-light: #ebd7b8;
-  --paper: #f8e9ca;
-  --paper-raised: #fff1d7;
-  --paper-sunk: #eedcba;
-  --paper-deep: #e2cba5;
+  --accent: #9a6a3c;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(154, 106, 60, 0.16);
 
-  --ink: #372b1e;
-  --ink-deep: #211b13;
-  --ink-raised: #493b2a;
-  --ink-soft: #68553f;
-  --ink-faint: #8b7457;
-  --ink-on-dark: #f5e6c8;
-  --ink-on-dark-soft: #cab997;
+  --bg: #f2e9d8;
+  --surface: #fbf5e9;
+  --surface-2: #ede2cd;
+  --fg: #3a2c18;
+  --fg-muted: #6b5a41;
+  --fg-subtle: #927e5f;
+  --border: #e0d3ba;
+  --border-strong: #cdbc9c;
 
-  --line: #d8c09b;
-  --line-strong: #c4a77d;
-  --line-soft: #e7d5b6;
+  --rail-bg: #3a2c18;
+  --rail-fg: #e4d6bc;
 
-  --seal: #a8512e;
-  --seal-strong: #853b1e;
-  --seal-soft: rgba(168, 81, 46, 0.14);
-  --seal-tint: rgba(168, 81, 46, 0.075);
-  --success: #59734e;
-  --danger: #a24a3c;
-
-  --accent-fg: #fff7e8;
-  --rail-bg: var(--ink-deep);
-  --rail-fg: var(--ink-on-dark-soft);
-  --note-bg: var(--paper-raised);
-  --glass-base: color-mix(in srgb, var(--ink-deep) 78%, transparent);
-  --glass-raised: color-mix(in srgb, var(--paper-raised) 82%, transparent);
-  --glass-recessed: color-mix(in srgb, var(--paper-sunk) 74%, transparent);
+  --note-bg: #fbf5e9;
+  --glass-base: rgba(248, 239, 220, 0.66);
+  --glass-raised: rgba(255, 249, 235, 0.72);
+  --glass-recessed: rgba(231, 216, 188, 0.48);
+  --glass-line: rgba(255, 255, 255, 0.62);
+  --glass-specular: rgba(255, 255, 255, 0.48);
+  --glass-depth-line: rgba(132, 100, 61, 0.2);
+  --glass-shadow: rgba(88, 68, 43, 0.22);
 }
 
-/* Honor the OS preference before the React theme preference is applied. */
+:root[data-theme="evernote"] {
+  color-scheme: light;
+  --accent: #00a82d;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(0, 168, 45, 0.13);
+  --bg: #f3f5f1;
+  --surface: #ffffff;
+  --surface-2: #e9eee9;
+  --fg: #25352b;
+  --fg-muted: #5c6c62;
+  --fg-subtle: #87948b;
+  --border: #dce5dd;
+  --border-strong: #c3d1c5;
+  --rail-bg: #24352b;
+  --rail-fg: #d5e3d7;
+  --note-bg: #fffef8;
+  --glass-base: rgba(248, 252, 248, 0.68);
+  --glass-raised: rgba(255, 255, 255, 0.78);
+  --glass-recessed: rgba(231, 240, 232, 0.52);
+  --glass-line: rgba(255, 255, 255, 0.78);
+  --glass-specular: rgba(255, 255, 255, 0.66);
+  --glass-depth-line: rgba(49, 91, 59, 0.16);
+  --glass-shadow: rgba(45, 77, 52, 0.2);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Programmer-classic themes. All are dark, low-saturation, designed
+ *  for long coding sessions. Inspired by popular editors / terminals.
+ * ------------------------------------------------------------------ */
+
+/* One Dark — Atom & VS Code dark+ lineage */
+:root[data-theme="one-dark"] {
+  color-scheme: dark;
+  --accent: #61afef;
+  --accent-fg: #1d2128;
+  --accent-soft: rgba(97, 175, 239, 0.16);
+  --bg: #282c34;
+  --surface: #21252b;
+  --surface-2: #2c313a;
+  --fg: #abb2bf;
+  /* #828997 sat at 4.38:1 on #21252b — a near-miss that failed AA for
+     secondary text. Nudged just light enough to clear it. */
+  --fg-muted: #8b93a0;
+  --fg-subtle: #5c6370;
+  --border: #2c313a;
+  --border-strong: #3a4048;
+  --rail-bg: #1d2128;
+  --rail-fg: #abb2bf;
+  --note-bg: #21252b;
+  --glass-base: rgba(33, 37, 43, 0.66);
+  --glass-raised: rgba(40, 44, 52, 0.72);
+  --glass-recessed: rgba(24, 27, 32, 0.5);
+  --glass-line: rgba(255, 255, 255, 0.1);
+  --glass-specular: rgba(255, 255, 255, 0.16);
+  --glass-depth-line: rgba(0, 0, 0, 0.4);
+  --glass-shadow: rgba(0, 0, 0, 0.45);
+}
+
+/* Dracula */
+:root[data-theme="dracula"] {
+  color-scheme: dark;
+  --accent: #bd93f9;
+  --accent-fg: #282a36;
+  --accent-soft: rgba(189, 147, 249, 0.18);
+  --bg: #282a36;
+  --surface: #21222c;
+  --surface-2: #343746;
+  --fg: #f8f8f2;
+  --fg-muted: #9fa3b5;
+  --fg-subtle: #6272a4;
+  --border: #343746;
+  --border-strong: #44475a;
+  --rail-bg: #191a21;
+  --rail-fg: #f8f8f2;
+  --note-bg: #21222c;
+  --glass-base: rgba(40, 42, 54, 0.66);
+  --glass-raised: rgba(52, 55, 70, 0.72);
+  --glass-recessed: rgba(25, 26, 33, 0.5);
+  --glass-line: rgba(189, 147, 249, 0.18);
+  --glass-specular: rgba(255, 255, 255, 0.18);
+  --glass-depth-line: rgba(0, 0, 0, 0.4);
+  --glass-shadow: rgba(0, 0, 0, 0.45);
+}
+
+/* Nord */
+:root[data-theme="nord"] {
+  color-scheme: dark;
+  --accent: #88c0d0;
+  --accent-fg: #2e3440;
+  --accent-soft: rgba(136, 192, 208, 0.16);
+  --bg: #2e3440;
+  --surface: #3b4252;
+  --surface-2: #434c5e;
+  --fg: #d8dee9;
+  /* Was #a3aab6, which sat at 4.30:1 on #3b4252 — below AA for secondary
+     text. Nudged just light enough to clear it. */
+  --fg-muted: #acb3be;
+  --fg-subtle: #707786;
+  --border: #434c5e;
+  --border-strong: #4c566a;
+  --rail-bg: #242933;
+  --rail-fg: #d8dee9;
+  --note-bg: #3b4252;
+  --glass-base: rgba(46, 52, 64, 0.66);
+  --glass-raised: rgba(59, 66, 82, 0.72);
+  --glass-recessed: rgba(36, 41, 51, 0.5);
+  --glass-line: rgba(255, 255, 255, 0.1);
+  --glass-specular: rgba(255, 255, 255, 0.16);
+  --glass-depth-line: rgba(0, 0, 0, 0.4);
+  --glass-shadow: rgba(0, 0, 0, 0.45);
+}
+
+/* Solarized Dark */
+:root[data-theme="solarized-dark"] {
+  color-scheme: dark;
+  --accent: #268bd2;
+  --accent-fg: #fdf6e3;
+  --accent-soft: rgba(38, 139, 210, 0.18);
+  --bg: #002b36;
+  --surface: #073642;
+  --surface-2: #0a4554;
+  --fg: #eee8d5;
+  --fg-muted: #93a1a1;
+  --fg-subtle: #657b83;
+  --border: #0a4554;
+  --border-strong: #155566;
+  --rail-bg: #001f27;
+  --rail-fg: #eee8d5;
+  --note-bg: #073642;
+  --glass-base: rgba(0, 43, 54, 0.66);
+  --glass-raised: rgba(7, 54, 66, 0.72);
+  --glass-recessed: rgba(0, 28, 36, 0.5);
+  --glass-line: rgba(255, 255, 255, 0.1);
+  --glass-specular: rgba(255, 255, 255, 0.16);
+  --glass-depth-line: rgba(0, 0, 0, 0.4);
+  --glass-shadow: rgba(0, 0, 0, 0.45);
+}
+
+/* Gruvbox Dark */
+:root[data-theme="gruvbox-dark"] {
+  color-scheme: dark;
+  --accent: #fabd2f;
+  --accent-fg: #282828;
+  --accent-soft: rgba(250, 189, 47, 0.16);
+  --bg: #282828;
+  --surface: #1d2021;
+  --surface-2: #3c3836;
+  --fg: #ebdbb2;
+  --fg-muted: #a89984;
+  --fg-subtle: #7c6f64;
+  --border: #3c3836;
+  --border-strong: #504945;
+  --rail-bg: #1d2021;
+  --rail-fg: #ebdbb2;
+  --note-bg: #1d2021;
+  --glass-base: rgba(40, 40, 40, 0.66);
+  --glass-raised: rgba(60, 56, 54, 0.72);
+  --glass-recessed: rgba(29, 32, 33, 0.5);
+  --glass-line: rgba(250, 189, 47, 0.16);
+  --glass-specular: rgba(255, 255, 255, 0.16);
+  --glass-depth-line: rgba(0, 0, 0, 0.4);
+  --glass-shadow: rgba(0, 0, 0, 0.45);
+}
+
+/* Monokai */
+:root[data-theme="monokai"] {
+  color-scheme: dark;
+  --accent: #66d9ef;
+  --accent-fg: #272822;
+  --accent-soft: rgba(102, 217, 239, 0.18);
+  --bg: #272822;
+  --surface: #1e1f1c;
+  --surface-2: #3e3d32;
+  --fg: #f8f8f2;
+  --fg-muted: #b3b1a3;
+  --fg-subtle: #75715e;
+  --border: #3e3d32;
+  --border-strong: #56544a;
+  --rail-bg: #1e1f1c;
+  --rail-fg: #f8f8f2;
+  --note-bg: #1e1f1c;
+  --glass-base: rgba(39, 40, 34, 0.66);
+  --glass-raised: rgba(62, 61, 50, 0.72);
+  --glass-recessed: rgba(24, 24, 21, 0.5);
+  --glass-line: rgba(102, 217, 239, 0.18);
+  --glass-specular: rgba(255, 255, 255, 0.18);
+  --glass-depth-line: rgba(0, 0, 0, 0.4);
+  --glass-shadow: rgba(0, 0, 0, 0.45);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Commercial density + contrast layer.
+ *  Every theme block above only overrides the BASE ramps, so these
+ *  derived tokens recompute per theme automatically — one edit here
+ *  lifts all 12 themes at once instead of hand-patching each block.
+ *  Specificity (0,2,0) intentionally matches :root[data-theme="…"]
+ *  so source order (this block is last) wins.
+ * ------------------------------------------------------------------ */
+
+/* `:root` is listed alongside `:root[data-theme]` on purpose. The named-theme
+   blocks below resolve at (0,2,0) and still win for the base ramps, but the
+   previous `:root[data-theme]`-only selector skipped the no-`data-theme`
+   fallback entirely, leaving its --fg-subtle at the old 3.14:1. The comma
+   form keeps named-theme behaviour identical (same specificity, later in the
+   file) while also lifting the default. */
+:root,
+:root[data-theme] {
+  /* Tertiary text was ~3.3:1 on light surfaces — below WCAG AA for the
+     9-11px metadata it carries. Lift it by pulling toward --fg, which
+     darkens on light themes and lightens on dark ones. */
+  --fg-subtle: color-mix(in srgb, var(--fg-muted) 74%, var(--fg));
+
+  /* Hairlines. A desktop shell reads as commercial when panes are divided
+     by crisp 1px rules rather than separated by a near-invisible fog. */
+  --hairline: color-mix(in srgb, var(--fg) 9%, transparent);
+  --hairline-soft: color-mix(in srgb, var(--fg) 6%, transparent);
+  --hairline-firm: color-mix(in srgb, var(--fg) 16%, transparent);
+
+  /* Surface hierarchy: nav is recessed, list neutral, pane is the document
+     surface and therefore the brightest. */
+  --surface-nav: color-mix(in srgb, var(--surface) 93%, var(--bg));
+  --surface-list: var(--surface);
+  --surface-pane: var(--surface);
+
+  /* Accent ink for text sitting on an accent tint — accent itself is often
+     too light to pass AA at 10-11px. */
+  --accent-ink: color-mix(in srgb, var(--accent) 76%, var(--fg));
+  --accent-wash: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-rule: color-mix(in srgb, var(--accent) 62%, transparent);
+
+  /* Desktop density rhythm. */
+  --h-row: 40px;
+  --h-control: 28px;
+  --h-control-sm: 24px;
+
+  /* Crisper radius scale. Small controls on a large screen should not be
+     proportionally as round as they are on a phone. */
+  --r-sm: 5px;
+  --r-md: 7px;
+  --r-lg: 10px;
+}
+
+/* Honor OS dark preference when no explicit theme is set. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --desk: #11130f;
-    --desk-deep: #0c0e0a;
-    --desk-light: #171a13;
-    --paper: #1b1d17;
-    --paper-raised: #23251e;
-    --paper-sunk: #171913;
-    --paper-deep: #12140f;
-    --ink: #eee7d8;
-    --ink-deep: #090b07;
-    --ink-raised: #292b22;
-    --ink-soft: #b8af9e;
-    --ink-faint: #8f8779;
-    --line: #36352c;
-    --line-strong: #4a473a;
-    --line-soft: #292a22;
-    --seal: #d66f52;
-    --seal-strong: #e58a6e;
-    --seal-soft: rgba(214, 111, 82, 0.16);
-    --seal-tint: rgba(214, 111, 82, 0.08);
-    --accent-fg: #1b120d;
-    --rail-bg: var(--ink-deep);
-    --rail-fg: var(--ink-on-dark-soft);
-    --note-bg: var(--paper-raised);
+    --bg: #14181c; --surface: #1b2026; --surface-2: #242b32;
+    --fg: #e6e9ee; --fg-muted: #a3acb7; --border: #2a323a;
+    --rail-bg: #0f1317; --note-bg: #1b2026;
+    /* Same derived layer as :root[data-theme], so an unset theme still
+       gets the contrast lift and the hairline tokens. */
+    --fg-subtle: color-mix(in srgb, var(--fg-muted) 74%, var(--fg));
+    --hairline: color-mix(in srgb, var(--fg) 9%, transparent);
+    --hairline-soft: color-mix(in srgb, var(--fg) 6%, transparent);
+    --hairline-firm: color-mix(in srgb, var(--fg) 16%, transparent);
+    --surface-nav: color-mix(in srgb, var(--surface) 93%, var(--bg));
+    --accent-ink: color-mix(in srgb, var(--accent) 76%, var(--fg));
+    --accent-wash: color-mix(in srgb, var(--accent) 10%, transparent);
+    --accent-rule: color-mix(in srgb, var(--accent) 62%, transparent);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root {
-    --dur-fast: 0.01ms;
-    --dur: 0.01ms;
-    --dur-slow: 0.01ms;
-  }
+  :root { --dur-fast: 0.01ms; --dur: 0.01ms; }
 }

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { SearchProvider } from "./SearchProvider";
+import { SearchProvider, type SearchOptions } from "./SearchProvider";
 
 export type { SearchHit as Hit } from "./SearchProvider";
 
@@ -8,14 +8,20 @@ export function useSearch() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    const query = useCallback(async (q: string) => {
+    const query = useCallback(async (q: string, options?: SearchOptions) => {
         setLoading(true);
         setError("");
         try {
-            setHits(await SearchProvider.query(q));
-        } catch {
+            setHits(await SearchProvider.query(q, options));
+        } catch (e) {
             setHits([]);
-            setError("搜索失败，请稍后重试");
+            // Query-syntax errors arrive as readable messages ("查询语法错误：…");
+            // anything else keeps the generic failure text.
+            setError(
+                typeof e === "string" && e.startsWith("查询语法错误")
+                    ? e
+                    : "搜索失败，请稍后重试",
+            );
         } finally {
             setLoading(false);
         }

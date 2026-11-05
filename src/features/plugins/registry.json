@@ -1,0 +1,64 @@
+[
+  {
+    "id": "markdown-exporter",
+    "name": "Markdown 导出增强",
+    "author": "tidbit team",
+    "version": "1.2.0",
+    "summary": "在命令面板快速把当前便签导出为 Markdown 或 PDF 文件。",
+    "category": "export",
+    "icon": "Export",
+    "commands": [
+      { "id": "export.current", "title": "导出当前便签", "hint": "把当前打开的便签另存为文件" },
+      { "id": "export.all", "title": "批量导出全部便签" }
+    ]
+  },
+  {
+    "id": "compact-mode",
+    "name": "紧凑模式",
+    "author": "tidbit team",
+    "version": "0.4.1",
+    "summary": "给侧栏与列表加紧凑间距，更适合小窗口。",
+    "category": "appearance",
+    "icon": "ArrowsInLineHorizontal",
+    "commands": [
+      { "id": "ui.compact.toggle", "title": "切换紧凑模式" }
+    ]
+  },
+  {
+    "id": "word-counter",
+    "name": "字数统计面板",
+    "author": "tidbit community",
+    "version": "1.0.3",
+    "summary": "弹窗显示所有便签的总字数、字符数与平均长度。",
+    "category": "analysis",
+    "icon": "ChartBar",
+    "commands": [
+      { "id": "stats.wordcount", "title": "查看字数统计" }
+    ]
+  },
+  {
+    "id": "pomodoro",
+    "name": "番茄钟",
+    "author": "focus.kit",
+    "version": "2.1.0",
+    "summary": "在右下角弹一个 25 分钟倒计时提醒。",
+    "category": "productivity",
+    "icon": "Timer",
+    "commands": [
+      { "id": "pomodoro.start", "title": "开始 25 分钟番茄钟" },
+      { "id": "pomodoro.stop", "title": "停止番茄钟" }
+    ]
+  },
+  {
+    "id": "cloud-sync-mock",
+    "name": "云同步（示例）",
+    "author": "demo",
+    "version": "0.1.0",
+    "summary": "演示用：模拟向云端推送一条便签，仅供 UI 走通。",
+    "category": "sync",
+    "icon": "CloudArrowUp",
+    "commands": [
+      { "id": "sync.demo", "title": "推送当前便签到云端（演示）" }
+    ]
+  }
+]

@@ -1,7 +1,9 @@
-import { Command as CommandIcon, FileText, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { Command as CommandIcon, FileText, Folders, GearSix, MagnifyingGlass, NotePencil, Rows, X } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { SearchResults } from "../features/search/SearchResults";
 import { useSearch } from "../features/search/useSearch";
+import { client } from "../ipc/client";
 
 export type Command = {
   id: string;
@@ -9,7 +11,19 @@ export type Command = {
   hint?: string;
   group: "note" | "group" | "app" | "view" | "search";
   shortcut?: string;
+  /** Per-command icon. Falls back to the group icon when omitted — without
+   *  this, every `app` command rendered as the same GearSix, which made a
+   *  list of six unrelated actions look like a single repeating row. */
+  icon?: Icon;
   run: () => void | Promise<void>;
+};
+
+const GROUP_ICONS: Record<Command["group"], Icon> = {
+  note: NotePencil,
+  group: Folders,
+  app: GearSix,
+  view: Rows,
+  search: MagnifyingGlass,
 };
 
 interface CommandPaletteProps {
@@ -23,6 +37,9 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const [tab, setTab] = useState<"commands" | "search">("commands");
+  const [searchTag, setSearchTag] = useState<string | null>(null);
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const { hits, loading, error, query, clear } = useSearch();
   const filtered = useMemo(
     () => commands.filter((command) => command.title.toLowerCase().includes(q.toLowerCase())),
@@ -34,17 +51,26 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
     setQ("");
     setActive(0);
     setTab("commands");
+    setSearchTag(null);
+    setIncludeArchived(false);
     clear();
   }, [open, clear]);
+
+  useEffect(() => {
+    void client.tags.list().then(setAvailableTags).catch(() => setAvailableTags([]));
+  }, []);
 
   useEffect(() => {
     if (!open || !q.trim()) {
       clear();
       return;
     }
-    const timer = window.setTimeout(() => void query(q.trim()), 180);
+    const timer = window.setTimeout(
+      () => void query(q.trim(), { tag: searchTag ?? undefined, includeArchived }),
+      180,
+    );
     return () => window.clearTimeout(timer);
-  }, [open, q, query, clear]);
+  }, [open, q, query, clear, searchTag, includeArchived]);
 
   useEffect(() => { setActive(0); }, [q, tab]);
   if (!open) return null;
@@ -57,13 +83,18 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
   };
 
   return (
-    <div className="palette-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
-      <section role="dialog" aria-label="命令面板" className="palette">
+    <div className="palette-scrim" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
+      <section role="dialog" aria-modal="true" aria-label="命令面板" className="palette" onClick={(event) => event.stopPropagation()}>
         <header className="palette__head">
           <MagnifyingGlass size={17} />
           <input
             autoFocus
             aria-label="搜索"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="palette-listbox"
+            aria-activedescendant={filtered.length > 0 ? `palette-opt-${active}` : undefined}
+            aria-autocomplete="list"
             placeholder="搜索便签或执行命令"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -77,37 +108,71 @@ export function CommandPalette({ open, commands, onClose, onOpenNote }: CommandP
           <button className="btn-icon" onClick={onClose} aria-label="关闭命令面板" title="关闭命令面板"><X size={15} /></button>
         </header>
 
-        <div className="palette__tabs">
-          <button className="palette__tab" onClick={() => setTab("commands")} data-active={tab === "commands"}>
+        <div className="palette__tabs" role="tablist" aria-label="搜索范围">
+          <button className="palette__tab" role="tab" aria-selected={tab === "commands"} onClick={() => setTab("commands")} data-active={tab === "commands"}>
             <CommandIcon size={14} /> 命令 <span>{filtered.length}</span>
           </button>
-          <button className="palette__tab" onClick={() => setTab("search")} data-active={tab === "search"}>
+          <button className="palette__tab" role="tab" aria-selected={tab === "search"} onClick={() => setTab("search")} data-active={tab === "search"}>
             <FileText size={14} /> 便签 <span>{hits.length}</span>
           </button>
         </div>
 
         {tab === "search" ? (
           <div className="palette__content">
+            <div className="palette__filters" aria-label="搜索范围">
+              <label className="palette__filter-check">
+                <input type="checkbox" checked={includeArchived} onChange={(e) => setIncludeArchived(e.target.checked)} />
+                <span>包含归档</span>
+              </label>
+              {availableTags.length > 0 && (
+                <select
+                  className="select"
+                  aria-label="按标签筛选"
+                  value={searchTag ?? ""}
+                  onChange={(e) => setSearchTag(e.target.value || null)}
+                >
+                  <option value="">全部标签</option>
+                  {availableTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+                </select>
+              )}
+            </div>
+            <p className="palette__syntax-hint">
+              语法：<code>&quot;短语&quot;</code> · <code>-排除</code> · <code>前缀*</code> · <code>tag:标签</code> · <code>group:分组</code>
+            </p>
             {loading ? <div className="skeleton-list"><span /><span /><span /></div> : error ? <div className="inline-error">{error}</div> : (
               <SearchResults hits={hits} onOpen={(id) => { onOpenNote?.(id); onClose(); }} />
             )}
           </div>
         ) : (
-          <ul role="listbox" className="palette__list" tabIndex={0} onKeyDown={(e) => {
+          <ul role="listbox" id="palette-listbox" className="palette__list" tabIndex={0} onKeyDown={(e) => {
             if (e.key === "Enter") void runActive();
             if (e.key === "Escape") onClose();
           }}>
-            {filtered.map((command, index) => (
-              <li key={command.id} className="palette__item" aria-selected={index === active}>
-                <button onMouseEnter={() => setActive(index)} onClick={() => { void command.run(); onClose(); }}>
-                  <span><strong>{command.title}</strong>{command.hint && <small>{command.hint}</small>}</span>
-                  {command.shortcut && <kbd>{command.shortcut}</kbd>}
-                </button>
-              </li>
-            ))}
+            {filtered.map((command, index) => {
+              const GroupIcon = command.icon ?? GROUP_ICONS[command.group];
+              return (
+                <li key={command.id} id={`palette-opt-${index}`} role="option" className={`palette__item${index === active ? " is-active" : ""}`} aria-selected={index === active}>
+                  <button onMouseEnter={() => setActive(index)} onClick={() => { void command.run(); onClose(); }}>
+                    <span className="palette__item-icon" aria-hidden="true"><GroupIcon size={15} /></span>
+                    <span className="palette__item-copy"><strong>{command.title}</strong>{command.hint && <small>{command.hint}</small>}</span>
+                    {command.shortcut && <kbd>{command.shortcut}</kbd>}
+                  </button>
+                </li>
+              );
+            })}
             {filtered.length === 0 && <li className="palette__empty">没有匹配命令</li>}
           </ul>
         )}
+
+        <footer className="palette__foot" aria-hidden="true">
+          {tab === "commands" && (
+            <>
+              <span><kbd>↑</kbd><kbd>↓</kbd> 选择</span>
+              <span><kbd>↵</kbd> 执行</span>
+            </>
+          )}
+          <span><kbd>Esc</kbd> 关闭</span>
+        </footer>
       </section>
     </div>
   );

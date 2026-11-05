@@ -1,9 +1,71 @@
-use tauri::Manager;
+use tauri::{Emitter, Manager, UriSchemeContext};
+use tauri_plugin_notification::NotificationExt;
+
+fn attachment_mime(ext: &str) -> &'static str {
+    match ext {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "bmp" => "image/bmp",
+        _ => "application/octet-stream",
+    }
+}
+
+fn serve_attachment<R: tauri::Runtime>(
+    ctx: UriSchemeContext<'_, R>,
+    request: tauri::http::Request<Vec<u8>>,
+) -> tauri::http::Response<Vec<u8>> {
+    let not_found = || -> tauri::http::Response<Vec<u8>> {
+        tauri::http::Response::builder()
+            .status(404)
+            .body(Vec::new())
+            .expect("static response")
+    };
+    let Some(data_dir) = ctx
+        .app_handle()
+        .try_state::<data_directory::DataDirectory>()
+    else {
+        return not_found();
+    };
+    let path = request.uri().path().trim_start_matches('/');
+    let Some((note_id, stored_name)) = path.split_once('/') else {
+        return not_found();
+    };
+    if note_id.is_empty()
+        || note_id.bytes().any(|byte| !byte.is_ascii_digit())
+        || !stored_name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte))
+    {
+        return not_found();
+    }
+    let file = data_dir
+        .0
+        .join("attachments")
+        .join(note_id)
+        .join(stored_name);
+    let bytes = match std::fs::read(&file) {
+        Ok(bytes) => bytes,
+        Err(_) => return not_found(),
+    };
+    let ext = file
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("");
+    tauri::http::Response::builder()
+        .status(200)
+        .header("Content-Type", attachment_mime(ext))
+        .header("Cache-Control", "private, max-age=31536000, immutable")
+        .body(bytes)
+        .expect("static response")
+}
 
 pub mod autostart;
 pub mod data_directory;
 pub mod domain;
 pub mod error;
+pub mod export;
 pub mod hotkey;
 pub mod infra;
 pub mod ipc;
@@ -29,6 +91,8 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
+        .register_uri_scheme_protocol("tidbit-img", serve_attachment)
         .setup(|app| {
             let default_dir = app.path().app_data_dir().expect("appdata");
             let dir = data_directory::resolve(&default_dir)?;
@@ -46,18 +110,63 @@ pub fn run() {
             }
             let pool = infra::db::open(&db_path, "devkey")?;
             infra::migrations::run(&pool)?;
+            infra::migrations::migrate_attachment_protocol_urls(&pool)?;
             let state = state::AppState::new(pool.clone());
             app.manage(state);
             app.manage(data_directory::DataDirectory(dir.clone()));
+            // Startup housekeeping: permanently remove notes trashed more than
+            // 30 days ago so the trash cannot grow without bound.
+            let purge_ts = chrono::Utc::now().timestamp_millis() - 30 * 24 * 60 * 60 * 1000;
+            let _ = app
+                .state::<state::AppState>()
+                .notes
+                .purge_older_than(purge_ts);
             app.manage(window::edge_dock::DockRuntimeState::default());
             // BackupKey: v1 uses a zeroed key (M5 will wire from UI PIN)
             app.manage(state::BackupKey([0u8; 32]));
+            // Auto backup: one snapshot per launch, then per configured interval.
+            backup::scheduler::start(app.handle().clone());
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.center();
                 let _ = window.show();
             }
             tray::build_tray(app)?;
             hotkey::register(&app.handle())?;
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                    let now = chrono::Utc::now().timestamp_millis();
+                    let reminders = handle
+                        .state::<state::AppState>()
+                        .reminders
+                        .due(now)
+                        .unwrap_or_default();
+                    for reminder in reminders {
+                        let title = handle
+                            .state::<state::AppState>()
+                            .notes
+                            .get(reminder.note_id)
+                            .ok()
+                            .and_then(|note| note.title)
+                            .unwrap_or_else(|| "无标题".into());
+                        if handle
+                            .notification()
+                            .builder()
+                            .title("tidbit 提醒")
+                            .body(&title)
+                            .show()
+                            .is_ok()
+                        {
+                            let _ = handle
+                                .state::<state::AppState>()
+                                .reminders
+                                .mark_notified(reminder.note_id);
+                            let _ = handle.emit("tidbit://reminder-fired", reminder.note_id);
+                        }
+                    }
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -70,12 +179,27 @@ pub fn run() {
             ipc::notes::notes_set_archived,
             ipc::notes::notes_set_content_hidden,
             ipc::notes::notes_set_color,
+            ipc::notes::notes_set_status,
             ipc::notes::notes_move_group,
             ipc::notes::notes_reorder,
             ipc::notes::notes_set_geometry,
             ipc::notes::notes_set_edge_dock,
             ipc::notes::notes_trash,
             ipc::notes::notes_restore,
+            ipc::notes::notes_list_trashed,
+            ipc::notes::notes_delete,
+            ipc::notes::notes_purge_trash,
+            ipc::notes::notes_revisions,
+            ipc::notes::notes_restore_revision,
+            ipc::notes::tags_list,
+            ipc::notes::tag_rename,
+            ipc::notes::tag_delete,
+            ipc::notes::notes_set_tags,
+            ipc::notes::reminders_set,
+            ipc::attachments::attachments_save,
+            ipc::detach::note_detach_open,
+            ipc::detach::note_detach_close,
+            ipc::export::notes_export,
             ipc::groups::groups_list,
             ipc::groups::groups_create,
             ipc::groups::groups_update,
@@ -97,33 +221,27 @@ pub fn run() {
             ipc::wander::wander_editor_open,
             ipc::wander::wander_editor_close,
             ipc::wander::wander_set_opacity,
-            ipc::clothesline::clothesline_open,
-            ipc::clothesline::clothesline_board_ready,
-            ipc::clothesline::clothesline_arm_hide,
-            ipc::clothesline::clothesline_reveal,
-            ipc::clothesline::clothesline_close,
-            ipc::clothesline::clothesline_toggle,
-            ipc::clothesline::clothesline_set_notes,
-            ipc::clothesline::clothesline_list,
-            ipc::clothesline::clothesline_is_open,
-            ipc::clothesline::clothesline_set_positions,
-            ipc::clothesline::clothesline_positions,
             ipc::backup::backup_snapshot_now,
             ipc::backup::backup_restore,
             ipc::backup::backup_list,
             ipc::backup::backup_open_dir,
+            ipc::backup::backup_settings_get,
+            ipc::backup::backup_settings_set,
             ipc::settings::data_directory_get,
             ipc::settings::data_directory_pick,
             ipc::settings::data_directory_set,
             ipc::settings::autostart_get,
             ipc::settings::autostart_set,
+            ipc::settings::system_fonts_list,
             ipc::search::search_query,
         ])
         .on_window_event(|win, ev| {
             if matches!(ev, tauri::WindowEvent::Moved { .. }) {
                 ipc::wander::schedule_wander_snap(win);
             }
-            window_state::install_close_to_tray(win.app_handle(), ev);
+            if win.label() == "main" {
+                window_state::install_close_to_tray(win.app_handle(), ev);
+            }
         })
         .run(tauri::generate_context!())
         .expect("failed to start tidbit");

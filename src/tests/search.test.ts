@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({
-    invoke: vi.fn(async () => [{ id: 1, group_id: null, title: "x", snippet: "..." }]),
+    invoke: vi.fn(async () => [{ id: 1, group_id: null, title: "x", snippet: "...", terms: ["foo"], score: 3 }]),
 }));
 
 import { SearchProvider } from "../features/search/SearchProvider";

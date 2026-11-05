@@ -1,26 +1,39 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { currentMonitor, getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { currentMonitor, getCurrentWindow, LogicalPosition, LogicalSize, primaryMonitor } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildCommands } from "./app/buildCommands";
 import { CommandPalette } from "./app/CommandPalette";
 import { EdgePresence } from "./app/EdgePresence";
 import { Titlebar } from "./app/Titlebar";
-import { shouldUseOneNoteLayout } from "./app/windowMode";
 import { RestoreWizard } from "./features/backup/RestoreWizard";
-import { useBackupStatus } from "./features/backup/useBackupStatus";
+import { ChangelogDialog } from "./features/changelog/ChangelogDialog";
+import { useChangelogOnUpdate } from "./features/changelog/useChangelogOnUpdate";
+import { ExportDialog } from "./features/export/ExportDialog";
+import { useBackupStatus, AUTO_BACKUP_DEFAULTS, type AutoBackupSettings } from "./features/backup/useBackupStatus";
 import { GroupsSidebar } from "./features/groups/GroupsSidebar";
 import { NotesGrid } from "./features/notes/NotesGrid";
+import { MaximizedNotesLayout } from "./features/notes/MaximizedNotesLayout";
+import { TrashView } from "./features/notes/TrashView";
 import { LockScreen } from "./features/settings/LockScreen";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
-import { applyTheme, type Theme } from "./ui/theme";
+import { applyTheme, themes, type Theme } from "./ui/theme";
 import { Toast, type ToastState } from "./ui/Toast";
 import { applyFontPreferences, loadFontPreferences, saveFontPreferences } from "./ui/fontPreferences";
+import { applyLineHeightPreference, loadLineHeightPreference, saveLineHeightPreference } from "./ui/lineHeightPreference";
 import { client } from "./ipc/client";
 import { loadGlassEffect, loadGlassOpacity, saveGlassEffect, saveGlassOpacity } from "./ui/glassEffect";
 import { broadcastAppearance } from "./ui/appearance";
-
-const themes: Theme[] = ["light", "dark", "sepia"];
+import { commonSystemFonts, loadSystemFonts } from "./ui/systemFonts";
+import {
+  defaultMainWindowSize,
+  fitMainWindowSizeToWorkArea,
+  loadMainWindowSize,
+  logicalSizeFromPhysical,
+  normalizeMainWindowSize,
+  saveMainWindowSize,
+  type MainWindowSize,
+} from "./ui/windowSizePreferences";
 
 interface DataDirectoryInfo {
   default_dir: string;
@@ -28,11 +41,44 @@ interface DataDirectoryInfo {
   pending_dir: string | null;
 }
 
+async function fitCurrentWindowToWorkArea(requested: MainWindowSize) {
+  const normalized = normalizeMainWindowSize(requested);
+  const win = getCurrentWindow();
+  const monitor = await currentMonitor() ?? await primaryMonitor();
+  if (!monitor) {
+    await win.setSize(new LogicalSize(normalized.width, normalized.height));
+    return normalized;
+  }
+
+  const logicalWorkAreaSize = monitor.workArea.size.toLogical(monitor.scaleFactor);
+  const fitted = fitMainWindowSizeToWorkArea(normalized, logicalWorkAreaSize);
+  const [position, outerSize] = await Promise.all([win.outerPosition(), win.outerSize()]);
+  const workArea = monitor.workArea;
+  const clipped = position.x < workArea.position.x
+    || position.y < workArea.position.y
+    || position.x + outerSize.width > workArea.position.x + workArea.size.width
+    || position.y + outerSize.height > workArea.position.y + workArea.size.height;
+
+  await win.setSize(new LogicalSize(fitted.width, fitted.height));
+  if (clipped || fitted.width !== normalized.width || fitted.height !== normalized.height) {
+    const logicalWorkAreaPosition = workArea.position.toLogical(monitor.scaleFactor);
+    await win.setPosition(new LogicalPosition(
+      Math.round(logicalWorkAreaPosition.x + Math.max(0, (logicalWorkAreaSize.width - fitted.width) / 2)),
+      Math.round(logicalWorkAreaPosition.y + Math.max(0, (logicalWorkAreaSize.height - fitted.height) / 2)),
+    ));
+  }
+  return fitted;
+}
+
 export default function App() {
+  const [viewMode, setViewMode] = useState<"cards" | "list" | "kanban">(() => (localStorage.getItem("tidbit:note-view-mode") as "cards" | "list" | "kanban") || "cards");
+  const cycleViewMode = useCallback((mode: "cards" | "list" | "kanban") => { localStorage.setItem("tidbit:note-view-mode", mode); setViewMode(mode); }, []);
   const [groupId, setGroupId] = useState<number | null>(null);
+  const [view, setView] = useState<"notes" | "trash">("notes");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [locked, setLocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
@@ -45,30 +91,68 @@ export default function App() {
   const [autostartBusy, setAutostartBusy] = useState(false);
   const [lockPin, setLockPin] = useState(() => localStorage.getItem("privacy-pin") ?? "");
   const [fonts, setFonts] = useState(loadFontPreferences);
+  const [lineHeight, setLineHeight] = useState<number>(() => loadLineHeightPreference());
+  const [availableFonts, setAvailableFonts] = useState<string[]>(() => [...commonSystemFonts]);
+  const [fontsLoading, setFontsLoading] = useState(false);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
   const [wanderOpacity, setWanderOpacity] = useState(() => Number(localStorage.getItem("wander-opacity") ?? "88"));
   const [glassEnabled, setGlassEnabled] = useState(loadGlassEffect);
   const [glassOpacity, setGlassOpacity] = useState(loadGlassOpacity);
-  const [clotheslineOpen, setClotheslineOpen] = useState(false);
-  const [clotheslineAutoShow, setClotheslineAutoShow] = useState(() => localStorage.getItem("clothesline-auto-show") === "true");
-  const [oneNoteMode, setOneNoteMode] = useState(false);
   const [dataDirectory, setDataDirectory] = useState("");
   const [defaultDataDirectory, setDefaultDataDirectory] = useState("");
   const [dataDirectoryBusy, setDataDirectoryBusy] = useState(false);
+  const [mainWindowSize, setMainWindowSize] = useState(loadMainWindowSize);
+  const [windowSizeBusy, setWindowSizeBusy] = useState(false);
   const [hiddenEdge, setHiddenEdge] = useState<"left" | "right" | "top" | "bottom" | null>(null);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [isWide, setIsWide] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1100);
+  const [announcement, setAnnouncement] = useState("");
+  const [autoBackup, setAutoBackup] = useState<AutoBackupSettings>(AUTO_BACKUP_DEFAULTS);
   const backup = useBackupStatus();
-  const interactionLocked = settingsOpen || paletteOpen || restoreOpen || locked;
+  const { entry: changelogEntry, dismiss: dismissChangelog } = useChangelogOnUpdate();
+  const interactionLocked = settingsOpen || paletteOpen || restoreOpen || exportOpen || locked || changelogEntry !== null;
+
+  useEffect(() => {
+    let cancelled = false;
+    void backup
+      .settings()
+      .then((settings) => {
+        if (!cancelled && settings && typeof settings.enabled === "boolean") setAutoBackup(settings);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [backup]);
+
+  const updateAutoBackup = useCallback((settings: AutoBackupSettings) => {
+    setAutoBackup(settings);
+    void backup
+      .saveSettings(settings)
+      .then((normalized) => { if (normalized) setAutoBackup(normalized); })
+      .catch(() => undefined);
+  }, [backup]);
 
   const openSettings = useCallback(() => {
+    dismissChangelog();
     setPaletteOpen(false);
     setRestoreOpen(false);
-    setSettingsOpen(true);
-  }, []);
+    setExportOpen(false);
+    setHiddenEdge(null);
+    void invoke("window_undock").catch(() => undefined);
+    void fitCurrentWindowToWorkArea(loadMainWindowSize())
+      .then((fitted) => {
+        setMainWindowSize(saveMainWindowSize(fitted));
+        setSettingsOpen(true);
+      })
+      .catch(() => setSettingsOpen(true));
+  }, [dismissChangelog]);
 
   const openPalette = useCallback(() => {
+    dismissChangelog();
     setSettingsOpen(false);
     setRestoreOpen(false);
+    setExportOpen(false);
     setPaletteOpen(true);
-  }, []);
+  }, [dismissChangelog]);
 
   useEffect(() => {
     void invoke<DataDirectoryInfo>("data_directory_get").then((info) => {
@@ -84,8 +168,15 @@ export default function App() {
   }, []);
 
   const notify = useCallback((next: ToastState) => setToast(next), []);
-  const requestNote = useCallback(() => setCreateNoteRequest((value) => value + 1), []);
-  const requestGroup = useCallback(() => setCreateGroupRequest((value) => value + 1), []);
+  const requestNote = useCallback(() => {
+    dismissChangelog();
+    setCreateNoteRequest((value) => value + 1);
+  }, [dismissChangelog]);
+  const requestGroup = useCallback(() => {
+    dismissChangelog();
+    setCreateGroupRequest((value) => value + 1);
+  }, [dismissChangelog]);
+  const showTrash = useCallback(() => setView("trash"), []);
   const clearOpenNote = useCallback(() => setOpenNoteId(null), []);
   const moveNoteToGroup = useCallback(async (noteId: number, targetGroupId: number | null, groupName: string) => {
     try {
@@ -94,6 +185,15 @@ export default function App() {
       notify({ kind: "success", message: `便签已移动到「${groupName}」` });
     } catch {
       notify({ kind: "error", message: "移动便签失败" });
+    }
+  }, [notify]);
+
+  const moveNoteToTrash = useCallback(async (noteId: number) => {
+    try {
+      await client.notes.trash(noteId);
+      notify({ kind: "success", message: "便签已移到回收站" });
+    } catch {
+      notify({ kind: "error", message: "移到回收站失败" });
     }
   }, [notify]);
 
@@ -111,49 +211,57 @@ export default function App() {
     applyFontPreferences(fonts);
   }, [fonts]);
 
-  // Maximized or fullscreen windows become a three-column OneNote workspace:
-  // groups, note list, then the inline editor. Wide free-floating windows get
-  // the same layout, while the narrow default window keeps its compact modal.
   useEffect(() => {
-    const win = getCurrentWindow();
-    let disposed = false;
-    let disposeResize: (() => void) | undefined;
-    let timer: number | undefined;
+    applyLineHeightPreference(lineHeight);
+  }, [lineHeight]);
 
-    const syncLayoutMode = () => {
-      if (timer !== undefined) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        void Promise.all([win.isMaximized(), win.isFullscreen()])
-          .then(([maximized, fullscreen]) => {
-            if (disposed) return;
-            setOneNoteMode(shouldUseOneNoteLayout(window.innerWidth, maximized, fullscreen));
-          })
-          .catch(() => {
-            if (!disposed) setOneNoteMode(shouldUseOneNoteLayout(window.innerWidth, false, false));
-          });
-      }, 80);
-    };
+  useEffect(() => {
+    if (!settingsOpen || fontsLoaded) return;
+    let cancelled = false;
+    setFontsLoading(true);
+    void loadSystemFonts()
+      .then((families) => {
+        if (cancelled) return;
+        setAvailableFonts(families);
+        setFontsLoaded(true);
+      })
+      .finally(() => {
+        if (!cancelled) setFontsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [fontsLoaded, settingsOpen]);
 
-    syncLayoutMode();
-    void win.onResized(syncLayoutMode).then((dispose) => {
-      if (disposed) dispose();
-      else disposeResize = dispose;
-    }).catch(() => undefined);
-    window.addEventListener("resize", syncLayoutMode);
-    return () => {
-      disposed = true;
-      if (timer !== undefined) window.clearTimeout(timer);
-      disposeResize?.();
-      window.removeEventListener("resize", syncLayoutMode);
-    };
+  useEffect(() => {
+    const preferred = loadMainWindowSize();
+    void fitCurrentWindowToWorkArea(preferred)
+      .then((fitted) => setMainWindowSize(saveMainWindowSize(fitted)))
+      .catch(() => setMainWindowSize(preferred));
   }, []);
 
   useEffect(() => {
-    const key = "window-default-size-v3";
-    if (localStorage.getItem(key)) return;
-    void getCurrentWindow().setSize(new LogicalSize(500, 780)).then(() => {
-      localStorage.setItem(key, "applied");
-    });
+    const win = getCurrentWindow();
+    let dispose: (() => void) | undefined;
+    let timer: number | undefined;
+    let latest: { width: number; height: number } | undefined;
+    void win.onResized((event) => {
+      latest = event.payload;
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (!latest) return;
+        const physical = latest;
+        void Promise.all([win.scaleFactor(), win.isMaximized()])
+          .then(([scaleFactor, maximized]) => {
+            if (maximized) return;
+            const next = saveMainWindowSize(logicalSizeFromPhysical(physical, scaleFactor));
+            setMainWindowSize(next);
+          })
+          .catch(() => undefined);
+      }, 140);
+    }).then((unlisten) => { dispose = unlisten; }).catch(() => undefined);
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      dispose?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -191,6 +299,11 @@ export default function App() {
     saveFontPreferences(next);
   }, []);
 
+  const updateLineHeight = useCallback((next: number) => {
+    setLineHeight(next);
+    saveLineHeightPreference(next);
+  }, []);
+
   const updateWanderOpacity = useCallback((next: number) => {
     const opacity = Math.min(100, Math.max(45, next));
     setWanderOpacity(opacity);
@@ -212,44 +325,19 @@ export default function App() {
     void broadcastAppearance().catch(() => undefined);
   }, []);
 
-  const toggleClothesline = useCallback(async () => {
+  const applyMainWindowSize = useCallback(async (requested: MainWindowSize) => {
+    setWindowSizeBusy(true);
     try {
-      const nextOpen = await invoke<boolean>("clothesline_toggle");
-      setClotheslineOpen(Boolean(nextOpen));
+      const fitted = await fitCurrentWindowToWorkArea(requested);
+      const saved = saveMainWindowSize(fitted);
+      setMainWindowSize(saved);
+      notify({ kind: "success", message: `窗口尺寸已调整为 ${saved.width} × ${saved.height}` });
     } catch {
-      setClotheslineOpen((value) => !value);
+      notify({ kind: "error", message: "无法调整窗口尺寸" });
+    } finally {
+      setWindowSizeBusy(false);
     }
-  }, []);
-
-  const updateClotheslineAutoShow = useCallback((enabled: boolean) => {
-    setClotheslineAutoShow(enabled);
-    localStorage.setItem("clothesline-auto-show", String(enabled));
-  }, []);
-
-  // Mirror the backend's view of whether the clothesline window is open.
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const open = await invoke<boolean>("clothesline_is_open");
-        if (!cancelled) setClotheslineOpen(Boolean(open));
-      } catch {
-        if (!cancelled) setClotheslineOpen(false);
-      }
-    };
-    void refresh();
-    let dispose: (() => void) | undefined;
-    void listen("tidbit://clothesline-changed", () => void refresh()).then((d) => { dispose = d; });
-    return () => { cancelled = true; dispose?.(); };
-  }, []);
-
-  // Auto-show on cold start if the user opted in. Fires once after mount.
-  useEffect(() => {
-    if (!clotheslineAutoShow) return;
-    void invoke("clothesline_open").then(() => setClotheslineOpen(true)).catch(() => undefined);
-    // We deliberately only run this on first mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [notify]);
 
   const pickDataDirectory = useCallback(async () => {
     setDataDirectoryBusy(true);
@@ -374,6 +462,59 @@ export default function App() {
     };
   }, [dockingEnabled, interactionLocked]);
 
+  //   // Multi-source window mode detection.
+  const checkMaximized = useCallback(() => {
+    try {
+      const win = getCurrentWindow();
+      win.isMaximized().then((value) => {
+        setIsMaximized((current) => (current === value ? current : value));
+      }).catch(() => undefined);
+    } catch { /* no-op outside Tauri */ }
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    const disposers: Array<() => void> = [];
+    let rafId: number | null = null;
+    let pollId: number | null = null;
+
+    const sync = () => {
+      if (disposed) return;
+      setIsWide(window.innerWidth >= 1100);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        if (disposed) return;
+        checkMaximized();
+      });
+    };
+
+    sync();
+
+    try {
+      const win = getCurrentWindow();
+      win.onResized(sync).then((unlisten) => {
+        if (disposed) unlisten();
+        else disposers.push(unlisten);
+      }).catch(() => undefined);
+    } catch { /* no-op */ }
+
+    window.addEventListener("resize", sync);
+    disposers.push(() => window.removeEventListener("resize", sync));
+
+    pollId = window.setInterval(() => {
+      if (document.visibilityState === "visible") sync();
+    }, 400);
+
+    return () => {
+      disposed = true;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (pollId !== null) clearInterval(pollId);
+      disposers.forEach((fn) => fn());
+    };
+  }, [checkMaximized]);
+
+  const isNoteMode = isMaximized || isWide;
+
   const commands = useMemo(() => buildCommands({
     newNote: requestNote,
     newGroup: requestGroup,
@@ -384,8 +525,7 @@ export default function App() {
     lockNow: () => setLocked(true),
     showHidden: () => void showHidden(),
     openSettings,
-    toggleClothesline: () => void toggleClothesline(),
-  }), [cycleTheme, dockingEnabled, openBackups, openSettings, requestGroup, requestNote, setDocking, showHidden, snapshotNow, toggleClothesline]);
+  }), [cycleTheme, dockingEnabled, openBackups, openSettings, requestGroup, requestNote, setDocking, showHidden, snapshotNow]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -407,15 +547,62 @@ export default function App() {
     return () => { window.removeEventListener("keydown", onKey); unlisten?.(); };
   }, [openPalette, openSettings, requestGroup, requestNote, snapshotNow]);
 
+  // D.4: announce background events to the screen-reader live region.
+  useEffect(() => {
+    const unsubs: Array<() => void> = [];
+    let cancelled = false;
+    let debounceId: number | null = null;
+    void listen<string>("tidbit://reminder-fired", (event) => {
+      if (cancelled) return;
+      setAnnouncement(event.payload || "便签提醒已触发");
+    }).then((dispose) => { if (!cancelled) unsubs.push(dispose); else dispose(); });
+    void listen<string>("tidbit://note-updated", () => {
+      if (cancelled) return;
+      if (debounceId !== null) window.clearTimeout(debounceId);
+      debounceId = window.setTimeout(() => {
+        setAnnouncement("便签已更新");
+      }, 1500);
+    }).then((dispose) => { if (!cancelled) unsubs.push(dispose); else dispose(); });
+    return () => {
+      cancelled = true;
+      if (debounceId !== null) window.clearTimeout(debounceId);
+      unsubs.forEach((fn) => fn());
+    };
+  }, []);
+
   return (
     <>
-      <div className={`app-shell ${oneNoteMode ? "is-one-note" : "is-sticky"}`} data-layout={oneNoteMode ? "notebook" : "sticky"}>
-        <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} clotheslineOpen={clotheslineOpen} onToggleClothesline={() => void toggleClothesline()} />
+      <div className="app-shell" data-is-maximized={isNoteMode ? "true" : "false"}>
+        <Titlebar onOpenPalette={openPalette} onOpenSettings={openSettings} onDragStart={undockForDrag} />
         <EdgePresence edge={hiddenEdge} />
         <div className="app-body">
-          <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={setGroupId} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} />
+          {!isNoteMode && (
+          <GroupsSidebar selectedId={groupId} addRequest={createGroupRequest} onSelect={(id) => { setGroupId(id); setView("notes"); }} onNotice={notify} onNoteDrop={(noteId, targetGroupId, groupName) => void moveNoteToGroup(noteId, targetGroupId, groupName)} trashActive={view === "trash"} onShowTrash={showTrash} />
+          )}
           <main className="app-main">
-            <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} oneNoteMode={oneNoteMode} />
+            {!isNoteMode && view === "trash" ? (
+              <TrashView onNotice={notify} onRestored={() => setNotesRefreshRequest((value) => value + 1)} />
+            ) : isNoteMode ? (
+              <MaximizedNotesLayout
+                groupId={groupId}
+                createNoteRequest={createNoteRequest}
+                createGroupRequest={createGroupRequest}
+                openNoteId={openNoteId}
+                onOpenHandled={clearOpenNote}
+                onNotice={notify}
+                notesRefreshRequest={notesRefreshRequest}
+                view={view}
+                onShowTrash={showTrash}
+                onSelectGroup={(id) => { setGroupId(id); setView("notes"); }}
+                onTrashNote={async (id) => {
+                  await moveNoteToTrash(id);
+                  setNotesRefreshRequest((value) => value + 1);
+                }}
+                onTrashChanged={() => setNotesRefreshRequest((value) => value + 1)}
+              />
+            ) : (
+              <NotesGrid groupId={groupId} createRequest={createNoteRequest} openNoteId={openNoteId} onOpenHandled={clearOpenNote} onNotice={notify} refreshRequest={notesRefreshRequest} viewMode={viewMode} onViewModeChange={cycleViewMode}  />
+            )}
           </main>
         </div>
       </div>
@@ -429,10 +616,16 @@ export default function App() {
         lockPin={lockPin}
         busy={busy}
         fonts={fonts}
+        lineHeight={lineHeight}
+        onLineHeightChange={updateLineHeight}
+        availableFonts={availableFonts}
+        fontsLoading={fontsLoading}
         wanderOpacity={wanderOpacity}
         glassEnabled={glassEnabled}
         glassOpacity={glassOpacity}
-        clotheslineAutoShow={clotheslineAutoShow}
+        windowWidth={mainWindowSize.width}
+        windowHeight={mainWindowSize.height}
+        windowSizeBusy={windowSizeBusy}
         onClose={() => setSettingsOpen(false)}
         onDockingChange={setDocking}
         onAutostartChange={(enabled) => void updateAutostart(enabled)}
@@ -441,11 +634,15 @@ export default function App() {
         onWanderOpacityChange={updateWanderOpacity}
         onGlassChange={updateGlassEffect}
         onGlassOpacityChange={updateGlassOpacity}
-        onClotheslineAutoShowChange={updateClotheslineAutoShow}
+        onApplyWindowSize={(width, height) => void applyMainWindowSize({ width, height })}
+        onResetWindowSize={() => void applyMainWindowSize(defaultMainWindowSize)}
         onBackup={() => void snapshotNow()}
         onRestore={() => { setSettingsOpen(false); setRestoreOpen(true); }}
         onOpenBackups={() => void openBackups()}
         onShowHidden={() => void showHidden()}
+        onExport={() => { setSettingsOpen(false); setExportOpen(true); }}
+        autoBackup={autoBackup}
+        onAutoBackupChange={updateAutoBackup}
         dataDirectory={dataDirectory}
         defaultDataDirectory={defaultDataDirectory}
         dataDirectoryBusy={dataDirectoryBusy}
@@ -454,8 +651,11 @@ export default function App() {
         onSaveDataDirectory={() => void saveDataDirectory()}
         onResetDataDirectory={() => setDataDirectory(defaultDataDirectory)}
       />
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} onDone={(result) => { setExportOpen(false); notify({ kind: "success", message: `已导出 ${result.noteCount} 条便签：${result.path}` }); }} />
       {restoreOpen && <RestoreWizard onDone={() => setRestoreOpen(false)} onClose={() => setRestoreOpen(false)} />}
       {locked && <LockScreen pin={lockPin} onUnlock={() => setLocked(false)} />}
+      <ChangelogDialog entry={changelogEntry} onClose={dismissChangelog} />
+      <div id="tidbit-live" role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</div>
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );

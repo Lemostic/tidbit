@@ -25,7 +25,6 @@ const mockNotes: Note[] = [
     updated_at: 0,
     color: null,
     sort_order: 0,
-    clothesline_x: null,
   },
   {
     id: 2,
@@ -48,7 +47,6 @@ const mockNotes: Note[] = [
     updated_at: 0,
     color: null,
     sort_order: 1000,
-    clothesline_x: null,
   },
 ];
 
@@ -79,8 +77,7 @@ vi.mock("@tauri-apps/api/core", () => ({
         updated_at: Date.now(),
         color: null,
         sort_order: -1000,
-        clothesline_x: null,
-      };
+          };
       mockNotes.push(newNote);
       return newNote;
     }

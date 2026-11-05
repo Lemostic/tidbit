@@ -24,8 +24,9 @@ export interface Note {
   updated_at: number;
   color: string | null;
   sort_order: number;
-  /** Legacy clothesline position retained for compatibility; the current UI lays notes out evenly. */
-  clothesline_x: number | null;
+  status?: "todo" | "doing" | "done";
+  tags?: string[];
+  reminder?: { remind_at: number; notified: boolean; repeat_rule: string | null | undefined } | null;
 }
 
 export interface Group {
@@ -39,4 +40,11 @@ export interface Group {
   collapsed: boolean;
   created_at: number;
   updated_at: number;
+}
+export interface Revision {
+  id: number;
+  note_id: number;
+  content_md: string;
+  title: string | null;
+  created_at: number;
 }

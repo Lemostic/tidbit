@@ -1,13 +1,53 @@
 import { useEffect, useState } from "react";
-import { Leaf, MoonStars, SunDim } from "@phosphor-icons/react";
-import { applyTheme, type Theme } from "../../ui/theme";
-import { broadcastAppearance } from "../../ui/appearance";
+import {
+  ChatCircleDots,
+  City,
+  Code,
+  Ghost,
+  Leaf,
+  MoonStars,
+  Notebook,
+  Snowflake,
+  SunDim,
+  Terminal,
+  Tree,
+  Waveform,
+} from "@phosphor-icons/react";
+import { applyTheme, themes, type Theme } from "../../ui/theme";
+import { broadcastAppearance, loadAppearance } from "../../ui/appearance";
 
-const labels: Record<Theme, string> = { light: "浅色", dark: "深色", sepia: "护眼" };
-const themes: Theme[] = ["light", "dark", "sepia"];
+const labels: Record<Theme, string> = {
+  light: "浅色",
+  dark: "深色",
+  sepia: "护眼",
+  "tokyo-night": "Tokyo Night",
+  wechat: "微信风格",
+  evernote: "印象笔记",
+  "one-dark": "One Dark",
+  dracula: "Dracula",
+  nord: "Nord",
+  "solarized-dark": "Solarized Dark",
+  "gruvbox-dark": "Gruvbox",
+  monokai: "Monokai",
+};
+
+const ICONS: Record<Theme, typeof SunDim> = {
+  light: SunDim,
+  dark: MoonStars,
+  sepia: Leaf,
+  "tokyo-night": City,
+  wechat: ChatCircleDots,
+  evernote: Notebook,
+  "one-dark": Code,
+  dracula: Ghost,
+  nord: Snowflake,
+  "solarized-dark": Waveform,
+  "gruvbox-dark": Tree,
+  monokai: Terminal,
+};
 
 export function ThemeSwitcher({ expanded = false }: { expanded?: boolean }) {
-  const [t, setT] = useState<Theme>((localStorage.getItem("theme") as Theme) ?? "light");
+  const [t, setT] = useState<Theme>(() => loadAppearance().theme);
   useEffect(() => {
     applyTheme(t);
     localStorage.setItem("theme", t);
@@ -15,16 +55,16 @@ export function ThemeSwitcher({ expanded = false }: { expanded?: boolean }) {
     void broadcastAppearance().catch(() => undefined);
   }, [t]);
   useEffect(() => {
-    const sync = () => setT((localStorage.getItem("theme") as Theme) ?? "light");
+    const sync = () => setT(loadAppearance().theme);
     window.addEventListener("tidbit-theme", sync);
     return () => window.removeEventListener("tidbit-theme", sync);
   }, []);
   if (expanded) {
     return <select className="select" value={t} onChange={(e) => setT(e.target.value as Theme)} aria-label="主题">
-      <option value="light">浅色</option><option value="dark">深色</option><option value="sepia">护眼</option>
+      {themes.map((theme) => <option key={theme} value={theme}>{labels[theme]}</option>)}
     </select>;
   }
-  const Icon = t === "dark" ? MoonStars : t === "sepia" ? Leaf : SunDim;
+  const Icon = ICONS[t] ?? SunDim;
   return (
     <button
       className="btn-icon"

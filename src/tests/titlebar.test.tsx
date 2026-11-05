@@ -69,22 +69,3 @@ test("does not treat titlebar buttons as window drags", () => {
   expect(onDragStart).not.toHaveBeenCalled();
 });
 
-test("the clothesline control can close and reopen the board", () => {
-  const onToggleClothesline = vi.fn();
-  const { rerender } = render(
-    <Titlebar clotheslineOpen onToggleClothesline={onToggleClothesline} />,
-  );
-
-  const open = screen.getByRole("button", { name: "切换晾衣绳" });
-  expect(open).toHaveAttribute("aria-pressed", "true");
-  expect(open).toHaveAttribute("title", "关闭晾衣绳");
-  fireEvent.click(open);
-  expect(onToggleClothesline).toHaveBeenCalledOnce();
-
-  rerender(<Titlebar clotheslineOpen={false} onToggleClothesline={onToggleClothesline} />);
-  const closed = screen.getByRole("button", { name: "切换晾衣绳" });
-  expect(closed).toHaveAttribute("aria-pressed", "false");
-  expect(closed).toHaveAttribute("title", "打开晾衣绳");
-  fireEvent.click(closed);
-  expect(onToggleClothesline).toHaveBeenCalledTimes(2);
-});

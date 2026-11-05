@@ -1,5 +1,5 @@
-import { Archive, CaretDown, CaretUp, Cloud, CoatHanger, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Alarm, AppWindow, Archive, CaretDown, CaretUp, Cloud, Eye, EyeSlash, LockKey, PushPin, Trash } from "@phosphor-icons/react";
+import { type MouseEvent as ReactMouseEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Note } from "../../ipc/types";
 import { sanitizeNoteHtml } from "./sanitizeNoteHtml";
 
@@ -10,13 +10,21 @@ interface NoteCardProps {
   onToggleVisibility: () => void;
   onToggleArchive: () => void;
   onWander: () => void;
-  onHang: () => void;
+  onDetach?: () => void;
   onTrash: () => void;
+  onToggleTask?: (taskIndex: number, checked: boolean) => Promise<void>;
   wanderActive?: boolean;
-  hangingActive?: boolean;
 }
 
 const collapsedHeight = 220;
+
+function isInteractiveTarget(target: EventTarget | null, container: HTMLElement) {
+  if (!(target instanceof Element)) return false;
+  const interactive = target.closest(
+    "button, a, input, select, textarea, audio, video, [contenteditable='true'], [role='button'], [data-audio-recording]",
+  );
+  return Boolean(interactive && interactive !== container);
+}
 
 function formatTime(timestamp: number) {
   const date = new Date(timestamp);
@@ -27,11 +35,25 @@ function formatTime(timestamp: number) {
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 }
 
-export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onToggleArchive, onWander, onHang, onTrash, wanderActive = false, hangingActive = false }: NoteCardProps) {
+export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onToggleArchive, onWander, onDetach, onTrash, onToggleTask, wanderActive = false }: NoteCardProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [canCollapse, setCanCollapse] = useState(false);
   const renderedHtml = useMemo(() => sanitizeNoteHtml(note.content_html), [note.content_html]);
+
+  const handleTaskClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.dataset.taskCheckbox !== "true") return;
+    event.stopPropagation();
+    const inputs = Array.from(contentRef.current?.querySelectorAll<HTMLInputElement>('input[data-task-checkbox="true"]') ?? []);
+    const taskIndex = inputs.indexOf(target);
+    if (taskIndex < 0 || !onToggleTask) {
+      target.checked = !target.checked;
+      return;
+    }
+    const checked = target.checked;
+    void onToggleTask(taskIndex, checked).catch(() => { target.checked = !checked; });
+  };
 
   useLayoutEffect(() => {
     setExpanded(false);
@@ -47,30 +69,31 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
   return (
     <article
       className={`note-card__inner${note.is_content_hidden ? " is-content-hidden" : ""}${wanderActive ? " is-wandering" : ""}`}
+      tabIndex={note.is_content_hidden || wanderActive ? undefined : 0}
+      aria-label={note.is_content_hidden || wanderActive ? undefined : `打开便签：${note.title?.trim() || "无标题"}`}
       onClick={note.is_content_hidden || wanderActive ? undefined : (event) => {
-        if (event.target instanceof Element && event.target.closest("[data-audio-recording]")) return;
+        if (isInteractiveTarget(event.target, event.currentTarget)) return;
+        onOpen();
+      }}
+      onKeyDown={note.is_content_hidden || wanderActive ? undefined : (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        if (isInteractiveTarget(event.target, event.currentTarget)) return;
+        event.preventDefault();
+        event.stopPropagation();
         onOpen();
       }}
     >
       <header className="note-card__head">
         <p className="note-card__title">{note.is_content_hidden ? "隐私便签" : note.title?.trim() || "无标题"}</p>
+        {note.is_archived && <span className="note-card__archived">已归档</span>}
+        {wanderActive && <span className="note-card__wandering">桌面云游中</span>}
         <div className="note-card__actions">
-          <button
-            className={`note-action${hangingActive ? " is-active" : ""}`}
-            aria-label={hangingActive ? "从晾衣绳取下" : "晾到绳上"}
-            title={
-              wanderActive ? "先关闭云游便签再挂到绳上"
-                : hangingActive ? "从晾衣绳取下"
-                  : "晾到绳上"
-            }
-            disabled={wanderActive}
-            onClick={(event) => { event.stopPropagation(); onHang(); }}
-          ><CoatHanger size={14} weight={hangingActive ? "fill" : "regular"} /></button>
+          <button className="note-action" aria-label="撕出独立窗口" title="撕出独立窗口" disabled={wanderActive} onClick={(event) => { event.stopPropagation(); onDetach?.(); }}><AppWindow size={14} /></button>
           <button
             className="note-action"
             aria-label="云游便签"
-            title={hangingActive ? "先从晾衣绳取下" : "在桌面单独显示"}
-            disabled={wanderActive || hangingActive}
+            title="在桌面单独显示"
+            disabled={wanderActive}
             onClick={(event) => { event.stopPropagation(); onWander(); }}
           ><Cloud size={14} weight="duotone" /></button>
           <button
@@ -92,7 +115,7 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
             title={note.is_archived ? "取消归档" : "归档后默认隐藏"}
             disabled={wanderActive}
             onClick={(event) => { event.stopPropagation(); onToggleArchive(); }}
-          >{note.is_archived ? <Archive size={14} weight="fill" /> : <Archive size={14} />}</button>
+          ><Archive size={14} weight={note.is_archived ? "fill" : "regular"} /></button>
           <button
             className="note-action is-danger"
             aria-label="删除便签"
@@ -103,15 +126,8 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
         </div>
       </header>
 
-      {(note.is_pinned || note.is_archived || note.is_content_hidden || wanderActive || hangingActive) && (
-        <div className="note-card__badges">
-          {note.is_pinned && <span className="note-card__pinned">已置顶</span>}
-          {note.is_content_hidden && <span className="note-card__hidden">已隐藏</span>}
-          {hangingActive && <span className="note-card__hanging">晾挂中</span>}
-          {wanderActive && <span className="note-card__wandering">桌面云游中</span>}
-          {note.is_archived && <span className="note-card__archived">已归档</span>}
-        </div>
-      )}
+      {(note.tags?.length ?? 0) > 0 && <div className="note-card__tags" aria-label="便签标签">{note.tags?.map((tag) => <span key={tag} className="note-tag">{tag}</span>)}</div>}
+      {note.reminder && <div className={`note-card__reminder${note.reminder.remind_at < Date.now() && !note.reminder.notified ? " is-overdue" : ""}`}><Alarm size={12} />{new Date(note.reminder.remind_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>}
 
       {note.is_content_hidden ? (
         <div className="note-card__encrypted"><LockKey size={17} weight="duotone" /><span>该条便签内容已加密</span></div>
@@ -120,9 +136,9 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
           ref={contentRef}
           className={`note-card__content${expanded ? " is-expanded" : ""}`}
           style={canCollapse && !expanded ? { maxHeight: collapsedHeight } : undefined}
-        >
-          <div className="note-card__content-body" dangerouslySetInnerHTML={{ __html: renderedHtml }} />
-        </div>
+          onClick={handleTaskClick}
+          dangerouslySetInnerHTML={{ __html: renderedHtml }}
+        />
       ) : (
         <p className="note-card__placeholder">点击开始记录内容</p>
       )}
@@ -140,7 +156,6 @@ export function NoteCard({ note, onOpen, onTogglePin, onToggleVisibility, onTogg
       <footer className="note-card__meta mono">
         <span>{formatTime(note.updated_at)}</span>
         <span>{note.word_count} 字</span>
-        <span>#{note.id}</span>
       </footer>
     </article>
   );

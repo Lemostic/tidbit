@@ -1,22 +1,29 @@
-import { useEffect, useRef } from "react";
-import type { MouseEvent } from "react";
 import {
   Archive,
+  ArrowsOut,
+  ClockCounterClockwise,
   Eye,
   FolderOpen,
   HardDrive,
-  CoatHanger,
   LockKey,
   Power,
   PushPin,
   Cloud,
   Drop,
+  Export,
   ShieldCheck,
+  Stack,
   TextT,
   X,
 } from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import type { AutoBackupSettings } from "../backup/useBackupStatus";
 import type { FontPreferences } from "../../ui/fontPreferences";
+import { lineHeightStep, maxLineHeight, minLineHeight } from "../../ui/lineHeightPreference";
+import { commonSystemFonts, normalizeFontFamilies } from "../../ui/systemFonts";
+import { defaultMainWindowSize, maximumMainWindowSize, minimumMainWindowSize } from "../../ui/windowSizePreferences";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import { useMagneticHover } from "../../ui/useMagneticHover";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -26,448 +33,556 @@ interface SettingsPanelProps {
   lockPin: string;
   busy: boolean;
   fonts: FontPreferences;
+  availableFonts: readonly string[];
+  fontsLoading: boolean;
   wanderOpacity: number;
   glassEnabled: boolean;
   glassOpacity: number;
-  clotheslineAutoShow: boolean;
+  windowWidth: number;
+  windowHeight: number;
+  windowSizeBusy: boolean;
   onClose: () => void;
   onDockingChange: (enabled: boolean) => void;
   onAutostartChange: (enabled: boolean) => void;
   onLockPinChange: (pin: string) => void;
+  lineHeight: number;
   onFontsChange: (fonts: FontPreferences) => void;
+  onLineHeightChange: (value: number) => void;
   onWanderOpacityChange: (opacity: number) => void;
   onGlassChange: (enabled: boolean) => void;
   onGlassOpacityChange: (opacity: number) => void;
-  onClotheslineAutoShowChange: (enabled: boolean) => void;
+  onApplyWindowSize: (width: number, height: number) => void;
+  onResetWindowSize: () => void;
   onBackup: () => void;
   onRestore: () => void;
   onOpenBackups: () => void;
   onShowHidden: () => void;
+  onExport?: () => void;
+  autoBackup: AutoBackupSettings;
+  onAutoBackupChange: (settings: AutoBackupSettings) => void;
   dataDirectory: string;
   defaultDataDirectory: string;
   dataDirectoryBusy: boolean;
-  onDataDirectoryChange: (directory: string) => void;
+  onDataDirectoryChange: (path: string) => void;
   onPickDataDirectory: () => void;
   onSaveDataDirectory: () => void;
   onResetDataDirectory: () => void;
 }
 
-const settingsSections = [
-  { id: "settings-appearance", index: "01", label: "外观与材质", hint: "主题 / 玻璃" },
-  { id: "settings-behavior", index: "02", label: "工作方式", hint: "吸附 / 启动" },
-  { id: "settings-typography", index: "03", label: "字体与云游", hint: "排版 / 透明度" },
-  { id: "settings-data", index: "04", label: "数据与安全", hint: "目录 / 隐私" },
-  { id: "settings-backup", index: "05", label: "备份与恢复", hint: "快照 / 找回" },
+const settingsSectionIds = [
+  "settings-appearance",
+  "settings-window",
+  "settings-type",
+  "settings-wander",
+  "settings-privacy",
+  "settings-maintenance",
 ] as const;
 
+type SettingsSectionId = (typeof settingsSectionIds)[number];
+
+function wheelDeltaInPixels(event: WheelEvent, pageHeight: number) {
+  if (event.deltaMode === 1) return event.deltaY * 16;
+  if (event.deltaMode === 2) return event.deltaY * pageHeight;
+  return event.deltaY;
+}
+
+interface MagneticActionProps {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
+  type?: "button" | "submit";
+  title?: string;
+}
+
+function MagneticAction({ children, onClick, disabled, className, ariaLabel, type = "button", title }: MagneticActionProps) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useMagneticHover(ref, { strength: 0.16, scale: 1.02 });
+  return (
+    <button
+      ref={ref}
+      type={type}
+      className={className}
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      title={title}
+      style={{ willChange: "transform" } as CSSProperties}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function SettingsPanel(props: SettingsPanelProps) {
+  const [widthDraft, setWidthDraft] = useState(String(props.windowWidth));
+  const [heightDraft, setHeightDraft] = useState(String(props.windowHeight));
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>("settings-appearance");
   const panelRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const onCloseRef = useRef(props.onClose);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const fontOptions = useMemo(() => normalizeFontFamilies([
+    ...props.availableFonts,
+    ...commonSystemFonts,
+    props.fonts.group,
+    props.fonts.noteTitle,
+    props.fonts.noteBody,
+  ]), [props.availableFonts, props.fonts.group, props.fonts.noteBody, props.fonts.noteTitle]);
 
+  const updateActiveSection = useCallback(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const maxScrollTop = Math.max(0, body.scrollHeight - body.clientHeight);
+    if (maxScrollTop > 0 && body.scrollTop >= maxScrollTop - 2) {
+      setActiveSection("settings-maintenance");
+      return;
+    }
+
+    const activationLine = body.scrollTop + Math.min(160, body.clientHeight * 0.28);
+    let nextSection: SettingsSectionId = settingsSectionIds[0];
+    for (const sectionId of settingsSectionIds) {
+      const section = body.querySelector<HTMLElement>(`[aria-labelledby="${sectionId}"]`);
+      if (section && section.offsetTop <= activationLine) nextSection = sectionId;
+    }
+    setActiveSection(nextSection);
+  }, []);
+
+  useEffect(() => setWidthDraft(String(props.windowWidth)), [props.windowWidth]);
+  useEffect(() => setHeightDraft(String(props.windowHeight)), [props.windowHeight]);
   useEffect(() => {
-    onCloseRef.current = props.onClose;
-  }, [props.onClose]);
+    if (!props.open) return;
+    setActiveSection("settings-appearance");
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [props.open]);
 
   useEffect(() => {
     if (!props.open) return;
-    const panel = panelRef.current;
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeButtonRef.current?.focus();
-
-    const focusableSelector = [
-      "a[href]",
-      "button:not([disabled])",
-      "input:not([disabled])",
-      "select:not([disabled])",
-      "textarea:not([disabled])",
-      "[tabindex]:not([tabindex='-1'])",
-    ].join(",");
-
-    const visibleFocusable = () => {
-      if (!panel) return [];
-      return Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector)).filter((element) => {
-        // A collapsed settings index (compact windows) still contains anchors
-        // in the DOM, so walk ancestors before adding them to the Tab loop.
-        let current: HTMLElement | null = element;
-        while (current) {
-          if (current.hidden || current.getAttribute("aria-hidden") === "true") return false;
-          const style = window.getComputedStyle(current);
-          if (style.display === "none" || style.visibility === "hidden") return false;
-          if (current === panel) break;
-          current = current.parentElement;
-        }
-        return true;
-      });
-    };
-
-    // Other overlays (for example the lock screen) can be rendered above the
-    // settings folio without closing it. Leave keyboard handling to them.
-    const isTopmostDialog = () => {
-      if (!panel) return false;
-      const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'));
-      return dialogs[dialogs.length - 1] === panel;
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isTopmostDialog()) return;
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        onCloseRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-
-      const focusable = visibleFocusable();
-      if (focusable.length === 0) {
-        event.preventDefault();
-        panel?.focus();
-        return;
-      }
-
-      const first = focusable[0]!;
-      const last = focusable[focusable.length - 1]!;
-      const active = document.activeElement;
-      const outsidePanel = !(active instanceof Node) || !panel?.contains(active);
-      if (event.shiftKey && (active === first || outsidePanel)) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (active === last || outsidePanel)) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown, true);
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus({ preventScroll: true });
     return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-      const replacedByDialog = Array.from(document.querySelectorAll('[role="dialog"]'))
-        .some((dialog) => dialog !== panel);
-      if (!replacedByDialog && previousFocus?.isConnected) previousFocus.focus();
+      const previous = previousFocusRef.current;
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+      previousFocusRef.current = null;
     };
   }, [props.open]);
 
-  if (!props.open) return null;
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!props.open || !panel) return;
 
-  function jumpToSection(event: MouseEvent<HTMLAnchorElement>, id: string) {
+    const handleWheel = (event: WheelEvent) => {
+      const body = bodyRef.current;
+      if (!body || event.ctrlKey) return;
+
+      const maxScrollTop = Math.max(0, body.scrollHeight - body.clientHeight);
+      const delta = wheelDeltaInPixels(event, body.clientHeight);
+      const nextScrollTop = Math.max(0, Math.min(maxScrollTop, body.scrollTop + delta));
+      if (nextScrollTop === body.scrollTop) return;
+
+      event.preventDefault();
+      body.scrollTop = nextScrollTop;
+      updateActiveSection();
+    };
+
+    panel.addEventListener("wheel", handleWheel, { passive: false });
+    return () => panel.removeEventListener("wheel", handleWheel);
+  }, [props.open, updateActiveSection]);
+
+  const scrollToSection = (sectionId: SettingsSectionId) => {
+    setActiveSection(sectionId);
     const body = bodyRef.current;
-    const target = body?.querySelector<HTMLElement>(`#${id}`);
-    if (!body || !target) return;
-    event.preventDefault();
-    const reduceMotion = typeof window.matchMedia === "function"
-      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (typeof target.scrollIntoView === "function") {
-      target.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
-    } else {
-      body.scrollTop = Math.max(0, target.offsetTop - body.offsetTop);
+    const section = body?.querySelector<HTMLElement>(`[aria-labelledby="${sectionId}"]`);
+    if (!body || !section) return;
+    if (typeof body.scrollTo === "function") body.scrollTo({ top: section.offsetTop, behavior: "smooth" });
+    else body.scrollTop = section.offsetTop;
+  };
+
+  const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      props.onClose();
+      return;
     }
-  }
+    if (event.key !== "Tab") return;
 
+    const panel = panelRef.current;
+    if (!panel) return;
+    const focusable = Array.from(panel.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
+
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !panel.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  const widthValue = Number(widthDraft);
+  const heightValue = Number(heightDraft);
+  const widthValid = widthDraft.trim() !== "" && Number.isFinite(widthValue)
+    && widthValue >= minimumMainWindowSize.width && widthValue <= maximumMainWindowSize.width;
+  const heightValid = heightDraft.trim() !== "" && Number.isFinite(heightValue)
+    && heightValue >= minimumMainWindowSize.height && heightValue <= maximumMainWindowSize.height;
+  const windowSizeValid = widthValid && heightValid;
+  const windowSizeMessage = !widthValid
+    ? `宽度需在 ${minimumMainWindowSize.width}-${maximumMainWindowSize.width} 之间。`
+    : !heightValid
+      ? `高度需在 ${minimumMainWindowSize.height}-${maximumMainWindowSize.height} 之间。`
+      : "拖动窗口边缘后，这里的宽高会自动更新。";
+
+  if (!props.open) return null;
   return (
-    <div
-      className="modal-scrim modal-scrim--settings"
-      onClick={(event) => {
-        event.stopPropagation();
-        if (event.target === event.currentTarget) props.onClose();
-      }}
-    >
-      <section className="settings-panel" role="dialog" aria-modal="true" aria-label="设置" ref={panelRef} tabIndex={-1}>
-        <aside className="settings-index" aria-label="设置目录">
-          <div className="settings-index__identity">
-            <div className="settings-index__plate" aria-hidden="true">T</div>
-            <div className="settings-index__wordmark">
-              <strong>TIDBIT</strong>
-              <span>INK &amp; PAPER / 纸本工作台</span>
-            </div>
+    <div className="modal-scrim" onKeyDown={handleDialogKeyDown} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) props.onClose(); }}>
+      <section ref={panelRef} className="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}>
+        <header className="settings-panel__head">
+          <div>
+            <span className="settings-panel__eyebrow">TIDBIT</span>
+            <h2 id="settings-title">设置</h2>
           </div>
+          <button ref={closeButtonRef} className="btn-icon" onClick={props.onClose} aria-label="关闭设置" title="关闭设置">
+            <X size={16} weight="bold" />
+          </button>
+        </header>
 
-          <nav className="settings-index__nav" aria-label="设置分区">
-            {settingsSections.map((section) => (
-              <a
-                key={section.id}
-                className="settings-index__link"
-                href={`#${section.id}`}
-                aria-controls={section.id}
-                onClick={(event) => jumpToSection(event, section.id)}
-              >
-                <span className="settings-index__number" aria-hidden="true">{section.index}</span>
-                <span className="settings-index__label">
-                  <strong>{section.label}</strong>
-                  <small>{section.hint}</small>
-                </span>
-              </a>
-            ))}
+        <div className="settings-panel__workspace">
+          <nav className="settings-panel__nav" aria-label="设置分类">
+            <button type="button" className={activeSection === "settings-appearance" ? "is-active" : ""} aria-current={activeSection === "settings-appearance" ? "page" : undefined} onClick={() => scrollToSection("settings-appearance")}><Eye size={16} /><span>外观</span></button>
+            <button type="button" className={activeSection === "settings-window" ? "is-active" : ""} aria-current={activeSection === "settings-window" ? "page" : undefined} onClick={() => scrollToSection("settings-window")}><ArrowsOut size={16} /><span>窗口</span></button>
+            <button type="button" className={activeSection === "settings-type" ? "is-active" : ""} aria-current={activeSection === "settings-type" ? "page" : undefined} onClick={() => scrollToSection("settings-type")}><TextT size={16} /><span>文字</span></button>
+            <button type="button" className={activeSection === "settings-wander" ? "is-active" : ""} aria-current={activeSection === "settings-wander" ? "page" : undefined} onClick={() => scrollToSection("settings-wander")}><Cloud size={16} /><span>云游便签</span></button>
+            <button type="button" className={activeSection === "settings-privacy" ? "is-active" : ""} aria-current={activeSection === "settings-privacy" ? "page" : undefined} onClick={() => scrollToSection("settings-privacy")}><ShieldCheck size={16} /><span>数据与隐私</span></button>
+            <button type="button" className={activeSection === "settings-maintenance" ? "is-active" : ""} aria-current={activeSection === "settings-maintenance" ? "page" : undefined} onClick={() => scrollToSection("settings-maintenance")}><Archive size={16} /><span>维护</span></button>
           </nav>
 
-          <div className="settings-index__foot">
-            <strong>偏好即时保存</strong>
-            <span>外观与行为设置立即生效；数据迁移需显式确认。</span>
-          </div>
-        </aside>
-
-        <div className="settings-panel__main">
-          <header className="settings-panel__head">
-            <div className="settings-panel__heading">
-              <span className="settings-panel__eyebrow">PREFERENCES / 偏好设置</span>
-              <h2>设置</h2>
-              <p className="settings-panel__lede">调整纸面、墨色与工作台的运转方式。</p>
+          <div
+            ref={bodyRef}
+            className="settings-panel__body"
+            tabIndex={0}
+            aria-label="设置内容"
+            onScroll={updateActiveSection}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return;
+              const body = event.currentTarget;
+              const pageStep = Math.max(40, body.clientHeight - 48);
+              const nextScrollTop = {
+                ArrowDown: body.scrollTop + 40,
+                ArrowUp: body.scrollTop - 40,
+                PageDown: body.scrollTop + pageStep,
+                PageUp: body.scrollTop - pageStep,
+                Home: 0,
+                End: body.scrollHeight,
+              }[event.key];
+              if (nextScrollTop === undefined) return;
+              event.preventDefault();
+              body.scrollTop = nextScrollTop;
+              updateActiveSection();
+            }}
+          >
+          <section className="settings-section" aria-labelledby="settings-appearance">
+            <header className="settings-section__head">
+              <div><span id="settings-appearance">外观</span><small>主题、材质与界面清晰度</small></div>
+            </header>
+          <div className="settings-row">
+            <div className="settings-row__icon"><Eye size={17} /></div>
+            <div className="settings-row__copy">
+              <strong>界面主题</strong>
+              <span>浅色、深色、护眼、Tokyo Night、微信与印象笔记</span>
             </div>
-            <button ref={closeButtonRef} className="btn-icon settings-panel__close" onClick={props.onClose} aria-label="关闭设置" title="关闭设置">
-              <X size={17} weight="bold" />
-            </button>
-          </header>
+            <ThemeSwitcher expanded />
+          </div>
 
-          <div className="settings-panel__body" ref={bodyRef}>
-            <section className="settings-section" id="settings-appearance" aria-labelledby="settings-appearance-title">
-              <header className="settings-section__head">
-                <span className="settings-section__number" aria-hidden="true">01</span>
-                <div className="settings-section__title">
-                  <h3 id="settings-appearance-title">外观与材质</h3>
-                  <p>选择纸面的明度、墨色语气，以及玻璃层的通透程度。</p>
-                </div>
-              </header>
-              <div className="settings-section__content">
-                <div className="settings-row settings-row--lead">
-                  <div className="settings-row__icon"><Eye size={19} /></div>
-                  <div className="settings-row__copy">
-                    <strong>界面主题</strong>
-                    <span>浅色、深色与护眼模式</span>
-                  </div>
-                  <ThemeSwitcher expanded />
-                </div>
+          <div className="settings-row">
+            <div className="settings-row__icon settings-row__icon--glass"><Drop size={17} weight="duotone" /></div>
+            <div className="settings-row__copy">
+              <strong>液态玻璃</strong>
+              <span>与当前主题组合使用</span>
+            </div>
+            <input
+              type="checkbox"
+              className="switch"
+              checked={props.glassEnabled}
+              onChange={(event) => props.onGlassChange(event.target.checked)}
+              aria-label="液态玻璃"
+            />
+          </div>
 
-                <div className="settings-grid settings-grid--2">
-                  <div className="settings-row">
-                    <div className="settings-row__icon settings-row__icon--glass"><Drop size={19} weight="duotone" /></div>
-                    <div className="settings-row__copy">
-                      <strong>液态玻璃</strong>
-                      <span>与当前主题组合使用</span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      className="switch"
-                      checked={props.glassEnabled}
-                      onChange={(event) => props.onGlassChange(event.target.checked)}
-                      aria-label="液态玻璃"
-                    />
-                  </div>
+          <div className="settings-field settings-opacity">
+            <label htmlFor="glass-opacity"><Drop size={16} weight="duotone" /> 液态玻璃模糊强度 <span>{props.glassOpacity}%</span></label>
+            <input id="glass-opacity" type="range" min="55" max="100" step="1" value={props.glassOpacity} onChange={(event) => props.onGlassOpacityChange(Number(event.target.value))} aria-label="液态玻璃不透明度" />
+            <div className="settings-opacity__scale"><span>更通透</span><span>更清晰</span></div>
+          </div>
+          </section>
 
-                  <div className="settings-field settings-opacity">
-                    <label htmlFor="glass-opacity">
-                      <Drop size={17} weight="duotone" /> 液态玻璃不透明度 <span>{props.glassOpacity}%</span>
-                    </label>
-                    <input
-                      id="glass-opacity"
-                      type="range"
-                      min="55"
-                      max="100"
-                      step="1"
-                      value={props.glassOpacity}
-                      onChange={(event) => props.onGlassOpacityChange(Number(event.target.value))}
-                      aria-label="液态玻璃不透明度"
-                    />
-                    <div className="settings-opacity__scale"><span>更通透</span><span>更清晰</span></div>
-                  </div>
-                </div>
-              </div>
-            </section>
+          <section className="settings-section" aria-labelledby="settings-window">
+            <header className="settings-section__head">
+              <div><span id="settings-window">窗口</span><small>尺寸、吸附与启动行为</small></div>
+            </header>
+          <div className="settings-field settings-window-size">
+            <label><ArrowsOut size={16} /> 软件主体尺寸</label>
+            <div className="settings-window-size__grid">
+              <label>
+                <span>宽度</span>
+                <input
+                  className="field"
+                  type="number"
+                  min={minimumMainWindowSize.width}
+                  max="3840"
+                   step="10"
+                   value={widthDraft}
+                   onChange={(event) => setWidthDraft(event.target.value)}
+                   aria-label="软件主体宽度"
+                   aria-invalid={!widthValid}
+                   aria-describedby="settings-window-size-status"
+                />
+              </label>
+              <span className="settings-window-size__times" aria-hidden="true">×</span>
+              <label>
+                <span>高度</span>
+                <input
+                  className="field"
+                  type="number"
+                  min={minimumMainWindowSize.height}
+                  max="2160"
+                   step="10"
+                   value={heightDraft}
+                   onChange={(event) => setHeightDraft(event.target.value)}
+                   aria-label="软件主体高度"
+                   aria-invalid={!heightValid}
+                   aria-describedby="settings-window-size-status"
+                />
+              </label>
+            </div>
+            <div className="settings-window-size__actions">
+              <small id="settings-window-size-status" aria-live="polite" data-error={!windowSizeValid}>{windowSizeMessage}</small>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                aria-label="恢复默认窗口尺寸"
+                disabled={props.windowSizeBusy}
+                onClick={() => {
+                  setWidthDraft(String(defaultMainWindowSize.width));
+                  setHeightDraft(String(defaultMainWindowSize.height));
+                  props.onResetWindowSize();
+                }}
+              >恢复默认</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={props.windowSizeBusy || !windowSizeValid}
+                onClick={() => { if (windowSizeValid) props.onApplyWindowSize(widthValue, heightValue); }}
+              >{props.windowSizeBusy ? "正在调整" : "应用尺寸"}</button>
+            </div>
+          </div>
 
-            <section className="settings-section" id="settings-behavior" aria-labelledby="settings-behavior-title">
-              <header className="settings-section__head">
-                <span className="settings-section__number" aria-hidden="true">02</span>
-                <div className="settings-section__title">
-                  <h3 id="settings-behavior-title">工作方式</h3>
-                  <p>决定窗口如何停留在桌面，以及应用何时开始工作。</p>
-                </div>
-              </header>
-              <div className="settings-section__content">
-                <div className="settings-grid settings-grid--2">
-                  <div className="settings-row">
-                    <div className="settings-row__icon"><PushPin size={19} /></div>
-                    <div className="settings-row__copy">
-                      <strong>边缘吸附</strong>
-                      <span>拖动标题栏结束时靠齐屏幕边缘</span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      className="switch"
-                      checked={props.dockingEnabled}
-                      onChange={(event) => props.onDockingChange(event.target.checked)}
-                      aria-label="边缘吸附"
-                    />
-                  </div>
+          <div className="settings-row">
+            <div className="settings-row__icon"><PushPin size={17} /></div>
+            <div className="settings-row__copy">
+              <strong>边缘吸附</strong>
+              <span>拖动标题栏结束时靠齐屏幕边缘</span>
+            </div>
+            <input
+              type="checkbox"
+              className="switch"
+              checked={props.dockingEnabled}
+              onChange={(e) => props.onDockingChange(e.target.checked)}
+              aria-label="边缘吸附"
+            />
+          </div>
 
-                  <div className="settings-row">
-                    <div className="settings-row__icon"><Power size={19} /></div>
-                    <div className="settings-row__copy">
-                      <strong>开机自动启动</strong>
-                      <span>登录 Windows 后自动启动 tidbit</span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      className="switch"
-                      checked={props.autostartEnabled}
-                      disabled={props.autostartBusy}
-                      onChange={(event) => props.onAutostartChange(event.target.checked)}
-                      aria-label="开机自动启动"
-                    />
-                  </div>
-                </div>
+          <div className="settings-row">
+            <div className="settings-row__icon"><Power size={17} /></div>
+            <div className="settings-row__copy">
+              <strong>开机自动启动</strong>
+              <span>登录 Windows 后自动启动 tidbit</span>
+            </div>
+            <input
+              type="checkbox"
+              className="switch"
+              checked={props.autostartEnabled}
+              disabled={props.autostartBusy}
+              onChange={(event) => props.onAutostartChange(event.target.checked)}
+              aria-label="开机自动启动"
+            />
+          </div>
+          </section>
 
-                <div className="settings-row">
-                  <div className="settings-row__icon"><CoatHanger size={19} weight="duotone" /></div>
-                  <div className="settings-row__copy">
-                    <strong>启动时显示晾衣绳</strong>
-                    <span>打开 App 时自动展开桌面顶部的便签绳索</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    className="switch"
-                    checked={props.clotheslineAutoShow}
-                    onChange={(event) => props.onClotheslineAutoShowChange(event.target.checked)}
-                    aria-label="启动时显示晾衣绳"
-                  />
-                </div>
-              </div>
-            </section>
+          <section className="settings-section" aria-labelledby="settings-type">
+            <header className="settings-section__head">
+              <div><span id="settings-type">文字</span><small>让分组与正文更符合阅读习惯</small></div>
+            </header>
+          <div className="settings-field settings-fonts">
+            <label><TextT size={16} /> 字体设置</label>
+            <div className="settings-fonts__grid">
+              <label>
+                <span>左侧分组</span>
+                <select className="select" aria-label="左侧分组字体" value={props.fonts.group} onChange={(e) => props.onFontsChange({ ...props.fonts, group: e.target.value })}>
+                  {fontOptions.map((font) => <option key={font} value={font}>{font}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>便签标题</span>
+                <select className="select" aria-label="便签标题字体" value={props.fonts.noteTitle} onChange={(e) => props.onFontsChange({ ...props.fonts, noteTitle: e.target.value })}>
+                  {fontOptions.map((font) => <option key={font} value={font}>{font}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>便签正文</span>
+                <select className="select" aria-label="便签正文字体" value={props.fonts.noteBody} onChange={(e) => props.onFontsChange({ ...props.fonts, noteBody: e.target.value })}>
+                  {fontOptions.map((font) => <option key={font} value={font}>{font}</option>)}
+                </select>
+              </label>
+            </div>
+            <small className="settings-fonts__status" aria-live="polite">
+              {props.fontsLoading ? "正在读取 Windows 系统字体…" : `已加载 ${fontOptions.length} 种可用字体。`}
+            </small>
+          </div>
 
-            <section className="settings-section" id="settings-typography" aria-labelledby="settings-typography-title">
-              <header className="settings-section__head">
-                <span className="settings-section__number" aria-hidden="true">03</span>
-                <div className="settings-section__title">
-                  <h3 id="settings-typography-title">字体与云游</h3>
-                  <p>为分组、标题与正文指定字体，并调校桌面便签的透明度。</p>
-                </div>
-              </header>
-              <div className="settings-section__content">
-                <div className="settings-field settings-field--block settings-fonts">
-                  <label><TextT size={17} /> 字体设置</label>
-                  <div className="settings-fonts__grid">
-                    <label>
-                      <span>左侧分组</span>
-                      <input className="field" list="tidbit-fonts" value={props.fonts.group} onChange={(event) => props.onFontsChange({ ...props.fonts, group: event.target.value })} />
-                    </label>
-                    <label>
-                      <span>便签标题</span>
-                      <input className="field" list="tidbit-fonts" value={props.fonts.noteTitle} onChange={(event) => props.onFontsChange({ ...props.fonts, noteTitle: event.target.value })} />
-                    </label>
-                    <label>
-                      <span>便签正文</span>
-                      <input className="field" list="tidbit-fonts" value={props.fonts.noteBody} onChange={(event) => props.onFontsChange({ ...props.fonts, noteBody: event.target.value })} />
-                    </label>
-                  </div>
-                  <datalist id="tidbit-fonts">
-                    <option value="Microsoft YaHei UI" />
-                    <option value="Microsoft YaHei" />
-                    <option value="Segoe UI Variable" />
-                    <option value="Segoe UI" />
-                    <option value="SimHei" />
-                    <option value="KaiTi" />
-                    <option value="FangSong" />
-                  </datalist>
-                  <small>可选择常用字体，也可以直接输入电脑中已安装的字体名称。</small>
-                </div>
+          <div className="settings-field settings-opacity">
+            <label htmlFor="note-line-height"><TextT size={16} /> 笔记正文行间距 <span>{props.lineHeight.toFixed(2)}</span></label>
+            <input
+              id="note-line-height"
+              type="range"
+              min={minLineHeight}
+              max={maxLineHeight}
+              step={lineHeightStep}
+              value={props.lineHeight}
+              onChange={(event) => props.onLineHeightChange(Number(event.target.value))}
+              aria-label="笔记正文行间距"
+            />
+            <div className="settings-opacity__scale"><span>紧凑</span><span>舒展</span></div>
+          </div>
+          </section>
 
-                <div className="settings-field settings-field--block settings-opacity">
-                  <label htmlFor="wander-opacity"><Cloud size={17} /> 云游便签透明度 <span>{props.wanderOpacity}%</span></label>
-                  <input
-                    id="wander-opacity"
-                    type="range"
-                    min="45"
-                    max="100"
-                    step="1"
-                    value={props.wanderOpacity}
-                    onChange={(event) => props.onWanderOpacityChange(Number(event.target.value))}
-                  />
-                  <div className="settings-opacity__scale"><span>轻透</span><span>不透明</span></div>
-                </div>
-              </div>
-            </section>
+          <section className="settings-section" aria-labelledby="settings-wander">
+            <header className="settings-section__head">
+              <div><span id="settings-wander">云游便签</span><small>桌面悬浮卡片的可见程度</small></div>
+            </header>
+          <div className="settings-field settings-opacity">
+            <label htmlFor="wander-opacity"><Cloud size={16} /> 云游便签透明度 <span>{props.wanderOpacity}%</span></label>
+            <input id="wander-opacity" type="range" min="45" max="100" step="1" value={props.wanderOpacity} onChange={(event) => props.onWanderOpacityChange(Number(event.target.value))} />
+            <div className="settings-opacity__scale"><span>轻透</span><span>不透明</span></div>
+          </div>
+          </section>
 
-            <section className="settings-section" id="settings-data" aria-labelledby="settings-data-title">
-              <header className="settings-section__head">
-                <span className="settings-section__number" aria-hidden="true">04</span>
-                <div className="settings-section__title">
-                  <h3 id="settings-data-title">数据与安全</h3>
-                  <p>数据目录与隐私锁定都只作用于这台电脑。</p>
-                </div>
-              </header>
-              <div className="settings-section__content">
-                <div className="settings-field settings-field--block settings-data-directory">
-                  <label htmlFor="data-directory"><HardDrive size={17} /> 数据目录</label>
-                  <div className="settings-data-directory__control">
-                    <input
-                      id="data-directory"
-                      className="field"
-                      value={props.dataDirectory}
-                      onChange={(event) => props.onDataDirectoryChange(event.target.value)}
-                      spellCheck={false}
-                    />
-                    <button type="button" className="btn" onClick={props.onPickDataDirectory} disabled={props.dataDirectoryBusy}>选择</button>
-                  </div>
-                  <div className="settings-data-directory__actions">
-                    <small>修改后将迁移数据库和备份，并自动重启。</small>
-                    <button type="button" className="btn btn-ghost" onClick={props.onResetDataDirectory} disabled={props.dataDirectoryBusy || props.dataDirectory === props.defaultDataDirectory}>恢复默认</button>
-                    <button type="button" className="btn btn-primary" onClick={props.onSaveDataDirectory} disabled={props.dataDirectoryBusy}>迁移并重启</button>
-                  </div>
-                </div>
+          <section className="settings-section" aria-labelledby="settings-privacy">
+            <header className="settings-section__head">
+              <div><span id="settings-privacy">数据与隐私</span><small>存储位置和本地界面锁定</small></div>
+            </header>
+          <div className="settings-field settings-data-directory">
+            <label htmlFor="data-directory"><HardDrive size={16} /> 数据目录</label>
+            <div className="settings-data-directory__control">
+              <input
+                id="data-directory"
+                className="field"
+                value={props.dataDirectory}
+                onChange={(event) => props.onDataDirectoryChange(event.target.value)}
+                spellCheck={false}
+              />
+              <button type="button" className="btn" onClick={props.onPickDataDirectory} disabled={props.dataDirectoryBusy}>选择</button>
+            </div>
+            <div className="settings-data-directory__actions">
+              <small>修改后将迁移数据库和备份，并自动重启。</small>
+              <button type="button" className="btn btn-ghost" onClick={props.onResetDataDirectory} disabled={props.dataDirectoryBusy || props.dataDirectory === props.defaultDataDirectory}>恢复默认</button>
+              <button type="button" className="btn btn-primary" onClick={props.onSaveDataDirectory} disabled={props.dataDirectoryBusy || !props.dataDirectory.trim()}>迁移并重启</button>
+            </div>
+          </div>
 
-                <div className="settings-grid settings-grid--2">
-                  <div className="settings-field">
-                    <label htmlFor="privacy-pin"><LockKey size={17} /> 隐私锁定密码</label>
-                    <input
-                      id="privacy-pin"
-                      className="field"
-                      type="password"
-                      inputMode="numeric"
-                      maxLength={12}
-                      value={props.lockPin}
-                      placeholder="留空则无需密码"
-                      onChange={(event) => props.onLockPinChange(event.target.value.replace(/\D/g, ""))}
-                    />
-                    <small>用于遮挡当前界面，不改变数据库加密密钥。</small>
-                  </div>
+          <div className="settings-field">
+            <label htmlFor="privacy-pin"><LockKey size={16} /> 隐私锁定密码</label>
+            <input
+              id="privacy-pin"
+              className="field"
+              type="password"
+              inputMode="numeric"
+              maxLength={12}
+              value={props.lockPin}
+              placeholder="留空则无需密码"
+              onChange={(e) => props.onLockPinChange(e.target.value.replace(/\D/g, ""))}
+            />
+            <small>用于遮挡当前界面，不改变数据库加密密钥。</small>
+          </div>
+          </section>
 
-                  <aside className="settings-ledger-note" aria-label="本地数据说明">
-                    <ShieldCheck size={22} weight="duotone" />
-                    <strong>本地优先</strong>
-                    <p>数据目录、加密备份与锁定密码都保存在这台电脑上，不经过云端。</p>
-                  </aside>
-                </div>
-              </div>
-            </section>
-
-            <section className="settings-section" id="settings-backup" aria-labelledby="settings-backup-title">
-              <header className="settings-section__head">
-                <span className="settings-section__number" aria-hidden="true">05</span>
-                <div className="settings-section__title">
-                  <h3 id="settings-backup-title">备份与恢复</h3>
-                  <p>为当前数据创建快照、恢复旧版本，或找回隐藏的窗口。</p>
-                </div>
-              </header>
-              <div className="settings-section__content">
-                <div className="settings-actions" aria-label="备份与恢复">
-                  <button className="settings-action" disabled={props.busy} onClick={props.onBackup}>
-                    <Archive size={21} />
-                    <span><strong>立即备份</strong><small>创建加密快照</small></span>
-                  </button>
-                  <button className="settings-action" disabled={props.busy} onClick={props.onRestore}>
-                    <ShieldCheck size={21} />
-                    <span><strong>恢复备份</strong><small>重启后替换数据</small></span>
-                  </button>
-                  <button className="settings-action" onClick={props.onOpenBackups}>
-                    <FolderOpen size={21} />
-                    <span><strong>打开目录</strong><small>查看备份文件</small></span>
-                  </button>
-                  <button className="settings-action" onClick={props.onShowHidden}>
-                    <Eye size={21} />
-                    <span><strong>显示窗口</strong><small>找回已隐藏便签</small></span>
-                  </button>
-                </div>
-              </div>
-            </section>
+          <section className="settings-section" aria-labelledby="settings-maintenance">
+            <header className="settings-section__head">
+              <div><span id="settings-maintenance">维护</span><small>备份、恢复与窗口找回</small></div>
+            </header>
+          <div className="settings-actions" aria-label="备份与恢复">
+            <MagneticAction className="settings-action" disabled={props.busy} onClick={props.onBackup}>
+              <Archive size={18} />
+              <span><strong>立即备份</strong><small>创建加密快照</small></span>
+            </MagneticAction>
+            <MagneticAction className="settings-action" disabled={props.busy} onClick={props.onRestore}>
+              <ShieldCheck size={18} />
+              <span><strong>恢复备份</strong><small>重启后替换数据</small></span>
+            </MagneticAction>
+            <MagneticAction className="settings-action" onClick={props.onOpenBackups}>
+              <FolderOpen size={18} />
+              <span><strong>打开目录</strong><small>查看备份文件</small></span>
+            </MagneticAction>
+            <MagneticAction type="button" className="settings-action" onClick={() => props.onExport?.()}>
+              <Export size={18} />
+              <span><strong>导出便签</strong><small>Markdown 或 PDF</small></span>
+            </MagneticAction>
+            <MagneticAction className="settings-action" onClick={props.onShowHidden}>
+              <Eye size={18} />
+              <span><strong>显示窗口</strong><small>找回已隐藏便签</small></span>
+            </MagneticAction>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row__icon"><Archive size={17} /></div>
+            <div className="settings-row__copy">
+              <strong>自动备份</strong>
+              <span>每次启动自动备份一次，之后按间隔进行</span>
+            </div>
+            <input
+              type="checkbox"
+              className="switch"
+              checked={props.autoBackup.enabled}
+              onChange={(event) => props.onAutoBackupChange({ ...props.autoBackup, enabled: event.target.checked })}
+              aria-label="自动备份"
+            />
+          </div>
+          <div className="settings-field settings-opacity">
+            <label htmlFor="auto-backup-interval"><ClockCounterClockwise size={16} /> 备份间隔 <span>{props.autoBackup.intervalHours} 小时</span></label>
+            <input
+              id="auto-backup-interval"
+              type="range"
+              min="0.5"
+              max="24"
+              step="0.5"
+              value={props.autoBackup.intervalHours}
+              disabled={!props.autoBackup.enabled}
+              onChange={(event) => props.onAutoBackupChange({ ...props.autoBackup, intervalHours: Number(event.target.value) })}
+              aria-label="自动备份间隔"
+            />
+            <div className="settings-opacity__scale"><span>半小时</span><span>24 小时</span></div>
+          </div>
+          <div className="settings-field settings-opacity">
+            <label htmlFor="auto-backup-retention"><Stack size={16} /> 保留份数 <span>{props.autoBackup.retentionCount} 份</span></label>
+            <input
+              id="auto-backup-retention"
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+              value={props.autoBackup.retentionCount}
+              disabled={!props.autoBackup.enabled}
+              onChange={(event) => props.onAutoBackupChange({ ...props.autoBackup, retentionCount: Number(event.target.value) })}
+              aria-label="自动备份保留份数"
+            />
+            <small>超出上限时自动清理最旧的自动备份；手动“立即备份”不受影响。</small>
+          </div>
+          </section>
           </div>
         </div>
       </section>

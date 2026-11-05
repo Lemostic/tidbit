@@ -13,6 +13,7 @@ describe("desktop window capabilities", () => {
     expect(capability.windows).toContain("main");
     expect(capability.windows).toContain("wander-*");
     expect(capability.windows).toContain("wander-editor-*");
+    expect(capability.windows).toContain("detach-*");
     expect(capability.permissions).toEqual(expect.arrayContaining([
       "core:event:allow-listen",
       "core:event:allow-unlisten",

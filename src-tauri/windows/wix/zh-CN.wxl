@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="zh-CN" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="TauriLanguage">2052</String>
+  <String Id="TauriCodepage">936</String>
+  <String Id="LaunchApp">启动 tidbit</String>
+  <String Id="DowngradeErrorMessage">已安装更新版本的 tidbit。</String>
+  <String Id="PathEnvVarFeature">将 tidbit 可执行文件的安装位置添加到 PATH 系统环境变量中。这样可以从任何位置调用 tidbit 可执行文件。</String>
+  <String Id="InstallAppFeature">安装 tidbit。</String>
+</WixLocalization>

@@ -1,3 +1,4 @@
+use crate::domain::note::KanbanStatus;
 use crate::domain::{EdgeDock, Note};
 use crate::error::AppError;
 use crate::infra::db::Pool;
@@ -42,14 +43,16 @@ impl NoteRepo {
             updated_at: r.get(17)?,
             color: r.get(18)?,
             sort_order: r.get(19)?,
-            clothesline_x: r.get(20)?,
+            status: KanbanStatus::from_str(&r.get::<_, String>(20)?),
+            tags: Vec::new(),
+            reminder: None,
         })
     }
 
     const SELECT: &'static str =
         "SELECT id, group_id, title, content_md, content_html, word_count, \
         is_pinned, is_content_hidden, is_archived, is_trashed, trashed_at, geom_x, geom_y, geom_w, geom_h, edge_dock, \
-        created_at, updated_at, color, sort_order, clothesline_x FROM note";
+        created_at, updated_at, color, sort_order, status FROM note";
 
     pub fn create_in_group(&self, group_id: Option<i64>, title: &str) -> Result<Note, AppError> {
         let now = chrono::Utc::now().timestamp_millis();
@@ -81,6 +84,7 @@ impl NoteRepo {
         &self,
         group_id: Option<i64>,
         include_archived: bool,
+        status: Option<KanbanStatus>,
     ) -> Result<Vec<Note>, AppError> {
         let conn = self.pool.get()?;
         let archived_filter = if include_archived {
@@ -88,13 +92,16 @@ impl NoteRepo {
         } else {
             " AND is_archived = 0"
         };
+        let status_filter = status
+            .map(|s| format!(" AND status = '{}'", s.as_str()))
+            .unwrap_or_default();
         let sql = match group_id {
             Some(_) => format!(
-                "{s} WHERE group_id = ?1 AND is_trashed = 0{archived_filter} ORDER BY is_archived ASC, sort_order ASC, updated_at DESC, id ASC",
+                "{s} WHERE group_id = ?1 AND is_trashed = 0{archived_filter}{status_filter} ORDER BY is_archived ASC, sort_order ASC, updated_at DESC, id ASC",
                 s = Self::SELECT,
             ),
             None => format!(
-                "{s} WHERE is_trashed = 0{archived_filter} ORDER BY is_archived ASC, sort_order ASC, updated_at DESC, id ASC",
+                "{s} WHERE is_trashed = 0{archived_filter}{status_filter} ORDER BY is_archived ASC, sort_order ASC, updated_at DESC, id ASC",
                 s = Self::SELECT,
             ),
         };
@@ -189,6 +196,16 @@ impl NoteRepo {
         self.get(id)
     }
 
+    pub fn set_status(&self, id: i64, status: KanbanStatus) -> Result<Note, AppError> {
+        let now = chrono::Utc::now().timestamp_millis();
+        let conn = self.pool.get()?;
+        conn.execute(
+            "UPDATE note SET status=?1, updated_at=?2 WHERE id=?3",
+            rusqlite::params![status.as_str(), now, id],
+        )?;
+        self.get(id)
+    }
+
     pub fn move_to_group(&self, id: i64, group_id: Option<i64>) -> Result<Note, AppError> {
         let existing = self.get(id)?;
         if existing.group_id == group_id {
@@ -230,43 +247,6 @@ impl NoteRepo {
         Ok(())
     }
 
-    /// Persist the free clothesline position of a single note. `None` clears it
-    /// so the note falls back to an even slot the next time it is hung.
-    pub fn set_clothesline_x(&self, id: i64, x: Option<f64>) -> Result<(), AppError> {
-        let conn = self.pool.get()?;
-        conn.execute(
-            "UPDATE note SET clothesline_x=?1 WHERE id=?2",
-            rusqlite::params![x, id],
-        )?;
-        Ok(())
-    }
-
-    /// Persist a whole clothesline position snapshot atomically. Notes absent
-    /// from the snapshot keep whatever position they already had.
-    pub fn set_clothesline_positions(&self, positions: &[(i64, f64)]) -> Result<(), AppError> {
-        let mut conn = self.pool.get()?;
-        let tx = conn.transaction()?;
-        for (id, x) in positions {
-            tx.execute(
-                "UPDATE note SET clothesline_x=?1 WHERE id=?2",
-                rusqlite::params![x, id],
-            )?;
-        }
-        tx.commit()?;
-        Ok(())
-    }
-
-    /// Every note that has a stored clothesline position, ordered by id so the
-    /// snapshot is stable across windows.
-    pub fn list_clothesline_positions(&self) -> Result<Vec<(i64, f64)>, AppError> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, clothesline_x FROM note WHERE clothesline_x IS NOT NULL ORDER BY id ASC",
-        )?;
-        let rows = stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?)))?;
-        Ok(rows.collect::<Result<Vec<_>, _>>()?)
-    }
-
     pub fn set_edge_dock(&self, id: i64, edge: EdgeDock) -> Result<(), AppError> {
         let s = match edge {
             EdgeDock::Left => "left",
@@ -301,6 +281,34 @@ impl NoteRepo {
         Ok(())
     }
 
+    /// List all trashed notes, newest first.
+    pub fn list_trashed(&self) -> Result<Vec<Note>, AppError> {
+        let conn = self.pool.get()?;
+        let sql = format!(
+            "{s} WHERE is_trashed = 1 ORDER BY trashed_at DESC, updated_at DESC, id ASC",
+            s = Self::SELECT,
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map([], Self::row_to_note)?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    /// Permanently delete one note and its cascaded rows (revisions, tags,
+    /// reminders). Attachment files on disk are removed with the note
+    /// directory during a full-trash purge; single-note deletion leaves the
+    /// files in place so they can be recovered from the OS if needed.
+    pub fn delete(&self, id: i64) -> Result<(), AppError> {
+        let conn = self.pool.get()?;
+        conn.execute("DELETE FROM note WHERE id = ?1", rusqlite::params![id])?;
+        Ok(())
+    }
+
+    /// Permanently delete all trashed notes (and their cascaded rows).
+    pub fn purge_all_trashed(&self) -> Result<u64, AppError> {
+        let conn = self.pool.get()?;
+        let n = conn.execute("DELETE FROM note WHERE is_trashed = 1", [])?;
+        Ok(n as u64)
+    }
     /// Delete all trashed notes with `trashed_at` older than `ts` (milliseconds).
     pub fn purge_older_than(&self, ts: i64) -> Result<u64, AppError> {
         let conn = self.pool.get()?;

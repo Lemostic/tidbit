@@ -23,7 +23,6 @@ const { invoke } = vi.hoisted(() => ({
       updated_at: 0,
       color: null,
       sort_order: 0,
-      clothesline_x: null,
     },
   ]),
 }));
@@ -38,5 +37,13 @@ describe("IPC client", () => {
     expect(notes[0]!.id).toBe(1);
     expect(notes[0]!.group_id).toBe(null);
     expect(invoke).toHaveBeenCalledWith("notes_list", { groupId: null, includeArchived: false });
+  });
+
+  it("wraps export options under the Rust command argument name", async () => {
+    invoke.mockResolvedValueOnce({ path: "D:\\notes.md", noteCount: 2 } as never);
+    await client.exports.run({ scope: "all", format: "markdown", includeMetadata: true });
+    expect(invoke).toHaveBeenCalledWith("notes_export", {
+      request: { scope: "all", format: "markdown", includeMetadata: true },
+    });
   });
 });

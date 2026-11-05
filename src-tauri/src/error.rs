@@ -16,6 +16,22 @@ pub enum AppError {
     Lock,
     #[error("not_found")]
     NotFound,
+    /// User-facing search query syntax error; carries a readable message.
+    #[error("{0}")]
+    QuerySyntax(String),
+}
+
+impl From<crate::ipc::query_parser::ParseError> for AppError {
+    fn from(e: crate::ipc::query_parser::ParseError) -> Self {
+        match e {
+            crate::ipc::query_parser::ParseError::Empty => {
+                AppError::QuerySyntax("查询语法错误：关键词为空".into())
+            }
+            crate::ipc::query_parser::ParseError::UnbalancedQuote => {
+                AppError::QuerySyntax("查询语法错误：引号未闭合".into())
+            }
+        }
+    }
 }
 
 impl Serialize for AppError {
@@ -28,6 +44,7 @@ impl Serialize for AppError {
             AppError::Tauri(_) => "tauri",
             AppError::Lock => "lock",
             AppError::NotFound => "not_found",
+            AppError::QuerySyntax(message) => message,
         })
     }
 }

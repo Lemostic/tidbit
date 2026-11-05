@@ -1,11 +1,24 @@
 import { invoke } from "@tauri-apps/api/core";
 import { noteSchema, groupSchema } from "./schema";
-import type { Note, Group } from "./types";
+import type { Note, Group, Revision } from "./types";
+
+export type ExportScope = "all" | "group" | "ungrouped";
+export type ExportFormat = "markdown" | "pdf";
+export interface ExportRequest {
+  scope: ExportScope;
+  groupId?: number;
+  format: ExportFormat;
+  includeMetadata: boolean;
+}
+export interface ExportResult {
+  path: string;
+  noteCount: number;
+}
 
 export const client = {
   notes: {
-    list: (group_id: number | null, include_archived = false) =>
-      invoke<Note[]>("notes_list", { groupId: group_id, includeArchived: include_archived }).then(arr =>
+    list: (group_id: number | null, include_archived = false, status?: "todo" | "doing" | "done") =>
+      invoke<Note[]>("notes_list", { groupId: group_id, includeArchived: include_archived, status }).then(arr =>
         arr.map(n => noteSchema.parse(n))
       ),
     get: (id: number) =>
@@ -28,6 +41,8 @@ export const client = {
       invoke<Note>("notes_set_content_hidden", { id, hidden }).then(n => noteSchema.parse(n)),
     setColor: (id: number, color: string | null) =>
       invoke<Note>("notes_set_color", { id, color }).then(n => noteSchema.parse(n)),
+    setStatus: (id: number, status: "todo" | "doing" | "done") =>
+      invoke<Note>("notes_set_status", { id, status }).then(n => noteSchema.parse(n)),
     moveGroup: (id: number, group_id: number | null) =>
       invoke<Note>("notes_move_group", { id, groupId: group_id }).then(n => noteSchema.parse(n)),
     reorder: (ids: number[]) => invoke<void>("notes_reorder", { ids }),
@@ -37,6 +52,23 @@ export const client = {
       invoke<void>("notes_set_edge_dock", { id, edge }),
     trash: (id: number) => invoke<void>("notes_trash", { id }),
     restore: (id: number) => invoke<void>("notes_restore", { id }),
+    listTrashed: () =>
+      invoke<Note[]>("notes_list_trashed").then(arr => arr.map(n => noteSchema.parse(n))),
+    delete: (id: number) => invoke<void>("notes_delete", { id }),
+    purgeTrash: () => invoke<number>("notes_purge_trash"),
+    revisions: (id: number) => invoke<Revision[]>("notes_revisions", { id }),
+    restoreRevision: (id: number, revisionId: number) =>
+      invoke<Note>("notes_restore_revision", { id, revisionId }).then(n => noteSchema.parse(n)),
+    setTags: (id: number, tags: string[]) => invoke<Note>("notes_set_tags", { id, tags }).then(n => noteSchema.parse(n)),
+    setReminder: (id: number, remindAt: number | null, repeatRule?: string | null) => invoke<Note>("reminders_set", { id, remindAt, repeatRule: repeatRule ?? null }).then(n => noteSchema.parse(n)),
+  },
+  tags: {
+    list: () => invoke<string[]>("tags_list"),
+    rename: (oldName: string, newName: string) => invoke<number>("tag_rename", { old: oldName, new: newName }),
+    delete: (name: string) => invoke<number>("tag_delete", { name }),
+  },
+  attachments: {
+    save: (noteId: number, fileName: string, mime: string, data: number[]) => invoke<{ url: string }>("attachments_save", { noteId, fileName, mime, data }),
   },
   groups: {
     list: () =>
@@ -48,5 +80,8 @@ export const client = {
     update: (id: number, name: string, color: string | null, background_color: string | null) =>
       invoke<Group>("groups_update", { id, name, color, backgroundColor: background_color }).then(g => groupSchema.parse(g)),
     delete: (id: number) => invoke<void>("groups_delete", { id }),
+  },
+  exports: {
+    run: (request: ExportRequest) => invoke<ExportResult | null>("notes_export", { request }),
   },
 };

@@ -6,17 +6,23 @@ import { applyGlassEffect, applyGlassOpacity, defaultGlassOpacity, loadGlassEffe
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-liquid-glass");
-  document.documentElement.style.removeProperty("--liquid-glass-opacity");
+  document.documentElement.style.removeProperty("--liquid-glass-blur");
+  document.documentElement.style.removeProperty("--liquid-glass-saturation");
+  document.documentElement.style.removeProperty("--liquid-glass-strength");
 });
 
-it("defaults liquid glass to 80 percent opacity and persists adjustments", () => {
+it("defaults liquid glass to 80 percent blur and persists adjustments", () => {
   expect(loadGlassOpacity()).toBe(defaultGlassOpacity);
   expect(loadGlassOpacity()).toBe(80);
   saveGlassOpacity(72);
   expect(loadGlassOpacity()).toBe(72);
-  expect(document.documentElement.style.getPropertyValue("--liquid-glass-opacity")).toBe("72%");
+  // 72% maps to blur 18 + (17/45)*24 = 27.07, and saturation 1.20 + (17/45)*0.40 = 1.35
+  expect(document.documentElement.style.getPropertyValue("--liquid-glass-blur")).toBe("27.07px");
+  expect(document.documentElement.style.getPropertyValue("--liquid-glass-saturation")).toBe("1.35");
+  expect(document.documentElement.style.getPropertyValue("--liquid-glass-strength")).toBe("72%");
   applyGlassOpacity(120);
-  expect(document.documentElement.style.getPropertyValue("--liquid-glass-opacity")).toBe("100%");
+  expect(document.documentElement.style.getPropertyValue("--liquid-glass-strength")).toBe("100%");
+  expect(document.documentElement.style.getPropertyValue("--liquid-glass-blur")).toBe("42.00px");
 });
 
 it("persists and applies the liquid glass preference", () => {

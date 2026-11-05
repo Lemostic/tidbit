@@ -1,3 +1,4 @@
+use crate::backup::scheduler::{load_settings, save_settings, BackupScheduler, BackupSettings};
 use crate::backup::snapshot::{create_snapshot, restore_snapshot};
 use crate::data_directory::DataDirectory;
 use crate::error::AppError;
@@ -62,4 +63,25 @@ pub async fn backup_open_dir(app: AppHandle) -> Result<(), AppError> {
     #[cfg(target_os = "linux")]
     std::process::Command::new("xdg-open").arg(&dir).spawn()?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn backup_settings_get(app: AppHandle) -> Result<BackupSettings, AppError> {
+    Ok(load_settings(&app.state::<DataDirectory>().0))
+}
+
+#[tauri::command]
+pub async fn backup_settings_set(
+    app: AppHandle,
+    settings: BackupSettings,
+) -> Result<BackupSettings, AppError> {
+    let dir = app.state::<DataDirectory>().0.clone();
+    let persisted = save_settings(&dir, settings)?;
+    // The scheduler may not be running yet (e.g. during early startup);
+    // persisting is enough — the next launch picks the values up.
+    let normalized = app
+        .try_state::<BackupScheduler>()
+        .map(|scheduler| scheduler.update(persisted))
+        .unwrap_or(persisted);
+    Ok(normalized)
 }

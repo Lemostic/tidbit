@@ -21,7 +21,9 @@ export const noteSchema = z.object({
   updated_at: z.number(),
   color: z.string().nullable(),
   sort_order: z.number(),
-  clothesline_x: z.number().nullable(),
+  status: z.enum(["todo", "doing", "done"]).default("todo"),
+  tags: z.array(z.string()).default([]),
+  reminder: z.object({ remind_at: z.number(), notified: z.boolean(), repeat_rule: z.string().nullable().default(null) }).nullable().default(null),
 });
 
 export const groupSchema = z.object({

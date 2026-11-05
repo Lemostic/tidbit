@@ -1,14 +1,21 @@
-import { Check, PushPin, Trash, X } from "@phosphor-icons/react";
+import { Check, ClockClockwise, ClockCounterClockwise, PushPin, Trash, X } from "@phosphor-icons/react";
+import ImageExtension from "@tiptap/extension-image";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import TaskItem from "@tiptap/extension-task-item";
+import TaskList from "@tiptap/extension-task-list";
 import { Markdown } from "tiptap-markdown";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../../ipc/client";
 import type { Group, Note } from "../../ipc/types";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { AudioRecording } from "./AudioRecording";
+import { codeLowlight } from "./codeHighlighting";
 import { EditorToolbar } from "./EditorToolbar";
-import { formatRelative } from "./NoteListItem";
+import { editorTableExtensions } from "./EditorTable";
+import { HistoryPanel } from "./HistoryPanel";
+import { TimelineCard } from "./TimelineCard";
 
 interface NoteEditorProps {
   note: Note;
@@ -19,17 +26,35 @@ interface NoteEditorProps {
   allowTrash?: boolean;
   desktopWindow?: boolean;
   embedded?: boolean;
-  pane?: boolean;
+  /** When true, render the full header (title input, pin, history). */
+  showHead?: boolean;
 }
 
 const colors = [null, "#d75b57", "#d5a23f", "#4e9b75", "#4c86b8"] as const;
+function datetimeValue(timestamp?: number) { if (!timestamp) return ""; const date = new Date(timestamp); return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
 
-export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false, pane = false }: NoteEditorProps) {
+function getStandaloneWebUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || /\s/.test(trimmed)) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTrash = true, desktopWindow = false, embedded = false, showHead = !embedded }: NoteEditorProps) {
   const [current, setCurrent] = useState(note);
   const [title, setTitle] = useState(note.title ?? "");
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
+  const [repeatRule, setRepeatRule] = useState<string | null>(() => current.reminder?.repeat_rule ?? null);
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
 
@@ -52,9 +77,45 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
   }, [note.id, onChanged]);
 
   const editor = useEditor({
-    extensions: [StarterKit, AudioRecording, Markdown.configure({ html: true, transformPastedText: true })],
+    extensions: [
+      StarterKit.configure({ codeBlock: false }),
+      CodeBlockLowlight.configure({ lowlight: codeLowlight }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      ImageExtension.configure({ inline: false, allowBase64: true }),
+      AudioRecording,
+      TimelineCard,
+      ...editorTableExtensions,
+      Markdown.configure({ html: true, transformPastedText: true }),
+    ],
     content: note.content_html || note.content_md,
-    editorProps: { attributes: { "aria-label": "便签内容" } },
+    editorProps: {
+      attributes: { "aria-label": "便签内容" },
+      handlePaste(view, event) {
+        if (view.state.selection.$from.parent.type.spec.code) return false;
+        const image = Array.from(event.clipboardData?.items ?? []).find((item) => item.type.startsWith("image/"));
+        if (image) {
+          const file = image.getAsFile();
+          if (file) {
+            void file.arrayBuffer().then((buffer) => client.attachments.save(note.id, file.name || "pasted-image", file.type, Array.from(new Uint8Array(buffer))))
+              .then((attachment) => { const node = view.state.schema.nodes.image?.create({ src: attachment.url, alt: file.name }); if (node) view.dispatch(view.state.tr.replaceSelectionWith(node).scrollIntoView()); })
+              .catch(() => setStatus("error"));
+            return true;
+          }
+        }
+        const rawText = event.clipboardData?.getData("text/plain") ?? "";
+        const url = getStandaloneWebUrl(rawText);
+        const link = view.state.schema.marks.link;
+        if (!url || !link || rawText === url) return false;
+
+        const transaction = view.state.tr.replaceSelectionWith(
+          view.state.schema.text(url, [link.create({ href: url })]),
+          false,
+        );
+        view.dispatch(transaction.scrollIntoView());
+        return true;
+      },
+    },
     onUpdate({ editor: instance }) {
       dirtyRef.current = true;
       setStatus("saving");
@@ -89,55 +150,107 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
     } catch { setStatus("error"); }
   };
 
-  const groupLabel = groups.find((group) => group.id === current.group_id)?.name ?? "全部便签";
-  const editedLabel = current.updated_at ? `${formatRelative(current.updated_at)}编辑` : "尚未编辑";
+  const saveTags = async (value: string) => {
+    const tags = value.split(/[\\s,，]+/).map((tag) => tag.trim()).filter(Boolean);
+    try { setCurrent(await client.notes.setTags(current.id, tags)); onChanged(); } catch { setStatus("error"); }
+  };
 
-  const titleInput = (
-    <input
-      className="note-editor__title"
-      value={title}
-      aria-label="便签标题"
-      placeholder="无标题"
-      onChange={(e) => setTitle(e.target.value)}
-      onBlur={() => void updateTitle()}
-      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-    />
-  );
+  const applyReminder = async (remindAt: number | null, rule: string | null) => {
+    try {
+      const updated = await client.notes.setReminder(current.id, remindAt, rule);
+      setCurrent(updated);
+      setRepeatRule(updated.reminder?.repeat_rule ?? null);
+      onChanged();
+    } catch { setStatus("error"); }
+  };
 
-  const headTools = (
-    <>
-      <button
-        className={`btn-icon${current.is_pinned ? " is-selected" : ""}`}
-        aria-label={current.is_pinned ? "取消置顶" : "置顶"}
-        title={current.is_pinned ? "取消置顶" : "置顶"}
-        onClick={() => void mutate(client.notes.setPinned(current.id, !current.is_pinned))}
-      ><PushPin size={16} weight={current.is_pinned ? "fill" : "regular"} /></button>
-      <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>
-    </>
-  );
+  const snoozeOptions: { label: string; minutes: number }[] = [
+    { label: "5 分钟后", minutes: 5 },
+    { label: "15 分钟后", minutes: 15 },
+    { label: "1 小时后", minutes: 60 },
+    { label: "明天上午 9 点", minutes: 0 },
+  ];
+
+  const snooze = (option: { label: string; minutes: number }) => {
+    setSnoozeOpen(false);
+    let next: number;
+    if (option.minutes > 0) {
+      next = Date.now() + option.minutes * 60_000;
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(9, 0, 0, 0);
+      next = tomorrow.getTime();
+    }
+    void applyReminder(next, repeatRule);
+  };
+
+  const repeatRuleOptions: { value: string; label: string }[] = [
+    { value: "", label: "不重复" },
+    { value: "daily", label: "每天" },
+    { value: "weekly", label: "每周" },
+    { value: "monthly", label: "每月" },
+    { value: "yearly", label: "每年" },
+  ];
+
+  const onRepeatChange = (freq: string) => {
+    const rule = freq ? JSON.stringify({ freq, interval: 1 }) : null;
+    const at = current.reminder?.remind_at;
+    void applyReminder(at ?? null, rule);
+  };
+
+  const insertImage = async (file: File) => {
+    if (!editor || !file.type.startsWith("image/")) return;
+    try {
+      const attachment = await client.attachments.save(current.id, file.name || "image", file.type, Array.from(new Uint8Array(await file.arrayBuffer())));
+      editor.chain().focus().setImage({ src: attachment.url, alt: file.name }).run();
+    } catch { setStatus("error"); }
+  };
+
+  const applyRestore = async (restored: Note) => {
+    const before = current;
+    if (editor) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+      dirtyRef.current = false;
+      editor.commands.setContent(restored.content_md);
+    }
+    setTitle(restored.title ?? "");
+    setCurrent(restored);
+    setStatus("saved");
+    setHistoryOpen(false);
+    onChanged();
+    if (editor) {
+      try {
+        await client.notes.updateContent(restored.id, before.content_md, before.content_html, before.word_count);
+        onChanged();
+      } catch {
+        /* snapshot failure is non-fatal; user can redo if needed */
+      }
+    }
+  };
 
   const panel = (
-      <section
-        className={`note-editor${embedded ? " note-editor--embedded" : ""}${pane ? " note-editor--pane" : ""}`}
-        role={pane ? "region" : "dialog"}
-        aria-modal={embedded || pane ? undefined : true}
-        aria-label="编辑便签"
-      >
-        {!embedded && <header className="note-editor__head">
+      <section className={`note-editor${embedded ? " note-editor--embedded" : ""}`} role="dialog" aria-modal={embedded ? undefined : true} aria-label="编辑便签" onClick={(event) => event.stopPropagation()}>
+        {showHead && <header className="note-editor__head">
           <span data-tauri-drag-region={desktopWindow ? true : undefined} className="note-editor__accent" style={{ background: current.color ?? "var(--accent)" }} />
-          {pane ? (
-            <div className="note-editor__heading">
-              <div className="note-editor__crumb mono">
-                <span className="note-editor__crumb-group">{groupLabel}</span>
-                <span className="note-editor__crumb-sep" aria-hidden="true">·</span>
-                <span>{editedLabel}</span>
-                <span className="note-editor__crumb-sep" aria-hidden="true">·</span>
-                <span>{current.word_count} 字</span>
-              </div>
-              {titleInput}
-            </div>
-          ) : titleInput}
-          {pane ? <div className="note-editor__head-tools">{headTools}</div> : headTools}
+          <input
+            className="note-editor__title"
+            value={title}
+            aria-label="便签标题"
+            placeholder="无标题"
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => void updateTitle()}
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          />
+          <button
+            className={`btn-icon${current.is_pinned ? " is-selected" : ""}`}
+            aria-label={current.is_pinned ? "取消置顶" : "置顶"}
+            title={current.is_pinned ? "取消置顶" : "置顶"}
+            onClick={() => void mutate(client.notes.setPinned(current.id, !current.is_pinned))}
+          ><PushPin size={16} weight={current.is_pinned ? "fill" : "regular"} /></button>
+          <button className="btn-icon" aria-label="历史版本" title="历史版本" onClick={() => setHistoryOpen(true)}><ClockCounterClockwise size={16} /></button>
+          {!embedded && <button className="btn-icon" aria-label="关闭编辑器" title="关闭" onClick={onClose}><X size={16} weight="bold" /></button>}
         </header>}
 
         <div className="note-editor__options">
@@ -158,17 +271,51 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
                 style={{ background: color ?? "var(--surface-2)" }}
                 onClick={() => void mutate(client.notes.setColor(current.id, color))}
                 aria-label={color ? `设置颜色 ${color}` : "使用默认颜色"}
+                aria-pressed={current.color === color}
+                type="button"
                 title={color ? "设置便签颜色" : "默认颜色"}
               >{current.color === color && <Check size={11} weight="bold" />}</button>
             ))}
           </div>
+          <div className="note-editor__tags" aria-label="便签标签">
+            {(current.tags ?? []).map((tag) => <button type="button" className="note-tag" key={tag} onClick={() => void saveTags((current.tags ?? []).filter((item) => item !== tag).join(","))}>{tag} <X size={10} /></button>)}
+            <input aria-label="添加标签" value={tagDraft} placeholder="添加标签" onChange={(event) => setTagDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); void saveTags([...(current.tags ?? []), tagDraft].join(",")); setTagDraft(""); } }} onBlur={() => { if (tagDraft.trim()) { void saveTags([...(current.tags ?? []), tagDraft].join(",")); setTagDraft(""); } }} />
+          </div>
         </div>
 
-        {editor && <EditorToolbar editor={editor} />}
+        {editor && <><EditorToolbar editor={editor} onInsertImage={() => fileInputRef.current?.click()} /><input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void insertImage(file); event.currentTarget.value = ""; }} /></>}
         <EditorContent editor={editor} className="editor-content" />
 
         <footer className="note-editor__status mono">
-          <span className={`save-status save-status--${status}`}>{status === "saving" ? "正在保存" : status === "error" ? "保存失败" : "已保存"}</span>
+          <label className="note-editor__reminder">
+            <span>提醒</span>
+            <input aria-label="提醒时间" type="datetime-local" value={datetimeValue(current.reminder?.remind_at)} onChange={(event) => void applyReminder(event.target.value ? new Date(event.target.value).getTime() : null, repeatRule)} />
+            <select
+              className="note-editor__repeat"
+              aria-label="重复规则"
+              value={repeatRule ? (JSON.parse(repeatRule).freq as string) : ""}
+              onChange={(e) => onRepeatChange(e.target.value)}
+            >
+              {repeatRuleOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+            {current.reminder && (
+              <>
+                <button type="button" className="note-editor__snooze" aria-label="稍后提醒" title="稍后提醒" onClick={() => setSnoozeOpen((v) => !v)}><ClockClockwise size={13} /></button>
+                <button type="button" aria-label="清除提醒" title="清除提醒" onClick={() => { setSnoozeOpen(false); void applyReminder(null, null); }}><X size={11} /></button>
+              </>
+            )}
+            {snoozeOpen && (
+              <div className="note-editor__snooze-menu" role="menu" aria-label="稍后提醒">
+                {snoozeOptions.map((opt) => <button key={opt.label} role="menuitem" onClick={() => snooze(opt)}>{opt.label}</button>)}
+              </div>
+            )}
+          </label>
+          <span
+              className={`save-status save-status--${status}`}
+              role="status"
+              aria-live={status === "error" ? "assertive" : "polite"}
+              aria-atomic="true"
+            >{status === "saving" ? "正在保存" : status === "error" ? "保存失败" : "已保存"}</span>
           <span>{current.word_count} 字</span>
           {allowTrash && <button className="editor-trash" onClick={() => setConfirmingDelete(true)}><Trash size={14} /> 删除</button>}
         </footer>
@@ -177,15 +324,12 @@ export function NoteEditor({ note, groups, onClose, onChanged, onTrash, allowTra
 
   return (
     <>
-    {embedded || pane ? panel : <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
+    {embedded ? panel : <div className="modal-scrim" onKeyDown={(event) => { if (event.key === "Escape" && !confirmingDelete) { event.stopPropagation(); onClose(); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>{panel}</div>}
+    {historyOpen && <HistoryPanel note={current} onClose={() => setHistoryOpen(false)} onRestore={applyRestore} onNotice={(toast) => setStatus(toast && toast.kind === "error" ? "error" : "saved")} />}
     {allowTrash && <ConfirmDialog
       open={confirmingDelete}
       title="删除这条便签？"
-      description={
-        current.is_content_hidden
-          ? "这条隐私便签将被移到回收站，可以稍后恢复。"
-          : `「${current.title?.trim() || "无标题"}」将被移到回收站，可以稍后恢复。`
-      }
+      description={`「${current.title?.trim() || "无标题"}」将被移到回收站，可以稍后恢复。`}
       confirmAriaLabel="确认删除便签"
       busy={deleting}
       onCancel={() => setConfirmingDelete(false)}

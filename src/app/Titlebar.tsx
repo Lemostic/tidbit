@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { CoatHanger, GearSix, MagnifyingGlass, Minus, Square, X } from "@phosphor-icons/react";
+import { GearSix, MagnifyingGlass, Minus, Square, X } from "@phosphor-icons/react";
 import { useRef } from "react";
 import { ThemeSwitcher } from "../features/settings/ThemeSwitcher";
 
@@ -8,11 +8,9 @@ interface TitlebarProps {
   onOpenPalette?: () => void;
   onOpenSettings?: () => void;
   onDragStart?: () => void;
-  clotheslineOpen?: boolean;
-  onToggleClothesline?: () => void;
 }
 
-export function Titlebar({ onOpenPalette, onOpenSettings, onDragStart, clotheslineOpen = false, onToggleClothesline }: TitlebarProps) {
+export function Titlebar({ onOpenPalette, onOpenSettings, onDragStart }: TitlebarProps) {
   const win = getCurrentWindow();
   const dragStarted = useRef(false);
 
@@ -37,10 +35,9 @@ export function Titlebar({ onOpenPalette, onOpenSettings, onDragStart, clothesli
         void startWindowDrag();
       }}
     >
-      <strong className="titlebar__brand">
-        <span className="titlebar__brand-mark" aria-hidden="true">T</span>
-        <span className="titlebar__wordmark">tidbit</span>
-        <span className="titlebar__brand-subtitle" aria-hidden="true">纸本工作台</span>
+      <strong className="titlebar__brand" aria-label="tidbit 随记">
+        <span className="titlebar__brand-mark" aria-hidden="true"><span /></span>
+        <span className="titlebar__brand-copy">tidbit<small>随记</small></span>
       </strong>
       <button
         onClick={onOpenPalette}
@@ -48,25 +45,15 @@ export function Titlebar({ onOpenPalette, onOpenSettings, onDragStart, clothesli
         title="搜索 (Ctrl+K)"
       >
         <MagnifyingGlass size={13} aria-hidden="true" />
-        <span>搜索</span>
+        <span>搜索便签与命令</span>
         <span className="titlebar__kbd">Ctrl K</span>
       </button>
       <div className="titlebar__spacer" />
       <div className="titlebar__actions">
         <ThemeSwitcher />
-        {onToggleClothesline && (
-          <button
-            className={`btn-icon${clotheslineOpen ? " is-active" : ""}`}
-            aria-label="切换晾衣绳"
-            aria-pressed={clotheslineOpen}
-            title={clotheslineOpen ? "关闭晾衣绳" : "打开晾衣绳"}
-            onClick={onToggleClothesline}
-          ><CoatHanger size={15} weight={clotheslineOpen ? "fill" : "regular"} /></button>
-        )}
         <button className="btn-icon" aria-label="设置" title="设置" onClick={onOpenSettings}>
           <GearSix size={15} weight="duotone" />
         </button>
-        <span className="titlebar__rule" aria-hidden="true" />
         <button className="btn-icon" aria-label="最小化" title="最小化到托盘" onClick={() => void invoke("window_hide_to_tray")}>
           <Minus size={14} weight="bold" />
         </button>

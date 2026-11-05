@@ -1,7 +1,10 @@
-import { Check, Plus, Trash, X } from "@phosphor-icons/react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { Archive, Check, Plus, Trash, X } from "@phosphor-icons/react";
+import { type CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import type { Group } from "../../ipc/types";
 import type { ToastState } from "../../ui/Toast";
+import { motionDur, motionEase, prefersReducedMotion } from "../../ui/motion";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { GroupItem } from "./GroupItem";
 import { useGroups } from "./useGroups";
@@ -12,13 +15,15 @@ interface GroupsSidebarProps {
   onSelect: (id: number | null) => void;
   onNotice: (toast: ToastState) => void;
   onNoteDrop?: (noteId: number, groupId: number | null, groupName: string) => void;
+  trashActive?: boolean;
+  onShowTrash?: () => void;
 }
 
 const colors = [null, "#e34f5b", "#e0a52e", "#35a66f", "#3d86d8"] as const;
 
 const noteDragType = "application/x-tidbit-note-id";
 
-export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNoteDrop }: GroupsSidebarProps) {
+export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNoteDrop, trashActive = false, onShowTrash }: GroupsSidebarProps) {
   const { groups, create, update, remove } = useGroups();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
@@ -29,7 +34,25 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [allDropActive, setAllDropActive] = useState(false);
+  const railRef = useRef<HTMLElement>(null);
   const lastAddRequest = useRef(addRequest);
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion()) return;
+      const items = railRef.current?.querySelectorAll<HTMLElement>(".group-tab-wrap");
+      if (!items || items.length === 0) return;
+      const reduced = prefersReducedMotion();
+      gsap.from(items, {
+        opacity: 0,
+        y: 4,
+        duration: reduced ? 0 : motionDur,
+        ease: motionEase,
+        stagger: { each: 0.028, from: "start" },
+      });
+    },
+    { scope: railRef, dependencies: [groups.length] },
+  );
 
   useEffect(() => {
     if (addRequest === lastAddRequest.current) return;
@@ -80,51 +103,58 @@ export function GroupsSidebar({ selectedId, addRequest, onSelect, onNotice, onNo
 
   return (
     <>
-      <nav className="groups-rail" aria-label="便签分组">
-        <div className="groups-rail__head" aria-hidden="true">
-          <span className="groups-rail__eyebrow">笔记本</span>
-          {groups.length > 0 && <span className="groups-rail__count">{String(groups.length).padStart(2, "0")}</span>}
-        </div>
-        <span className="groups-rail__rule" aria-hidden="true" />
-        <div className="groups-rail__list">
-          <button
-            className={`group-tab group-tab--all${selectedId === null ? " is-active" : ""}${allDropActive ? " is-drop-target" : ""}`}
-            aria-selected={selectedId === null}
-            title="全部便签"
-            onClick={() => onSelect(null)}
-            onDragEnter={(event) => { event.preventDefault(); setAllDropActive(true); }}
-            onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setAllDropActive(true); }}
-            onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAllDropActive(false); }}
-            onDrop={(event) => {
-              event.preventDefault();
-              setAllDropActive(false);
-              const noteId = Number(event.dataTransfer.getData(noteDragType) || event.dataTransfer.getData("text/plain"));
-              if (Number.isSafeInteger(noteId)) onNoteDrop?.(noteId, null, "全部");
-            }}
-          >
-            <span className="group-tab__label">全部</span>
-          </button>
-          {groups.map((group) => (
-            <GroupItem key={group.id} group={group} selected={selectedId === group.id} onClick={() => onSelect(group.id)} onEdit={() => openEditor(group)} onNoteDrop={(noteId, groupId) => onNoteDrop?.(noteId, groupId, group.name)} />
-          ))}
-        </div>
-        <div className="groups-rail__foot">
-          {adding ? (
-            <form className="groups-rail__form" onSubmit={submit}>
-              <input className="groups-rail__new" autoFocus value={name} placeholder="名称" aria-label="新分组名" onChange={(e) => setName(e.target.value)} onBlur={() => { if (!name.trim()) setAdding(false); }} onKeyDown={(e) => { if (e.key === "Escape") { setName(""); setAdding(false); } }} />
-            </form>
-          ) : (
-            <button className="groups-rail__add" aria-label="新增分组" title="新增分组" onClick={() => setAdding(true)}>
-              <Plus size={15} />
-              <span className="groups-rail__add-label">新建分组</span>
-            </button>
-          )}
-        </div>
+      <nav ref={railRef} className="groups-rail" aria-label="便签分组">
+        <button
+          className={`group-tab${selectedId === null ? " is-active" : ""}${allDropActive ? " is-drop-target" : ""}`}
+          style={{ "--group-tab-bg": "var(--accent)", "--tab-index": 0 } as CSSProperties}
+          aria-selected={selectedId === null}
+          title="全部便签"
+          onClick={() => onSelect(null)}
+          onDragEnter={(event) => { event.preventDefault(); setAllDropActive(true); }}
+          onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setAllDropActive(true); }}
+          onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAllDropActive(false); }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setAllDropActive(false);
+            const noteId = Number(event.dataTransfer.getData(noteDragType) || event.dataTransfer.getData("text/plain"));
+            if (Number.isSafeInteger(noteId)) onNoteDrop?.(noteId, null, "全部");
+          }}
+        >
+          <span className="group-tab__label">全部</span>
+        </button>
+        {groups.map((group, index) => (
+          <GroupItem
+            key={group.id}
+            group={group}
+            selected={selectedId === group.id}
+            index={index + 1}
+            onClick={() => onSelect(group.id)}
+            onEdit={() => openEditor(group)}
+            onNoteDrop={(noteId, groupId) => onNoteDrop?.(noteId, groupId, group.name)}
+          />
+        ))}
+        {adding ? (
+          <form onSubmit={submit}>
+            <input className="groups-rail__new" autoFocus value={name} placeholder="名称" aria-label="新分组名" onChange={(e) => setName(e.target.value)} onBlur={() => { if (!name.trim()) setAdding(false); }} onKeyDown={(e) => { if (e.key === "Escape") { setName(""); setAdding(false); } }} />
+          </form>
+        ) : (
+          <button className="groups-rail__add" aria-label="新增分组" title="新增分组" onClick={() => setAdding(true)}><Plus size={16} /></button>
+        )}
+        <button
+          className={`group-tab group-tab--trash${trashActive ? " is-active" : ""}`}
+          aria-selected={trashActive ?? false}
+          title="回收站"
+          style={{ "--tab-index": groups.length + 1 } as CSSProperties}
+          onClick={() => onShowTrash?.()}
+        >
+          <Archive size={15} />
+          <span className="group-tab__label">回收站</span>
+        </button>
       </nav>
 
       {editing && (
-        <div className="modal-scrim" onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) setEditing(null); }}>
-          <form className="group-editor" onSubmit={saveEditor}>
+        <div className="modal-scrim" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setEditing(null); } }} onClick={(event) => { event.stopPropagation(); if (event.target === event.currentTarget) setEditing(null); }}>
+          <form className="group-editor" role="dialog" aria-modal="true" aria-label="编辑分组" onClick={(event) => event.stopPropagation()} onSubmit={saveEditor}>
             <header><strong>编辑分组</strong><button type="button" className="btn-icon" onClick={() => setEditing(null)} aria-label="关闭分组编辑"><X size={15} /></button></header>
             <label><span>分组名称</span><input className="field" autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} /></label>
             <div className="settings-field"><label>标记颜色</label><div className="color-swatches">
